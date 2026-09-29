@@ -18,10 +18,9 @@ skills-lock.json
 .agents/
 tools/
 
-# Private/local screenshots and user-provided pet artwork
+# Private/local screenshots and local-only pet artwork
 _shots/
 screenshots-local/
-assets/pets/eous/
 assets/pets/kenney/
 lib/pets.local.js
 

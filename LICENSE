@@ -1,5 +1,7 @@
 MIT License
 
+Scope: this license applies to the software source code in this repository. It does not apply to the fan-art files in `assets/pets/eous/`; see that directory's separate LICENSE.txt. Third-party dependencies retain their own licenses.
+
 Copyright (c) 2026 Opal Desk
 
 Permission is hereby granted, free of charge, to any person obtaining a copy

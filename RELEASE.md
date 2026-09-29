@@ -2,8 +2,7 @@
 
 The GitHub Actions workflow at `.github/workflows/release.yml` builds Windows x64 assets when a version tag (`v*`) is pushed. It publishes an NSIS installer and a portable executable to a GitHub Release.
 
-伊埃斯 is the only companion. Its sprite sheet is not bundled by default. Before publishing a public binary, add an art pack and license that explicitly allow redistribution, then review the `files` allow-list in `package.json` to include only that authorized pack.
-The release workflow checks for both `spritesheet.webp` and `LICENSE.txt` and stops if either is missing. Because `.gitignore` and the packaging allow-list currently exclude the local pack, change both only after the license has been reviewed.
+伊埃斯 is the only companion. The repository and Windows packages include the project's fan-made recreation in `assets/pets/eous/` under its separate CC BY-NC-SA 4.0 license. The root MIT license covers source code only. The fan-art license allows non-commercial fan sharing of the creator's original contributions; the original character and related IP belong to miHoYo / HoYoverse and are not licensed by this project. Keep both `spritesheet.webp` and `LICENSE.txt` in every release.
 
 ## Publish a version
 
@@ -27,12 +26,12 @@ npm ci
 npm run dist:win
 ```
 
-Artifacts are written to `release/`. Local personal artwork, screenshots and configuration are excluded from the package.
+Artifacts are written to `release/`. Other local-only artwork, screenshots and application configuration are excluded from the package.
 
 ## Release safety
 
 - Never commit `.env`, `secrets.bin`, user settings, real calendar data, chat history, or local screenshots.
-- Personal pet artwork under `assets/pets/eous/` and `lib/pets.local.js` are excluded from source control and releases.
-- Local QA screenshots, installed skill files, and machine-specific helper scripts are excluded from source control and releases.
-- Public binaries must not include the local-only art under `assets/pets/eous/` until a redistribution license is provided and reviewed.
+- 伊埃斯 fan-art files are public under `assets/pets/eous/LICENSE.txt`; do not relicense them under MIT or imply that the underlying character/IP is project-owned.
+- `lib/pets.local.js`, other local-only art, screenshots, installed skill files, and machine-specific helper scripts are excluded from source control and releases.
+- The Windows package includes the 伊埃斯 fan-art pack with its non-commercial license notice. Do not use or distribute the art commercially.
 - Initial releases are unsigned; use the published SHA-256 sums to verify downloads.

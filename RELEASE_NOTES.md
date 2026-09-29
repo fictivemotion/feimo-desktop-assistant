@@ -11,4 +11,4 @@ First public source release of 斐墨 (Feimo), a lightweight Windows desktop com
 - Optional local reminders and read-only Notion calendar sync.
 - Windows x64 installer and portable package.
 
-The application keeps 伊埃斯 as its only desktop companion. Public binaries require a redistributable 伊埃斯 art pack and its license; personal/local artwork is not included by default.
+The application keeps 伊埃斯 as its only desktop companion. The fan-made 伊埃斯 artwork is included under its separate CC BY-NC-SA 4.0 license; the root MIT license applies to software source code only. The original character and related IP belong to miHoYo / HoYoverse.

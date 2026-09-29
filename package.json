@@ -37,7 +37,6 @@
       "assets/**/*",
       "package.json",
       "LICENSE",
-      "!assets/pets/eous/**",
       "!assets/pets/kenney/**",
       "!lib/pets.local.js"
     ],
