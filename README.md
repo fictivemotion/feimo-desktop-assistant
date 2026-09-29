@@ -47,7 +47,7 @@
 
 ## 下载与启动
 
-1. 在 [GitHub Releases](https://github.com/fictivemotion/feimo-desktop-assistant/releases) 发布首个版本后，下载 Windows x64 安装程序或便携版。
+1. 从 [GitHub Releases](https://github.com/fictivemotion/feimo-desktop-assistant/releases) 下载 Windows x64 安装程序或便携版。
 2. 安装后启动“斐墨”。托盘菜单可打开设置、管理提醒或退出应用。
 3. AI 服务和 Notion 日历是可选配置；不配置时，桌宠、文本清洗、本机 OCR、Agent 监控和本地用量仍可使用。
 

@@ -2,7 +2,7 @@
 
 The GitHub Actions workflow at `.github/workflows/release.yml` builds Windows x64 assets when a version tag (`v*`) is pushed. It publishes an NSIS installer and a portable executable to a GitHub Release.
 
-伊埃斯 is the only companion. The repository and Windows packages include the project's fan-made recreation in `assets/pets/eous/` under its separate CC BY-NC-SA 4.0 license. The root MIT license covers source code only. The fan-art license allows non-commercial fan sharing of the creator's original contributions; the original character and related IP belong to miHoYo / HoYoverse and are not licensed by this project. Keep both `spritesheet.webp` and `LICENSE.txt` in every release.
+伊埃斯 is the only character-based companion; Forest Flow and Iridescent Opal are shader-based orbs. The repository and Windows packages include the project's fan-made recreation in `assets/pets/eous/` under its separate CC BY-NC-SA 4.0 license. The root MIT license covers source code only. The fan-art license allows non-commercial fan sharing of the creator's original contributions; the original character and related IP belong to miHoYo / HoYoverse and are not licensed by this project. Keep both `spritesheet.webp` and `LICENSE.txt` in every release.
 
 ## Publish a version
 

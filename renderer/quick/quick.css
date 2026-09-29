@@ -96,11 +96,14 @@ button:focus-visible, input:focus-visible { outline: 2px solid #242e3b; outline-
 #schedule-form input { width: 100%; margin-bottom: 9px; }
 #schedule-form .primary { margin-top: 5px; }
 
-#timer-pill { position: absolute; z-index: 5; display: flex; align-items: center; gap: 5px; height: 38px; padding: 0 6px 0 11px; border-radius: 20px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+#timer-pill { position: absolute; z-index: 5; display: flex; align-items: center; gap: 5px; height: 38px; padding: 0 5px 0 11px; border-radius: 20px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 #pill-time { font-size: 15px; font-weight: 750; letter-spacing: .01em; }
 #pill-label { display: none; }
 #pill-pause { flex: none; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 50%; display: grid; place-items: center; color: #fff; background: #303c49; }
 #pill-pause svg { width: 16px; height: 16px; }
+#pill-close { align-self:flex-start; flex:none; width:16px; height:16px; padding:0; margin:3px -2px 0 0; border:0; border-radius:50%; display:grid; place-items:center; color:#657383; background:#e5edf3; transition:background .16s ease,color .16s ease; }
+#pill-close:hover { color:#24313d; background:#d6e2eb; }
+#pill-close svg { width:11px; height:11px; display:block; }
 
 #quick-toast { position: absolute; z-index: 6; max-width: 170px; padding: 8px 10px; border: 0; border-radius: 9px; background: rgba(255,248,248,.94); color: #884951; box-shadow: 0 5px 16px rgba(58,64,76,.1); font-size: 11px; }
 .tool,#quick-chat,#quick-send { box-shadow:none; }

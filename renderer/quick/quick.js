@@ -40,19 +40,19 @@
     requestAnimationFrame(() => {
       const rects = [];
       if (expanded) {
-        if (panel === 'none' && !chat.classList.contains('layout-hidden')) rects.push(...roundedShape(bounds(chat), 21, 0));
+        if (panel === 'none' && !chat.classList.contains('layout-hidden')) rects.push(...roundedShape(bounds(chat), 21, 3));
         if (panel === 'none') for (const button of tools.querySelectorAll('button')) {
           const target = bounds(button);
-          rects.push(...roundedShape(target, 17, 0));
+          rects.push(...roundedShape(target, 17, 3));
           // Include the travel path in Electron's shaped window while each tool flies out.
           if (toolsAnimating) {
             const left = Math.min(anchor.x - 8, target.x), top = Math.min(anchor.y - 8, target.y);
             rects.push({ x: left, y: top, width: Math.max(anchor.x + 8, target.x + target.width) - left, height: Math.max(anchor.y + 8, target.y + target.height) - top });
           }
         }
-        if (panel !== 'none') rects.push(...roundedShape(bounds(editor), 18, 0));
+        if (panel !== 'none') rects.push(...roundedShape(bounds(editor), 18, 3));
       }
-      if (focus.active && !pill.classList.contains('layout-hidden')) rects.push(...roundedShape(bounds(pill), 18, 0));
+      if (focus.active && !pill.classList.contains('layout-hidden')) rects.push(...roundedShape(bounds(pill), 18, 3));
       if (!$('quick-toast').classList.contains('hidden')) rects.push(...roundedShape(bounds($('quick-toast')), 12, 3));
       api.shape(rects);
     });
@@ -216,6 +216,10 @@
   });
   $('pill-pause').addEventListener('click', async () => {
     if (focus.active?.status === 'paused') await api.focusResume(); else await api.focusPause();
+  });
+  $('pill-close').addEventListener('click', async () => {
+    try { await api.focusStop(); }
+    catch (error) { showError(error.message); }
   });
   const defaultScheduleTime = () => { const d = new Date(Date.now() + 3600000); d.setMinutes(0, 0, 0); $('schedule-time').value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
   defaultScheduleTime();

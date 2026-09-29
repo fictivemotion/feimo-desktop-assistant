@@ -230,9 +230,9 @@
 
   function drawPeek(ts) {
     const W = canvas.width, H = canvas.height;
-    const sourceWidth = Math.round(peekImg.naturalWidth * .33);
-    const sourceHeight = Math.round(peekImg.naturalHeight * .91);
-    const height = H * .94;
+    const sourceWidth = Math.round(peekImg.naturalWidth * .55);
+    const sourceHeight = Math.round(peekImg.naturalHeight * .82);
+    const height = H * .98;
     const width = height * sourceWidth / sourceHeight;
     const y = (H - height) / 2 + Math.sin(ts * .0025) * H * .006;
     ctx.clearRect(0, 0, W, H);
