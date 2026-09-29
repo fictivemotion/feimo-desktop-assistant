@@ -10,17 +10,15 @@ button, input { font: inherit; }
 button { cursor: pointer; }
 button:focus-visible, input:focus-visible { outline: 2px solid #242e3b; outline-offset: 2px; }
 .hidden { display: none !important; }
+.layout-hidden { visibility: hidden !important; pointer-events: none !important; }
 
 /* The window itself remains fully transparent. Only these shaped controls paint. */
 .tool, #quick-chat, #editor, #timer-pill {
   border: 0;
-  background:
-    radial-gradient(90% 75% at var(--light-x, 26%) var(--light-y, 0%), rgba(255,255,255,.9), transparent 72%),
-    linear-gradient(153deg, rgba(255,255,255,.72), rgba(242,247,251,.46) 57%, rgba(220,233,243,.42));
-  box-shadow: var(--glass-shadow), inset 0 2px 1px rgba(255,255,255,.95), inset 0 -2px 4px rgba(108,142,165,.11);
-  backdrop-filter: blur(28px) saturate(165%);
-  -webkit-backdrop-filter: blur(28px) saturate(165%);
-  transition: background-position .25s ease, box-shadow .25s ease;
+  background: linear-gradient(155deg, rgba(255,255,255,.99), rgba(236,243,250,.99));
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 #tools { position: absolute; inset: 0; z-index: 3; pointer-events: none; background: transparent; border: 0; box-shadow: none; }
@@ -62,9 +60,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid #242e3b; outline-
 #editor {
   position: absolute; z-index: 4; width: 220px; max-height: 314px; overflow: auto;
   padding: 16px; border-radius: 21px; line-height: 1.45;
-  background:
-    radial-gradient(90% 65% at var(--light-x, 25%) var(--light-y, 0%), rgba(255,255,255,.98), transparent 76%),
-    linear-gradient(156deg, rgba(255,255,255,.88), rgba(244,248,252,.75) 60%, rgba(230,239,246,.72));
+  background: linear-gradient(155deg, rgba(255,255,255,.99), rgba(236,243,250,.99));
   animation: editorAppear .31s cubic-bezier(.17,.85,.2,1) both;
   scrollbar-width: thin; scrollbar-color: rgba(111,129,144,.28) transparent;
 }

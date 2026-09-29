@@ -3,14 +3,31 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { placeSpeech, intersects } = require('../lib/overlay-layout');
 
-test('speech moves above the quick toolbar when there is room', () => {
+test('speech uses a nearby side when the toolbar blocks its usual top position', () => {
   const pet = { x: 320, y: 200, width: 90, height: 95 };
   const bubble = { width: 155, height: 60 };
   const area = { x: 0, y: 0, width: 700, height: 450 };
   const tool = { x: 280, y: 120, width: 120, height: 65 };
   const result = placeSpeech(pet, bubble, area, [tool]);
-  assert.equal(result.placement.side, 'top');
+  assert.equal(result.placement.side, 'right');
   assert.equal(intersects(result.bounds, tool, 4), false);
+});
+
+test('bottom-left speech stays beside the pet while timer, tools and chat occupy the top', () => {
+  const pet = { x: 11, y: 270, width: 68, height: 96 };
+  const bubble = { width: 180, height: 50 };
+  const area = { x: 0, y: 0, width: 520, height: 370 };
+  const controls = [
+    { x: 6, y: 158, width: 106, height: 38 },
+    { x: 91, y: 205, width: 132, height: 42 },
+    { x: 41, y: 233, width: 34, height: 34 },
+    { x: 83, y: 257, width: 34, height: 34 },
+    { x: 100, y: 303, width: 34, height: 34 },
+  ];
+  const result = placeSpeech(pet, bubble, area, controls, 12);
+  assert.equal(result.placement.side, 'right');
+  assert(result.bounds.x < 200);
+  assert(controls.every(control => !intersects(result.bounds, control, 4)));
 });
 
 test('top speech clamps horizontally at the screen edge', () => {

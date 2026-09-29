@@ -293,7 +293,7 @@ function bootstrap() {
     const p = petWin.getBounds();
     const b = speechLayout;
     const wa = screen.getDisplayMatching(p).workArea;
-    const gap = focus.active ? 65 : quickExpanded ? 42 : 8;
+    const gap = focus.active || quickExpanded ? 12 : 8;
     const quickBounds = quickWin?.isVisible() ? quickWin.getBounds() : null;
     const obstacles = quickBounds ? quickShapeRects.map(r => ({ x: quickBounds.x + r.x, y: quickBounds.y + r.y, width: r.width, height: r.height })) : [];
     if (workbarWin?.isVisible()) obstacles.push(workbarWin.getBounds());
