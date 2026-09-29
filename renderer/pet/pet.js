@@ -321,6 +321,7 @@
     if (dragging) { if (passthrough) { api.setPassthrough(false); passthrough = false; } return; }
     const opaque = isOpaqueAt(x, y);
     if (opaque && !wasOpaque && !dragging) api.hovered();
+    if (!opaque && wasOpaque && !dragging) api.left();
     wasOpaque = opaque;
     const want = !opaque; // 透明区域 → 穿透
     if (want !== passthrough) { api.setPassthrough(want); passthrough = want; }

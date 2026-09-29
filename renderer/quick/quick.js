@@ -60,11 +60,16 @@
     const sign = side === 'left' ? -1 : 1;
     const petHalf = Math.max(26, Math.min(55, Math.round((anchor.petWidth || 72) * .42)));
     const petHalfHeight = Math.max(30, (anchor.petHeight || 97) / 2);
-    const outerReach = petHalf + 39, middleReach = petHalf + 57;
-    const locations = [[outerReach, -petHalf - 57], [middleReach, -petHalf - 25], [outerReach + 2, -petHalf + 7]];
+    // Three points on one circle whose centre is the pet, matching the visual arc.
+    const radius = petHalf + 46;
+    const angles = [-125, -165, 155];
+    const locations = angles.map(degrees => {
+      const radians = degrees * Math.PI / 180;
+      return [-Math.cos(radians) * radius, Math.sin(radians) * radius];
+    });
     const chatHeight = 42, maxChatTop = innerHeight - chatHeight - 6;
     let arcShift = Math.max(0, 6 - (y + locations[0][1] - toolSize / 2));
-    let chatTop = y + petHalfHeight + 3;
+    let chatTop = y + petHalfHeight + 15;
     const arcBottom = () => y + locations[2][1] + toolSize / 2 + arcShift;
     if (chatTop > maxChatTop) {
       chatTop = Math.max(6, y - petHalfHeight - chatHeight - 7);
@@ -81,7 +86,7 @@
       button.style.setProperty('--origin-y', `${y - centerY}px`);
       button.style.setProperty('--overshoot-x', `${sign * 3}px`);
     });
-    const span = middleReach + toolSize / 2 + petHalf;
+    const span = Math.round(radius + toolSize / 2 + petHalf);
     const chatLeft = Math.max(6, Math.min(innerWidth - span - 6, x - span / 2));
     chat.style.width = `${span}px`;
     chat.style.left = `${chatLeft}px`;

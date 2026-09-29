@@ -126,6 +126,7 @@ function bootstrap() {
   let quickLeaveTimer = null;
   let quickPanel = 'none';
   let quickExpanded = false;
+  let petHovered = false;
   let pendingQuickAnchor = null;
   const QUICK_WIDTH = 520, QUICK_HEIGHT = 370;
   let quickShapeRects = [];
@@ -264,15 +265,27 @@ function bootstrap() {
     petWin.moveTop();
     quickExpanded = true;
     quickWin.webContents.send('quick:expanded', true);
+    hideQuickSoon();
+  }
+  function cursorOnQuickControl() {
+    if (!quickWin?.isVisible()) return false;
+    const cursor = screen.getCursorScreenPoint();
+    const win = quickWin.getBounds();
+    return quickShapeRects.some(r => cursor.x >= win.x + r.x && cursor.x < win.x + r.x + r.width && cursor.y >= win.y + r.y && cursor.y < win.y + r.y + r.height);
   }
   function hideQuickSoon() {
     if (quickLeaveTimer) clearTimeout(quickLeaveTimer);
     quickLeaveTimer = setTimeout(() => {
-      if (quickPanel !== 'none') return;
+      quickLeaveTimer = null;
+      const cursor = screen.getCursorScreenPoint();
+      const pet = petWin?.getBounds();
+      if (petHovered && pet && (cursor.x < pet.x || cursor.x >= pet.x + pet.width || cursor.y < pet.y || cursor.y >= pet.y + pet.height)) petHovered = false;
+      if (petHovered || cursorOnQuickControl()) { hideQuickSoon(); return; }
+      quickPanel = 'none';
       quickExpanded = false;
       quickWin?.webContents.send('quick:expanded', false);
       if (!focus.active) quickWin?.hide();
-    }, 260);
+    }, 380);
   }
 
   function positionSpeech() {
@@ -280,7 +293,7 @@ function bootstrap() {
     const p = petWin.getBounds();
     const b = speechLayout;
     const wa = screen.getDisplayMatching(p).workArea;
-    const gap = focus.active ? 65 : 8;
+    const gap = focus.active ? 65 : quickExpanded ? 42 : 8;
     const quickBounds = quickWin?.isVisible() ? quickWin.getBounds() : null;
     const obstacles = quickBounds ? quickShapeRects.map(r => ({ x: quickBounds.x + r.x, y: quickBounds.y + r.y, width: r.width, height: r.height })) : [];
     if (workbarWin?.isVisible()) obstacles.push(workbarWin.getBounds());
@@ -338,7 +351,7 @@ function bootstrap() {
     if (!petWin) createPetWindow();
     revealDock();
     speechWin?.hide();
-    quickPanel = 'none'; quickExpanded = false; quickWin?.hide();
+    petHovered = false; quickPanel = 'none'; quickExpanded = false; quickWin?.hide();
     positionWorkbar();
     workbarWin.show();
     workbarWin.focus();
@@ -763,22 +776,24 @@ function bootstrap() {
     else showWorkbar();
   });
   ipc.on('pet:hover', () => {
+    petHovered = true;
     revealDock();
     showQuick();
     if (settings.get('ui', {}).companionSpeech === false || workbarWin?.isVisible()) return;
     const now = Date.now();
-    if (now - lastHoverSpeech < 45000) return;
+    if (now - lastHoverSpeech < 1000) return;
     lastHoverSpeech = now;
     speak(pickLine('hover'), { priority: -1 });
   });
   ipc.on('pet:leave', () => {
+    petHovered = false;
     if (speechFromHover) { speechWin?.hide(); speechFromHover = false; speechUntil = 0; speechPriority = -1; }
     scheduleDockHide();
     hideQuickSoon();
   });
 
-  ipc.on('quick:enter', () => { if (quickLeaveTimer) clearTimeout(quickLeaveTimer); revealDock(); if (!quickExpanded) { quickExpanded = true; quickWin?.webContents.send('quick:expanded', true); } });
-  ipc.on('quick:leave', () => { quickPanel = 'none'; hideQuickSoon(); scheduleDockHide(); });
+  ipc.on('quick:enter', () => { if (cursorOnQuickControl()) { revealDock(); hideQuickSoon(); } });
+  ipc.on('quick:leave', () => { hideQuickSoon(); scheduleDockHide(); });
   ipc.on('quick:panel', (_e, name) => { quickPanel = ['timer', 'schedule'].includes(name) ? name : 'none'; });
   ipc.on('quick:shape', (_e, rects) => {
     if (!quickWin || !Array.isArray(rects)) return;
