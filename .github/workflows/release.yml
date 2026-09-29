@@ -44,7 +44,7 @@ jobs:
           }
 
       - name: Package installer and portable app
-        run: npm run dist:win
+        run: npm run dist:win -- --publish never
 
       - name: Generate SHA-256 checksums
         shell: pwsh
