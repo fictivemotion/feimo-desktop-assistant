@@ -6,7 +6,7 @@
 
 悬浮桌宠 · 剪贴板速清 · 本地 OCR · Coding 会话提醒 · Token 用量 · Notion 日程
 
-[下载 Windows 版本](https://github.com/fictivemotion/feimo-desktop-assistant/releases/latest) · [功能介绍](#功能一览) · [隐私说明](docs/PRIVACY.md) · [发布记录](RELEASE_NOTES.md)
+[Windows 发布页](https://github.com/fictivemotion/feimo-desktop-assistant/releases) · [功能介绍](#功能一览) · [隐私说明](docs/PRIVACY.md) · [发布记录](RELEASE_NOTES.md)
 
 </div>
 
@@ -45,7 +45,7 @@
 
 ## 下载与启动
 
-1. 从 [GitHub Releases](https://github.com/fictivemotion/feimo-desktop-assistant/releases/latest) 下载 Windows x64 安装程序，或选择便携版。
+1. 在 [GitHub Releases](https://github.com/fictivemotion/feimo-desktop-assistant/releases) 发布首个版本后，下载 Windows x64 安装程序或便携版。
 2. 安装后启动“斐墨”。托盘菜单可打开设置、管理提醒或退出应用。
 3. AI 服务和 Notion 日历是可选配置；不配置时，桌宠、文本清洗、本机 OCR、Agent 监控和本地用量仍可使用。
 
