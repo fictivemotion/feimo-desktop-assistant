@@ -2,7 +2,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:" />
 <link rel="stylesheet" href="quick.css" /><title>斐墨快捷工具</title></head>
 <body>
-  <div id="tools" aria-label="快捷工具">
+  <div id="tools" class="hidden" aria-label="快捷工具">
     <button class="tool" id="tool-schedule" title="新建日程" aria-label="新建日程"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 10h18m9 5h4m-2-2v4"/></svg></button>
     <button class="tool" id="tool-timer" title="倒计时 / 番茄钟" aria-label="倒计时 / 番茄钟"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 13V8m0 5 3 2M9 2h6m5 4 2-2"/></svg></button>
     <button class="tool" id="tool-workbar" title="打开工作栏" aria-label="打开工作栏"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M8 4v16m4-11h5m-5 4h5"/></svg></button>
@@ -23,7 +23,7 @@
       <button id="save-schedule" class="primary">记下日程</button>
     </div>
   </section>
-  <form id="quick-chat"><input id="quick-input" maxlength="1000" autocomplete="off" placeholder="问斐墨点什么…" aria-label="快捷提问"/><button id="quick-send" type="submit" title="发送" aria-label="发送"><svg viewBox="0 0 24 24"><path d="m4 12 16-8-4 16-4-6-8-2Zm8 2 8-10"/></svg></button></form>
+  <form id="quick-chat" class="hidden"><input id="quick-input" maxlength="1000" autocomplete="off" placeholder="问斐墨…" aria-label="快捷提问"/><button id="quick-send" type="submit" title="发送" aria-label="发送"><svg viewBox="0 0 24 24"><path d="m4 12 16-8-4 16-4-6-8-2Zm8 2 8-10"/></svg></button></form>
   <div id="quick-toast" class="hidden" role="alert"></div>
   <script src="quick.js"></script>
 </body></html>

@@ -18,3 +18,44 @@
 #pill-pause{background:#e4f3f1;color:#298f85}
 #editor{max-height:300px;padding:11px 14px}.editor-head{margin-bottom:8px}.duration{margin:6px 0}.duration input{font-size:43px}.field-label{margin:4px 0}.add-label{margin:6px 0}
 #quick-toast{position:absolute;left:75px;bottom:62px;max-width:270px;padding:8px 12px;border-radius:10px;background:rgba(255,244,244,.98);color:#a24d5b;border:1px solid rgba(213,139,149,.45);box-shadow:0 6px 18px rgba(54,60,77,.15);font-size:11px}
+
+/* The hover controls are one compact glass cluster around the companion. */
+#tools{z-index:3}
+.tool{
+  width:34px;height:34px;border:0;border-radius:50%;
+  color:#40647e;
+  background:radial-gradient(circle at 28% 18%,rgba(255,255,255,.96),transparent 53%),linear-gradient(155deg,rgba(249,253,255,.82),rgba(210,233,245,.55));
+  box-shadow:0 9px 21px rgba(43,77,111,.21),0 2px 6px rgba(70,106,136,.1),inset 0 2px 5px rgba(255,255,255,.75),inset 0 -5px 9px rgba(125,179,205,.14);
+  backdrop-filter:blur(22px) saturate(165%);-webkit-backdrop-filter:blur(22px) saturate(165%);
+  animation:glassToolOut .48s cubic-bezier(.2,.85,.2,1) both;
+}
+.tool:nth-child(2){animation-delay:.08s}.tool:nth-child(3){animation-delay:.16s}
+.tool svg{width:18px;height:18px;filter:drop-shadow(0 1px 0 rgba(255,255,255,.65))}
+.tool:hover{
+  color:#187f82;
+  background:radial-gradient(circle at 25% 16%,rgba(255,255,255,1),transparent 53%),linear-gradient(145deg,rgba(249,255,255,.93),rgba(186,237,232,.7));
+  box-shadow:0 12px 23px rgba(37,83,110,.25),inset 0 2px 5px rgba(255,255,255,.85),inset 0 -5px 9px rgba(100,195,188,.18);
+}
+@keyframes glassToolOut{
+  0%{opacity:0;transform:translate(var(--origin-x),var(--origin-y)) scale(.24);filter:blur(3px)}
+  64%{opacity:1;transform:translate(var(--overshoot-x),-2px) scale(1.09);filter:blur(0)}
+  82%{transform:translate(0,1px) scale(.96)}
+  100%{opacity:1;transform:translate(0,0) scale(1);filter:blur(0)}
+}
+#quick-chat{
+  z-index:2;height:42px;width:140px;gap:4px;padding:4px 4px 4px 11px;border:0;border-radius:23px;
+  background:radial-gradient(ellipse at 20% -10%,rgba(255,255,255,.98),transparent 65%),linear-gradient(160deg,rgba(251,254,255,.85),rgba(218,238,249,.66));
+  box-shadow:0 12px 27px rgba(43,75,105,.24),0 3px 8px rgba(73,104,135,.1),inset 0 2px 6px rgba(255,255,255,.79),inset 0 -5px 12px rgba(138,184,208,.12);
+  backdrop-filter:blur(26px) saturate(175%);-webkit-backdrop-filter:blur(26px) saturate(175%);
+  animation:glassChatIn .28s cubic-bezier(.2,.85,.2,1) .12s both;
+}
+#quick-input{font-size:12px;letter-spacing:0;color:#304b63}
+#quick-input::placeholder{color:#708ba1}
+#quick-send{
+  flex:none;width:34px;height:34px;border:0;
+  background:radial-gradient(circle at 28% 18%,rgba(255,255,255,.56),transparent 55%),linear-gradient(145deg,rgba(124,220,210,.82),rgba(81,181,182,.78));
+  box-shadow:inset 0 2px 4px rgba(255,255,255,.45),0 3px 8px rgba(50,131,135,.18);
+}
+#quick-send svg{width:17px;height:17px}
+@keyframes glassChatIn{from{opacity:0;transform:translateY(8px) scale(.92)}to{opacity:1;transform:translateY(0) scale(1)}}
+#editor{z-index:4}#timer-pill{z-index:5}#quick-toast{z-index:6}

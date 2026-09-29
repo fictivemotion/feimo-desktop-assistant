@@ -227,7 +227,10 @@ function bootstrap() {
     });
     quickWin.setAlwaysOnTop(true, 'screen-saver');
     quickWin.webContents.on('did-fail-load', (_e, code, description, url) => console.error('[quick] load failed', code, description, url));
-    quickWin.webContents.on('did-finish-load', () => { if (pendingQuickAnchor) { quickWin?.webContents.send('quick:anchor', pendingQuickAnchor); pendingQuickAnchor = null; } });
+    quickWin.webContents.on('did-finish-load', () => {
+      if (pendingQuickAnchor) { quickWin?.webContents.send('quick:anchor', pendingQuickAnchor); pendingQuickAnchor = null; }
+      quickWin?.webContents.send('quick:expanded', quickExpanded);
+    });
     quickWin.loadFile(path.join(__dirname, 'renderer', 'quick', 'quick.html')).catch((e) => console.error('[quick] loadFile', e));
     quickWin.webContents.on('will-navigate', (e) => e.preventDefault());
     quickWin.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -242,7 +245,7 @@ function bootstrap() {
     const y = Math.round(Math.max(wa.y, Math.min(p.y + p.height / 2 - 212, wa.y + wa.height - h)));
     quickWin.setBounds({ x, y, width: w, height: h }, false);
     const anchor = {
-      x: p.x + p.width / 2 - x, y: p.y + p.height / 2 - y,
+      x: p.x + p.width / 2 - x, y: p.y + p.height / 2 - y, petWidth: p.width,
       side: p.x + p.width / 2 - x < 145 ? 'right' : 'left',
     };
     if (quickWin.webContents.isLoading()) pendingQuickAnchor = anchor;
@@ -254,6 +257,8 @@ function bootstrap() {
     if (!quickWin) createQuickWindow();
     positionQuick();
     quickWin.showInactive();
+    // The tool launch path crosses the pet; keep the pet above it so clicks still land on the companion.
+    petWin.moveTop();
     quickExpanded = true;
     quickWin.webContents.send('quick:expanded', true);
   }
@@ -262,8 +267,8 @@ function bootstrap() {
     quickLeaveTimer = setTimeout(() => {
       if (quickPanel !== 'none') return;
       quickExpanded = false;
-      if (focus.active) quickWin?.webContents.send('quick:expanded', false);
-      else quickWin?.hide();
+      quickWin?.webContents.send('quick:expanded', false);
+      if (!focus.active) quickWin?.hide();
     }, 260);
   }
 
