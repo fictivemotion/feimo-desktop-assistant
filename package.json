@@ -35,6 +35,7 @@
       "renderer/**/*",
       "lib/**/*",
       "assets/**/*",
+      "assets/pets/eous/**",
       "package.json",
       "LICENSE",
       "!assets/pets/kenney/**",
@@ -68,3 +69,4 @@
     }
   }
 }
+
