@@ -33,7 +33,7 @@
     }
     if ((e.ctrlKey || e.metaKey) && e.key === 'Tab') {
       e.preventDefault();
-      const order = ['chat', 'process', 'agents', 'usage', 'schedule'];
+      const order = ['chat', 'process', 'agents', 'usage', 'schedule', 'focus'];
       switchTab(order[(order.indexOf(active) + 1) % order.length]);
     }
   });
@@ -112,6 +112,22 @@
     stateChip.textContent = s.detail || stateText[s.state] || s.state;
     stateChip.className = 'chip ' + s.state;
   });
+  const brandAvatar = $('#brand-avatar');
+  function setBrandAvatar(style) {
+    brandAvatar.replaceChildren();
+    if (style === 'forest-flow' || style === 'iridescent-opal') {
+      const frame = document.createElement('iframe');
+      frame.src = `../../assets/orb/${style}.html`;
+      frame.title = style; frame.tabIndex = -1;
+      brandAvatar.appendChild(frame);
+    } else {
+      const image = document.createElement('img');
+      image.src = '../../assets/pets/eous/preview.png'; image.alt = '伊埃斯';
+      brandAvatar.appendChild(image);
+    }
+  }
+  api.getSettings().then((settings) => setBrandAvatar(settings.pet?.style));
+  api.onPetConfig((config) => setBrandAvatar(config.style));
   function refreshNextEvent() {
     api.calendarView().then((v) => {
       const now = Date.now();

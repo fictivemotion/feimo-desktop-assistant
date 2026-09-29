@@ -9,6 +9,7 @@
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   const tooltip = document.getElementById('tooltip');
   const cssPet = document.getElementById('pet-css');
+  const orbFrame = document.getElementById('orb-frame');
 
   let config = { style: 'eous', size: 72 };
   let manifest = null;   // 当前宠物清单（sprite 型）
@@ -62,6 +63,12 @@
     body.dataset.pet = m.id;
     body.dataset.petType = m.type;
     manifest = m.type === 'sprite' ? m : null;
+    if (m.type === 'orb') {
+      const src = '../../' + m.orb;
+      if (orbFrame.getAttribute('src') !== src) orbFrame.src = src;
+      orbFrame.addEventListener('load', () => updateOrbState(), { once: true });
+      updateOrbState();
+    }
     if (manifest && !spriteImg) {
       spriteImg = new Image();
       spriteImg.src = '../../' + manifest.sheet;
@@ -84,6 +91,7 @@
   function onState(s) {
     if (s.state !== state) {
       state = s.state;
+      updateOrbState();
       body.dataset.state = state;
       frameIdx = 0;
       if (state !== 'idle') {
@@ -97,6 +105,10 @@
     } else if (state === 'idle') {
       hideTooltipLater();
     }
+  }
+  function updateOrbState() {
+    const mapped = ({ processing: 'thinking', agentWorking: 'agentWorking', attention: 'attention', completed: 'completed', failed: 'failed', listening: 'listening' })[state] || 'idle';
+    orbFrame.contentWindow?.postMessage({ type: 'feimo:orb-state', state: mapped }, '*');
   }
   function detailText() {
     return stateDetail || ({ processing: '处理中…', agentWorking: 'Agent 工作中', attention: '需要你的注意' }[state] || '');
@@ -280,6 +292,10 @@
   // ---------- 命中测试（透明区域穿透） ----------
   let pointerPos = null;
   function isOpaqueAt(x, y) {
+    if (body.dataset.petType === 'orb') {
+      const cx = body.clientWidth / 2, cy = body.clientHeight / 2;
+      return Math.hypot((x - cx) / (body.clientWidth * .43), (y - cy) / (body.clientHeight * .43)) < 1;
+    }
     if (manifest && spriteDrawRect && spriteImg?.complete) {
       const r = spriteDrawRect;
       if (x < r.x || y < r.y || x > r.x + r.w || y > r.y + r.h) return false;

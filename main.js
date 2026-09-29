@@ -18,6 +18,7 @@ const { LlmGateway } = require('./lib/llm');
 const { AgentRegistry } = require('./lib/connectors/registry');
 const { UsageStore } = require('./lib/usage/facts');
 const { CalendarStore } = require('./lib/calendar/store');
+const { FocusTimer } = require('./lib/focus-timer');
 const { NotionCalendarConnector } = require('./lib/calendar/notion');
 const { layoutSpeech } = require('./lib/speech-layout');
 const { speechShape } = require('./lib/speech-shape');
@@ -26,7 +27,7 @@ const { ReminderScheduler } = require('./lib/calendar/scheduler');
 const { pickLine, noticeLine } = require('./lib/companion');
 
 // Keep the existing Windows data folder stable across the product-name change to 斐墨.
-app.setPath('userData', path.join(app.getPath('appData'), '桌面宠物助手'));
+app.setPath('userData', process.env.FEIMO_USER_DATA_DIR || path.join(app.getPath('appData'), '桌面宠物助手'));
 
 // ---------- 单实例 ----------
 const gotLock = app.requestSingleInstanceLock();
@@ -98,6 +99,7 @@ function bootstrap() {
   const llm = new LlmGateway({ getSecret, settings });
   const usage = new UsageStore(paths.usageFactsFile());
   const calendar = new CalendarStore(paths.remindersFile());
+  const focus = new FocusTimer(paths.focusFile());
   const notion = new NotionCalendarConnector({ getSecret, settings });
   const registry = new AgentRegistry({ bus, enabledSources: settings.get('agents', {}).sources });
 
@@ -106,6 +108,7 @@ function bootstrap() {
   let flashUntil = 0;           // 完成/失败闪烁窗口
   let flashKind = null;
   const chatAbort = { controller: null };
+  let quickReplyTimers = [];
   let chatHistory = [];
   try {
     if (settings.get('privacy', {}).saveChatHistory) {
@@ -118,7 +121,13 @@ function bootstrap() {
   };
 
   // ---------- 窗口 ----------
-  let petWin = null, workbarWin = null, speechWin = null, tray = null;
+  let petWin = null, workbarWin = null, speechWin = null, quickWin = null, tray = null;
+  let quickLeaveTimer = null;
+  let quickPanel = 'none';
+  let quickExpanded = false;
+  let pendingQuickAnchor = null;
+  let pendingSpeech = null;
+  let pendingDock = null;
   let petDockSide = settings.get('pet', {}).dockSide || null;
   let petDockHidden = false;
   let petDockTimer = null;
@@ -155,7 +164,9 @@ function bootstrap() {
       },
     });
     petWin.setAlwaysOnTop(true, 'screen-saver');
-    petWin.loadFile(path.join(__dirname, 'renderer', 'pet', 'pet.html'));
+    petWin.webContents.on('did-fail-load', (_e, code, description, url) => console.error('[pet] load failed', code, description, url));
+    petWin.webContents.on('did-finish-load', () => { if (pendingDock) { petWin?.webContents.send('pet:dock', pendingDock); pendingDock = null; } });
+    petWin.loadFile(path.join(__dirname, 'renderer', 'pet', 'pet.html')).catch((e) => console.error('[pet] loadFile', e));
     petWin.on('closed', () => { petWin = null; });
   }
 
@@ -171,7 +182,8 @@ function bootstrap() {
       },
     });
     workbarWin.setVisibleOnAllWorkspaces(false);
-    workbarWin.loadFile(path.join(__dirname, 'renderer', 'workbar', 'workbar.html'));
+    workbarWin.webContents.on('did-fail-load', (_e, code, description, url) => console.error('[workbar] load failed', code, description, url));
+    workbarWin.loadFile(path.join(__dirname, 'renderer', 'workbar', 'workbar.html')).catch((e) => console.error('[workbar] loadFile', e));
     workbarWin.on('closed', () => { workbarWin = null; });
     // 安全：禁止任意导航与新窗口（§7）
     for (const win of [petWin, workbarWin]) {
@@ -192,10 +204,67 @@ function bootstrap() {
       },
     });
     speechWin.setIgnoreMouseEvents(true, { forward: true });
-    speechWin.loadFile(path.join(__dirname, 'renderer', 'speech', 'speech.html'));
+    speechWin.webContents.on('did-fail-load', (_e, code, description, url) => console.error('[speech] load failed', code, description, url));
+    speechWin.webContents.on('did-finish-load', () => {
+      if (pendingSpeech) {
+        speechWin?.webContents.send('speech:placement', pendingSpeech.placement);
+        speechWin?.webContents.send('speech:message', pendingSpeech.text);
+        pendingSpeech = null;
+      }
+    });
+    speechWin.loadFile(path.join(__dirname, 'renderer', 'speech', 'speech.html')).catch((e) => console.error('[speech] loadFile', e));
     speechWin.webContents.on('will-navigate', (e) => e.preventDefault());
     speechWin.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     speechWin.on('closed', () => { speechWin = null; });
+  }
+
+  function createQuickWindow() {
+    quickWin = new BrowserWindow({
+      width: 420, height: 370, show: false, frame: false, transparent: true,
+      resizable: false, focusable: true, skipTaskbar: true, hasShadow: false,
+      alwaysOnTop: true, backgroundColor: '#00000000',
+      webPreferences: { preload: path.join(__dirname, 'preload', 'quick-preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: false },
+    });
+    quickWin.setAlwaysOnTop(true, 'screen-saver');
+    quickWin.webContents.on('did-fail-load', (_e, code, description, url) => console.error('[quick] load failed', code, description, url));
+    quickWin.webContents.on('did-finish-load', () => { if (pendingQuickAnchor) { quickWin?.webContents.send('quick:anchor', pendingQuickAnchor); pendingQuickAnchor = null; } });
+    quickWin.loadFile(path.join(__dirname, 'renderer', 'quick', 'quick.html')).catch((e) => console.error('[quick] loadFile', e));
+    quickWin.webContents.on('will-navigate', (e) => e.preventDefault());
+    quickWin.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    quickWin.on('closed', () => { quickWin = null; });
+  }
+
+  function positionQuick() {
+    if (!quickWin || !petWin) return;
+    const p = petWin.getBounds(), wa = screen.getDisplayMatching(p).workArea;
+    const w = 420, h = 370;
+    const x = Math.round(Math.max(wa.x, Math.min(p.x + p.width / 2 - 290, wa.x + wa.width - w)));
+    const y = Math.round(Math.max(wa.y, Math.min(p.y + p.height / 2 - 212, wa.y + wa.height - h)));
+    quickWin.setBounds({ x, y, width: w, height: h }, false);
+    const anchor = {
+      x: p.x + p.width / 2 - x, y: p.y + p.height / 2 - y,
+      side: p.x + p.width / 2 - x < 145 ? 'right' : 'left',
+    };
+    if (quickWin.webContents.isLoading()) pendingQuickAnchor = anchor;
+    else quickWin.webContents.send('quick:anchor', anchor);
+  }
+  function showQuick() {
+    if (workbarWin?.isVisible() || !petWin?.isVisible()) return;
+    if (quickLeaveTimer) clearTimeout(quickLeaveTimer);
+    if (!quickWin) createQuickWindow();
+    positionQuick();
+    quickWin.showInactive();
+    quickExpanded = true;
+    quickWin.webContents.send('quick:expanded', true);
+  }
+  function hideQuickSoon() {
+    if (quickLeaveTimer) clearTimeout(quickLeaveTimer);
+    quickLeaveTimer = setTimeout(() => {
+      if (quickPanel !== 'none') return;
+      quickExpanded = false;
+      if (focus.active) quickWin?.webContents.send('quick:expanded', false);
+      else quickWin?.hide();
+    }, 260);
   }
 
   function positionSpeech() {
@@ -203,7 +272,7 @@ function bootstrap() {
     const p = petWin.getBounds();
     const b = speechLayout;
     const wa = screen.getDisplayMatching(p).workArea;
-    const gap = 8;
+    const gap = focus.active ? 65 : 8;
     const spaceTop = p.y - wa.y;
     const spaceRight = wa.x + wa.width - (p.x + p.width);
     const spaceLeft = p.x - wa.x;
@@ -254,7 +323,7 @@ function bootstrap() {
       speechWin?.webContents.send('speech:placement', placement);
       speechWin?.webContents.send('speech:message', layout.text);
     };
-    if (speechWin.webContents.isLoading()) speechWin.webContents.once('did-finish-load', send);
+    if (speechWin.webContents.isLoading()) pendingSpeech = { placement, text: layout.text };
     else send();
     speechWin.showInactive();
     speechTimer = setTimeout(() => { speechWin?.hide(); speechPriority = -1; speechUntil = 0; }, duration);
@@ -279,13 +348,19 @@ function bootstrap() {
     if (!petWin) createPetWindow();
     revealDock();
     speechWin?.hide();
+    quickPanel = 'none'; quickExpanded = false; quickWin?.hide();
     positionWorkbar();
     workbarWin.show();
     workbarWin.focus();
     if (tab) workbarWin.webContents.send('workbar:navigate', tab);
   }
 
-  function hideWorkbar() { workbarWin?.hide(); scheduleDockHide(); }
+  function hideWorkbar() {
+    workbarWin?.hide(); scheduleDockHide();
+    if (focus.active && petWin?.isVisible()) {
+      positionQuick(); quickWin?.showInactive(); quickExpanded = false; quickWin?.webContents.send('quick:expanded', false);
+    }
+  }
 
   function placeDock(hidden) {
     if (!petWin || !petDockSide) return;
@@ -298,11 +373,12 @@ function bootstrap() {
       width: Math.round(size * 1.3), height: Math.round(size * 1.35),
     }, false);
     petDockHidden = hidden;
-    const sendDock = () => petWin?.webContents.send('pet:dock', { side: petDockSide, hidden });
-    if (petWin.webContents.isLoading()) petWin.webContents.once('did-finish-load', sendDock);
-    else sendDock();
+    const dock = { side: petDockSide, hidden };
+    if (petWin.webContents.isLoading()) pendingDock = dock;
+    else petWin.webContents.send('pet:dock', dock);
     if (hidden) petWin.setIgnoreMouseEvents(false);
     if (speechWin?.isVisible()) positionSpeech();
+    if (quickWin?.isVisible()) positionQuick();
   }
 
   function revealDock() {
@@ -355,6 +431,29 @@ function bootstrap() {
     broadcastPetState();
     setTimeout(broadcastPetState, ms + 50);
   }
+
+  focus.onChange = (view) => {
+    workbarWin?.webContents.send('focus:changed', view);
+    quickWin?.webContents.send('focus:changed', view);
+    if (!view.active && !quickExpanded) quickWin?.hide();
+    if (view.active && !quickWin?.isVisible() && petWin?.isVisible() && !workbarWin?.isVisible()) {
+      positionQuick(); quickWin?.showInactive(); quickExpanded = false; quickWin?.webContents.send('quick:expanded', false);
+    }
+  };
+  const focusTicker = setInterval(() => {
+    const result = focus.tick();
+    if (result.finished?.outcome === 'completed') {
+      const label = focus.labels.find((l) => l.id === result.finished.labelId)?.name || '任务';
+      const breakEnded = result.finished.stage === 'break';
+      speak(breakEnded ? '休息结束啦，准备好下一轮了吗？' : result.breakStarted ? `${label}完成啦，现在休息 5 分钟。` : `${label}的计时结束啦，休息一下吧。`, { force: true, priority: 4, duration: 8000 });
+      if (Notification.isSupported()) new Notification({ title: breakEnded ? '斐墨 · 休息结束' : '斐墨 · 计时完成', body: breakEnded ? '可以开始下一轮专注了' : `${label} · ${result.finished.plannedMinutes} 分钟` }).show();
+    }
+    if (result.active?.status === 'running') {
+      quickWin?.webContents.send('focus:tick', result.active);
+      workbarWin?.webContents.send('focus:tick', result.active);
+    }
+  }, 1000);
+  focusTicker.unref?.();
 
   // ---------- 通知 ----------
   function pushNotice(n) {
@@ -493,10 +592,12 @@ function bootstrap() {
     if (petWin) {
       petWin.setAlwaysOnTop(!!p.alwaysOnTop, 'screen-saver');
       petWin.webContents.send('pet:config', { ...p, manifest: PETS.find((x) => x.id === p.style) || PETS[0] });
+      workbarWin?.webContents.send('pet:config', { style: p.style });
       const size = p.size || 72;
       petWin.setSize(Math.round(size * 1.3), Math.round(size * 1.35));
       if (petDockSide) placeDock(petDockHidden);
       if (speechWin?.isVisible()) positionSpeech();
+      if (quickWin?.isVisible()) positionQuick();
     }
   }
 
@@ -641,6 +742,7 @@ function bootstrap() {
         height: Math.round(configuredSize * 1.35),
       }, false);
       if (speechWin?.isVisible()) positionSpeech();
+      if (quickWin?.isVisible()) positionQuick();
     }, 16);
   });
   ipc.handle('pet:dragEnd', () => {
@@ -656,6 +758,7 @@ function bootstrap() {
     if (petDockSide) placeDock(!workbarWin?.isVisible());
     else petDockHidden = false;
     if (speechWin?.isVisible()) positionSpeech();
+    if (quickWin?.isVisible()) positionQuick();
     settings.set('pet', { ...settings.get('pet', {}), position: { x: b.x, y: b.y }, dockSide: petDockSide });
     petWin.webContents.send('pet:snapped');
     return true;
@@ -671,6 +774,7 @@ function bootstrap() {
   });
   ipc.on('pet:hover', () => {
     revealDock();
+    showQuick();
     if (settings.get('ui', {}).companionSpeech === false || workbarWin?.isVisible()) return;
     const now = Date.now();
     if (now - lastHoverSpeech < 45000) return;
@@ -680,17 +784,52 @@ function bootstrap() {
   ipc.on('pet:leave', () => {
     if (speechFromHover) { speechWin?.hide(); speechFromHover = false; speechUntil = 0; speechPriority = -1; }
     scheduleDockHide();
+    hideQuickSoon();
+  });
+
+  ipc.on('quick:enter', () => { if (quickLeaveTimer) clearTimeout(quickLeaveTimer); revealDock(); if (!quickExpanded) { quickExpanded = true; quickWin?.webContents.send('quick:expanded', true); } });
+  ipc.on('quick:leave', () => { quickPanel = 'none'; hideQuickSoon(); scheduleDockHide(); });
+  ipc.on('quick:panel', (_e, name) => { quickPanel = ['timer', 'schedule'].includes(name) ? name : 'none'; });
+  ipc.on('quick:shape', (_e, rects) => {
+    if (!quickWin || !Array.isArray(rects)) return;
+    const safe = rects.slice(0, 12).map((r) => ({ x: Math.max(0, Math.min(419, Math.round(r.x))), y: Math.max(0, Math.min(369, Math.round(r.y))), width: Math.max(1, Math.min(420, Math.round(r.width))), height: Math.max(1, Math.min(370, Math.round(r.height))) }));
+    quickWin.setShape(safe);
+  });
+
+  ipc.handle('focus:state', () => focus.view());
+  ipc.handle('focus:stats', () => focus.stats());
+  ipc.handle('focus:addLabel', (_e, data) => focus.addLabel(data?.name, data?.color));
+  ipc.handle('focus:start', (_e, data) => { const r = focus.start(data || {}); speak('开始啦，我会安静陪着你。', { force: true, priority: 2 }); return r; });
+  ipc.handle('focus:pause', () => focus.pause());
+  ipc.handle('focus:resume', () => focus.resume());
+  ipc.handle('focus:stop', () => focus.stop());
+  ipc.handle('quick:schedule', (_e, data) => {
+    if (!data?.title || !data?.startsAtUtc) throw new Error('请填写日程和时间');
+    const startsAtUtc = new Date(data.startsAtUtc).toISOString();
+    calendar.upsert([{ source: 'local', externalId: 'local-' + Date.now(), title: String(data.title).trim().slice(0, 100), startsAtUtc, endsAtUtc: null, allDay: false, reminderOffsets: [15], syncStatus: 'ok' }]);
+    workbarWin?.webContents.send('calendar:changed', calendarView());
+    speak('日程记好啦，到时提醒你。', { force: true, priority: 2 });
+    return true;
   });
 
   // 问答
-  ipc.handle('chat:send', async (_e, { text }) => {
+  async function sendChat(text, quick = false) {
     if (typeof text !== 'string' || !text.trim()) throw new Error('空消息');
+    for (const timer of quickReplyTimers) clearTimeout(timer);
+    quickReplyTimers = [];
     if (chatAbort.controller) chatAbort.controller.abort();
     const controller = new AbortController();
     chatAbort.controller = controller;
     chatHistory.push({ role: 'user', content: text, at: new Date().toISOString() });
     userProcessing = true; broadcastPetState();
-    const send = (ch) => workbarWin?.webContents.send('chat:delta', ch);
+    let lastQuickSpeech = 0;
+    const send = (ch) => {
+      if (!quick) workbarWin?.webContents.send('chat:delta', ch);
+      else if (Date.now() - lastQuickSpeech > 480) {
+        speak(ch.full || '正在想…', { force: true, priority: 5, duration: 12000 });
+        lastQuickSpeech = Date.now();
+      }
+    };
     try {
       const reply = await llm.chatStream({
         messages: chatHistory.slice(-20).map((m) => ({ role: m.role, content: m.content })),
@@ -700,16 +839,29 @@ function bootstrap() {
       chatHistory.push({ role: 'assistant', content: reply, at: new Date().toISOString() });
       saveChat();
       flash('completed');
+      if (quick) {
+        const chars = [...new Intl.Segmenter('zh', { granularity: 'grapheme' }).segment(reply)].map((x) => x.segment);
+        const pages = [];
+        for (let i = 0; i < chars.length; i += 65) pages.push(chars.slice(i, i + 65).join(''));
+        pages.forEach((page, index) => {
+          const show = () => speak(pages.length > 1 ? `${index + 1}/${pages.length}  ${page}` : page, { force: true, priority: 5, duration: pages.length > 1 ? 6500 : 14000 });
+          if (index === 0) show();
+          else quickReplyTimers.push(setTimeout(show, index * 6700));
+        });
+      }
       return { ok: true, reply };
     } catch (e) {
       if (e.name === 'AbortError') { return { ok: false, aborted: true }; }
       flash('failed');
+      if (quick) speak(`没能回答：${e.message}`, { force: true, priority: 5, duration: 8000 });
       throw e;
     } finally {
       chatAbort.controller = null;
       userProcessing = false; broadcastPetState();
     }
-  });
+  }
+  ipc.handle('chat:send', (_e, { text }) => sendChat(text));
+  ipc.handle('quick:chat', (_e, text) => sendChat(text, true));
   ipc.handle('chat:stop', () => { chatAbort.controller?.abort(); return true; });
   ipc.handle('chat:history', () => (settings.get('privacy', {}).saveChatHistory ? chatHistory.slice(-40) : []));
   ipc.handle('chat:clear', () => { chatHistory = []; saveChat(); return true; });
@@ -817,6 +969,10 @@ function bootstrap() {
     createPetWindow();
     createWorkbarWindow();
     createSpeechWindow();
+    createQuickWindow();
+    if (focus.active) quickWin.webContents.once('did-finish-load', () => {
+      positionQuick(); quickWin.showInactive(); quickExpanded = false; quickWin.webContents.send('quick:expanded', false);
+    });
     const t = createTray();
     trayRebuild = t.rebuild;
 
@@ -869,6 +1025,7 @@ function bootstrap() {
     scheduler.stop();
     if (notionTimer) clearInterval(notionTimer);
     if (stateTimer) clearInterval(stateTimer);
+    clearInterval(focusTicker);
   });
 
   app.on('window-all-closed', () => {

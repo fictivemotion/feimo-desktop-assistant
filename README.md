@@ -4,7 +4,7 @@
 
 **A small desktop companion for quick everyday tasks.**
 
-悬浮桌宠 · 剪贴板速清 · 本地 OCR · Coding 会话提醒 · Token 用量 · Notion 日程
+悬浮桌宠 · 快捷对话 · 倒计时 / 番茄钟 · 剪贴板速清 · 本地 OCR · Coding 会话提醒 · Token 用量 · Notion 日程
 
 [Windows 发布页](https://github.com/fictivemotion/feimo-desktop-assistant/releases) · [功能介绍](#功能一览) · [隐私说明](docs/PRIVACY.md) · [发布记录](RELEASE_NOTES.md)
 
@@ -22,7 +22,9 @@
 
 | 功能 | 用法 |
 | --- | --- |
-| 桌面小宠物 | 单击展开工作栏；拖动移动，靠近屏幕边缘时吸附；气泡会按屏幕位置选择朝向 |
+| 桌面小宠物 | 伊埃斯、Forest Flow 或 Iridescent Opal；单击展开工作栏，拖动移动，靠近屏幕边缘时吸附 |
+| 悬浮快捷区 | 悬停宠物出现底部提问框和弧形工具；提问结果从宠物气泡给出，可快速新建日程或计时 |
+| 倒计时 / 番茄钟 | 自定分钟与彩色任务标签；番茄钟专注完成后进入 5 分钟短休息；工作栏保留记录、柱形趋势和年度热力图 |
 | 快速文本清洗 | `Alt+Shift+O` 清理剪贴板文字并自动复制结果；支持删除段落空行、清除 OCR 字间空格、去除无效符号等 |
 | 截图转文字 | `Alt+Shift+T` 识别剪贴板图片，在本机完成 OCR 与格式清洗，再把结果复制回剪贴板 |
 | AI 问答与润色 | 配置 OpenAI 兼容服务后使用流式问答和显式触发的润色；可复制完整回答或纯文本 |
@@ -55,7 +57,9 @@ Releases 提供 Windows x64 NSIS 安装程序和便携版。当前发行包未�
 
 要求：Windows 10/11 x64、Node.js 22 或更新的 LTS 版本、npm。
 
-桌面形象固定为伊埃斯。仓库和 Windows 发行包包含项目维护者独立绘制的伊埃斯同人复刻素材；这些素材单独采用 [CC BY-NC-SA 4.0 非商业许可](assets/pets/eous/LICENSE.txt)。伊埃斯及其原始角色设计的相关知识产权归米哈游 / HoYoverse 所有；此同人许可不授予底层角色或官方素材的权利。源码按根目录 MIT 许可发布，该许可不涵盖伊埃斯素材。
+桌面形象可在设置中选择伊埃斯或两款 WebGPU 流体球。仓库和 Windows 发行包包含项目维护者独立绘制的伊埃斯同人复刻素材；这些素材单独采用 [CC BY-NC-SA 4.0 非商业许可](assets/pets/eous/LICENSE.txt)。伊埃斯及其原始角色设计的相关知识产权归米哈游 / HoYoverse 所有；此同人许可不授予底层角色或官方素材的权利。
+
+Forest Flow 使用开源 [orb 项目](https://github.com/LerSent001/orb)的 Frost Flow 着色器流场并调整为森林色板；Iridescent Opal 使用该项目同名预设。两者保留完整 WebGPU/WGSL 渲染和状态过渡，见[第三方 MIT 许可](assets/orb/LICENSE)。流体球需要可用的 WebGPU 图形环境。斐墨源码按根目录 MIT 许可发布，不涵盖伊埃斯素材。
 
 ```powershell
 npm ci
@@ -76,13 +80,15 @@ npm run dist:win
 - API 密钥和 Notion Token 只从设置中输入，并使用 Electron `safeStorage` 加密保存在本机用户数据目录。
 - 剪贴板只在按下快捷键或主动使用处理页时读取；OCR 在 Windows 本机运行。
 - Agent 会话日志和 Token 用量由本机读取与聚合，不会上传到斐墨服务。
+- 倒计时标签、当前计时和历史记录保存在本机用户数据目录；重新启动可恢复未结束的计时。
 - 调用 AI 服务时，用户明确发送的文本会发往用户配置的模型服务商。
 - 本仓库不包含真实日程、问答历史、API 密钥、Notion Token、本机截图或应用用户数据。
-- 桌面形象仅保留伊埃斯。项目绘制的同人复刻素材随公开源码与发行包提供，并受独立的非商业许可约束；原角色及其 IP 仍归米哈游 / HoYoverse 所有。
-- 为避免擅自传播第三方形象，公开仓库不提供其他桌宠素材，也不提供替代桌宠。
+- 伊埃斯同人复刻素材随公开源码与发行包提供，并受独立的非商业许可约束；原角色及其 IP 仍归米哈游 / HoYoverse 所有。
+- 两款流体球基于 MIT 授权的开源代码与预设，不包含其他第三方角色素材。
 
 ## 许可证
 
 - 软件源码按 [MIT License](LICENSE) 授权。
 - 伊埃斯同人素材按 [CC BY-NC-SA 4.0](assets/pets/eous/LICENSE.txt) 分享，仅限非商业用途。
+- 流体球着色器与运行时代码按 [orb 项目的 MIT License](assets/orb/LICENSE) 使用。
 - 米哈游 / HoYoverse 的原角色、名称及相关权利不属于本项目许可范围；第三方依赖适用各自许可证。

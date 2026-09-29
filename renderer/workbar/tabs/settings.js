@@ -152,7 +152,7 @@
     for (const p of pets) {
       const c = document.createElement('div');
       c.className = 'pet-card' + (pet.style === p.id ? ' sel' : '');
-      c.innerHTML = `<div class="pet-preview">${p.image ? `<img src="../../${UI.esc(p.image)}" alt=""/>` : `<span>${UI.esc(p.name)}</span>`}</div><div class="nm">${UI.esc(p.name)}</div>`;
+      c.innerHTML = `<div class="pet-preview">${p.type === 'orb' ? `<iframe src="../../${UI.esc(p.orb)}" title="${UI.esc(p.name)}" tabindex="-1"></iframe>` : `<img src="../../assets/pets/eous/preview.png" alt="伊埃斯"/>`}</div><div class="nm">${UI.esc(p.name)}</div>`;
       c.title = p.description;
       c.addEventListener('click', async () => {
         petGrid.querySelectorAll('.pet-card').forEach((x) => x.classList.remove('sel'));

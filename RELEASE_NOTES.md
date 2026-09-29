@@ -1,5 +1,12 @@
 # Release notes
 
+## Unreleased
+
+- Added hover quick chat, arc tools, compact schedule creation, and a speech bubble with a round connector.
+- Added persistent countdown and Pomodoro sessions with automatic five-minute breaks, colored task labels, yesterday/month/year bars, and a yearly activity heatmap.
+- Added Forest Flow and Iridescent Opal WebGPU orb companions using the upstream orb shader and state transitions; the workbar icon follows the chosen companion.
+- Fixed duplicate completed Agent notices that could occur when the same status arrives again with a new timestamp.
+
 ## 1.0.0
 
 First public source release of 斐墨 (Feimo), a lightweight Windows desktop companion.

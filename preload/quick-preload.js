@@ -1,0 +1,21 @@
+'use strict';
+const { contextBridge, ipcRenderer } = require('electron');
+contextBridge.exposeInMainWorld('quickApi', {
+  onAnchor: (cb) => ipcRenderer.on('quick:anchor', (_e, value) => cb(value)),
+  onExpanded: (cb) => ipcRenderer.on('quick:expanded', (_e, value) => cb(value)),
+  onFocusChanged: (cb) => ipcRenderer.on('focus:changed', (_e, value) => cb(value)),
+  onFocusTick: (cb) => ipcRenderer.on('focus:tick', (_e, value) => cb(value)),
+  enter: () => ipcRenderer.send('quick:enter'),
+  leave: () => ipcRenderer.send('quick:leave'),
+  panel: (name) => ipcRenderer.send('quick:panel', name),
+  shape: (rects) => ipcRenderer.send('quick:shape', rects),
+  chat: (text) => ipcRenderer.invoke('quick:chat', text),
+  focusState: () => ipcRenderer.invoke('focus:state'),
+  focusStart: (data) => ipcRenderer.invoke('focus:start', data),
+  focusPause: () => ipcRenderer.invoke('focus:pause'),
+  focusResume: () => ipcRenderer.invoke('focus:resume'),
+  focusStop: () => ipcRenderer.invoke('focus:stop'),
+  focusAddLabel: (data) => ipcRenderer.invoke('focus:addLabel', data),
+  schedule: (data) => ipcRenderer.invoke('quick:schedule', data),
+  openWorkbar: (tab) => ipcRenderer.invoke('workbar:show', tab),
+});
