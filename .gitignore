@@ -1,0 +1,32 @@
+# Dependencies and generated output
+node_modules/
+release/
+dist/
+coverage/
+*.log
+npm-debug.log*
+
+# Local application state, credentials, and machine-specific setup
+.env
+.env.*
+!.env.example
+secrets.bin
+settings.json
+*.pem
+*.key
+skills-lock.json
+.agents/
+tools/
+
+# Private/local screenshots and user-provided pet artwork
+_shots/
+screenshots-local/
+assets/pets/eous/
+assets/pets/kenney/
+lib/pets.local.js
+
+# Editor and OS metadata
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

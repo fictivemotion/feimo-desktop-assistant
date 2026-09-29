@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title desc">
+  <title id="title">斐墨桌面助手功能总览</title>
+  <desc id="desc">轻量桌面宠物与悬浮工作栏，提供问答、文本清洗、本地截图 OCR、Agent 状态、Token 用量和日程提醒。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#edf6f8"/><stop offset=".55" stop-color="#e6e9f5"/><stop offset="1" stop-color="#f8edf0"/></linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff" stop-opacity=".9"/><stop offset="1" stop-color="#fff" stop-opacity=".56"/></linearGradient>
+    <linearGradient id="teal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#94d4cc"/><stop offset="1" stop-color="#65aaa8"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="18" stdDeviation="24" flood-color="#75829d" flood-opacity=".17"/></filter>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="42"/></filter>
+  </defs>
+  <rect width="1440" height="900" rx="42" fill="url(#bg)"/>
+  <circle cx="1280" cy="130" r="130" fill="#d8ebea" opacity=".65" filter="url(#soft)"/>
+  <circle cx="160" cy="810" r="150" fill="#f4dfe4" opacity=".6" filter="url(#soft)"/>
+  <text x="86" y="110" fill="#20354b" font-family="HarmonyOS Sans SC, Microsoft YaHei, sans-serif" font-size="44" font-weight="700">斐墨</text>
+  <text x="87" y="154" fill="#64758b" font-family="HarmonyOS Sans SC, Microsoft YaHei, sans-serif" font-size="21" letter-spacing="3">FEIMO · DESKTOP COMPANION</text>
+  <text x="86" y="221" fill="#20354b" font-family="HarmonyOS Sans SC, Microsoft YaHei, sans-serif" font-size="35" font-weight="650">轻轻待在屏幕边上的日常助手</text>
+  <text x="88" y="263" fill="#607389" font-family="HarmonyOS Sans SC, Microsoft YaHei, sans-serif" font-size="20">一点唤出工作栏，常用的小事几秒完成。</text>
+
+  <!-- Desktop and companion -->
+  <g filter="url(#shadow)">
+    <rect x="72" y="316" width="835" height="492" rx="32" fill="#dde5ec"/>
+    <rect x="90" y="335" width="800" height="450" rx="24" fill="#b8c8d0"/>
+    <rect x="117" y="363" width="748" height="396" rx="18" fill="#eaf0f1"/>
+    <path d="M117 492 C260 427 345 542 472 476 S700 424 865 485 V759 H117Z" fill="#d9e8e2"/>
+    <path d="M117 590 C248 530 355 624 492 566 S725 542 865 604 V759 H117Z" fill="#c6d9d4"/>
+    <rect x="248" y="722" width="472" height="28" rx="14" fill="#9eabb7"/>
+    <rect x="426" y="760" width="116" height="34" rx="14" fill="#aebac2"/>
+    <!-- Floating glass bar -->
+    <rect x="201" y="400" width="584" height="272" rx="28" fill="url(#glass)" stroke="#fff" stroke-width="2"/>
+    <text x="237" y="443" fill="#2d455c" font-family="HarmonyOS Sans SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="650">斐墨工作栏</text>
+    <text x="238" y="471" fill="#8491a3" font-family="HarmonyOS Sans SC, Microsoft YaHei, sans-serif" font-size="13" letter-spacing="2">DESK COMPANION</text>
+    <g font-family="HarmonyOS Sans SC, Microsoft YaHei, sans-serif" font-size="15" fill="#576b80" text-anchor="middle">
+      <rect x="225" y="496" width="104" height="52" rx="16" fill="#eef5f6"/><text x="277" y="528">问答</text>
+      <rect x="338" y="496" width="104" height="52" rx="16" fill="#e5f3f0"/><text x="390" y="528">处理</text>
+      <rect x="451" y="496" width="104" height="52" rx="16" fill="#eef1f8"/><text x="503" y="528">Agents</text>
+      <rect x="564" y="496" width="104" height="52" rx="16" fill="#eef1f8"/><text x="616" y="528">用量</text>
+      <rect x="677" y="496" width="84" height="52" rx="16" fill="#eef1f8"/><text x="719" y="528">日程</text>
+    </g>
+    <rect x="225" y="568" width="536" height="74" rx="18" fill="#fff" fill-opacity=".7"/>
+    <circle cx="258" cy="605" r="12" fill="url(#teal)"/>
+    <text x="284" y="601" fill="#526a80" font-family="HarmonyOS Sans SC, Microsoft YaHei, sans-serif" font-size="15">复制一段文字，斐墨帮你清理空行与 OCR 字间空格。</text>
+    <text x="284" y="625" fill="#8492a2" font-family="HarmonyOS Sans SC, Microsoft YaHei, sans-serif" font-size="12">快捷键后自动复制结果，无需打开工作栏。</text>
+  </g>
+  <!-- Original geometric mascot -->
+  <g transform="translate(813 345)" filter="url(#shadow)">
+    <path d="M35 64 C8 9 25 -6 47 38 C52 -11 83 -13 72 54" fill="#f5f1e9" stroke="#81909a" stroke-width="5"/>
+    <ellipse cx="56" cy="97" rx="51" ry="56" fill="#f6f1e7" stroke="#80929d" stroke-width="4"/>
+    <path d="M17 89 Q56 75 96 91 L90 111 Q57 125 21 108Z" fill="#273849"/>
+    <ellipse cx="39" cy="98" rx="7" ry="10" fill="#b9e76e"/><ellipse cx="72" cy="98" rx="7" ry="10" fill="#b9e76e"/>
+    <path d="M16 115 Q56 106 97 116 L88 137 Q55 151 24 136Z" fill="#d78c62"/>
+    <path d="M29 139 Q55 152 83 137 L91 181 Q55 198 21 179Z" fill="#607b84"/>
+    <path d="M38 181 Q37 202 28 203 M71 181 Q72 202 82 203" fill="none" stroke="#f5f1e9" stroke-width="15" stroke-linecap="round"/>
+  </g>
+  <g transform="translate(663 308)"><rect width="170" height="47" rx="22" fill="#fff" stroke="#fff"/><path d="M38 46 l-12 13 2-14" fill="#fff"/><text x="22" y="30" fill="#52677c" font-family="HarmonyOS Sans SC, Microsoft YaHei, sans-serif" font-size="14">今天也一起加油呀</text></g>
+
+  <!-- Feature cards -->
+  <g filter="url(#shadow)" font-family="HarmonyOS Sans SC, Microsoft YaHei, sans-serif">
+    <rect x="962" y="323" width="398" height="210" rx="26" fill="url(#glass)" stroke="#fff" stroke-width="2"/>
+    <circle cx="1012" cy="372" r="22" fill="#e5f2f0"/><text x="1003" y="380" fill="#4a9992" font-size="22" font-weight="700">Aa</text>
+    <text x="1050" y="377" fill="#2d455c" font-size="22" font-weight="650">复制即清洗</text>
+    <text x="995" y="425" fill="#62768a" font-size="16">多余空行、异常字间空格、</text><text x="995" y="451" fill="#62768a" font-size="16">零宽字符，一键整理并复制。</text>
+    <rect x="995" y="478" width="145" height="32" rx="16" fill="#e5f3f0"/><text x="1012" y="500" fill="#4c8f89" font-size="13">Alt + Shift + O</text>
+
+    <rect x="962" y="553" width="398" height="210" rx="26" fill="url(#glass)" stroke="#fff" stroke-width="2"/>
+    <circle cx="1012" cy="602" r="22" fill="#f8eee8"/><text x="1004" y="610" fill="#c07e57" font-size="23" font-weight="700">OCR</text>
+    <text x="1050" y="607" fill="#2d455c" font-size="22" font-weight="650">截图转文字</text>
+    <text x="995" y="655" fill="#62768a" font-size="16">Windows 本地识别，自动清理</text><text x="995" y="681" fill="#62768a" font-size="16">段落与 OCR 拆字，再复制结果。</text>
+    <rect x="995" y="708" width="145" height="32" rx="16" fill="#f8eee8"/><text x="1012" y="730" fill="#ae7557" font-size="13">Alt + Shift + T</text>
+  </g>
+  <text x="84" y="861" fill="#718198" font-family="HarmonyOS Sans SC, Microsoft YaHei, sans-serif" font-size="15">本地优先 · 不收集遥测 · 你选择连接的服务才会接收对应请求</text>
+</svg>

@@ -1,0 +1,13 @@
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent;font-family:"HarmonyOS Sans SC","HarmonyOS Sans","Microsoft YaHei UI",sans-serif}
+body{display:flex;align-items:center;padding:4px 5px 10px}
+.speech{position:relative;display:flex;align-items:center;width:100%;height:100%;padding:10px 14px;border-radius:16px;background:linear-gradient(155deg,rgba(255,255,255,.98),rgba(237,242,249,.97));border:1px solid rgba(255,255,255,.95);box-shadow:inset 0 1px 0 white;color:#344258;font-size:13px;line-height:20px;font-weight:550;letter-spacing:.01em;animation:appear .2s ease-out both}
+.speech::after{content:"";position:absolute;width:12px;height:12px;background:#f0f4fa;transform:rotate(45deg);bottom:-6px;left:calc(var(--arrow-anchor, 50%) - 11px);border-right:1px solid rgba(255,255,255,.95);border-bottom:1px solid rgba(255,255,255,.95)}
+body[data-placement="right"]{padding:4px 5px 4px 10px}
+body[data-placement="right"] .speech::after{bottom:auto;left:-6px;top:calc(var(--arrow-anchor, 50%) - 10px);border:0;border-left:1px solid rgba(255,255,255,.95);border-bottom:1px solid rgba(255,255,255,.95)}
+body[data-placement="left"]{padding:4px 10px 4px 5px}
+body[data-placement="left"] .speech::after{bottom:auto;left:auto;right:-6px;top:calc(var(--arrow-anchor, 50%) - 10px);border:0;border-right:1px solid rgba(255,255,255,.95);border-top:1px solid rgba(255,255,255,.95)}
+#message{display:block;white-space:pre;overflow:hidden}
+@keyframes appear{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){.speech{animation:none}}
+@media(prefers-contrast:more){.speech{background:#fff;border:2px solid #344258}}
