@@ -3,7 +3,7 @@
   const api = window.quickApi;
   const $ = (id) => document.getElementById(id);
   const tools = $('tools'), chat = $('quick-chat'), editor = $('editor'), pill = $('timer-pill');
-  let anchor = { x: 290, y: 212, side: 'left', petWidth: 72 };
+  let anchor = { x: 360, y: 212, side: 'left', petWidth: 72, petHeight: 97 };
   let expanded = false, panel = 'none', mode = 'pomodoro', selectedLabel = 'focus';
   let focus = { labels: [], active: null };
   let toastTimer = null, toolAnimationTimer = null, toolsAnimating = false;
@@ -16,24 +16,42 @@
   const pad = (n) => String(n).padStart(2, '0');
   const clock = (ms) => { const s = Math.ceil(Math.max(0, ms) / 1000); return `${pad(Math.floor(s / 60))}:${pad(s % 60)}`; };
   function bounds(el) { return { x: el.offsetLeft, y: el.offsetTop, width: el.offsetWidth, height: el.offsetHeight }; }
+  function roundedShape(rect, radius, halo = 5) {
+    const r = { x: Math.floor(rect.x - halo), y: Math.floor(rect.y - halo), width: Math.ceil(rect.width + halo * 2), height: Math.ceil(rect.height + halo * 2) };
+    const corner = Math.min(radius + halo, r.width / 2, r.height / 2);
+    const strips = [];
+    for (let row = 0; row < r.height;) {
+      const depth = Math.min(row + 1, r.height - row - 1);
+      if (depth >= corner) {
+        strips.push({ x: r.x, y: r.y + row, width: r.width, height: r.height - row - Math.round(corner) });
+        row = r.height - Math.round(corner);
+        continue;
+      }
+      const inset = Math.ceil(corner - Math.sqrt(Math.max(0, corner * corner - (corner - depth) ** 2)));
+      const band = Math.min(2, r.height - row);
+      strips.push({ x: r.x + inset, y: r.y + row, width: r.width - inset * 2, height: band });
+      row += band;
+    }
+    return strips;
+  }
   function shape() {
     requestAnimationFrame(() => {
       const rects = [];
       if (expanded) {
-        rects.push(bounds(chat));
+        rects.push(...roundedShape(bounds(chat), 21, 5));
         if (panel === 'none') for (const button of tools.querySelectorAll('button')) {
           const target = bounds(button);
-          rects.push(target);
+          rects.push(...roundedShape(target, 17, 5));
           // Include the travel path in Electron's shaped window while each tool flies out.
           if (toolsAnimating) {
             const left = Math.min(anchor.x - 8, target.x), top = Math.min(anchor.y - 8, target.y);
             rects.push({ x: left, y: top, width: Math.max(anchor.x + 8, target.x + target.width) - left, height: Math.max(anchor.y + 8, target.y + target.height) - top });
           }
         }
-        if (panel !== 'none') rects.push(bounds(editor));
+        if (panel !== 'none') rects.push(...roundedShape(bounds(editor), 18, 6));
       }
-      if (focus.active) rects.push(bounds(pill));
-      if (!$('quick-toast').classList.contains('hidden')) rects.push(bounds($('quick-toast')));
+      if (focus.active) rects.push(...roundedShape(bounds(pill), 18, 5));
+      if (!$('quick-toast').classList.contains('hidden')) rects.push(...roundedShape(bounds($('quick-toast')), 12, 3));
       api.shape(rects);
     });
   }
@@ -41,14 +59,18 @@
     const { x, y, side } = anchor;
     const sign = side === 'left' ? -1 : 1;
     const petHalf = Math.max(26, Math.min(55, Math.round((anchor.petWidth || 72) * .42)));
-    const outerReach = petHalf + 34, middleReach = petHalf + 57;
-    const locations = [[outerReach, -48], [middleReach, -10], [outerReach, 28]];
+    const petHalfHeight = Math.max(30, (anchor.petHeight || 97) / 2);
+    const outerReach = petHalf + 39, middleReach = petHalf + 57;
+    const locations = [[outerReach, -petHalf - 57], [middleReach, -petHalf - 25], [outerReach + 2, -petHalf + 7]];
     const chatHeight = 42, maxChatTop = innerHeight - chatHeight - 6;
-    let arcShift = Math.max(0, 6 - (y - 48 - toolSize / 2));
-    let chatTop = panel === 'none' ? Math.max(y + 59, y + 28 + toolSize / 2 + arcShift + 12) : maxChatTop;
-    if (chatTop > maxChatTop && panel === 'none') {
-      arcShift -= chatTop - maxChatTop;
-      chatTop = maxChatTop;
+    let arcShift = Math.max(0, 6 - (y + locations[0][1] - toolSize / 2));
+    let chatTop = y + petHalfHeight + 3;
+    const arcBottom = () => y + locations[2][1] + toolSize / 2 + arcShift;
+    if (chatTop > maxChatTop) {
+      chatTop = Math.max(6, y - petHalfHeight - chatHeight - 7);
+      arcShift = Math.min(arcShift, chatTop - arcBottom() - 12);
+    } else {
+      chatTop = Math.max(chatTop, arcBottom() + 12);
     }
     [...tools.querySelectorAll('button')].forEach((button, index) => {
       const [dx, dy] = locations[index];
@@ -60,15 +82,22 @@
       button.style.setProperty('--overshoot-x', `${sign * 3}px`);
     });
     const span = middleReach + toolSize / 2 + petHalf;
-    const desiredChatLeft = side === 'left' ? x - middleReach - toolSize / 2 : x - petHalf;
-    const chatLeft = Math.max(6, Math.min(innerWidth - span - 6, desiredChatLeft));
-    chat.style.width = `${Math.min(span, innerWidth - chatLeft - 6)}px`;
+    const chatLeft = Math.max(6, Math.min(innerWidth - span - 6, x - span / 2));
+    chat.style.width = `${span}px`;
     chat.style.left = `${chatLeft}px`;
     chat.style.top = `${chatTop}px`;
-    editor.style.left = `${Math.max(5, Math.min(115, x - 150))}px`;
-    editor.style.top = `${Math.max(5, maxChatTop - 312)}px`;
-    pill.style.left = `${Math.max(5, Math.min(250, x - 72))}px`;
-    pill.style.top = `${Math.max(4, Math.min(320, y - 112 + arcShift))}px`;
+    const gap = 12, sideMargin = 6;
+    const leftRoom = chatLeft - gap - sideMargin;
+    const rightRoom = innerWidth - (chatLeft + span) - gap - sideMargin;
+    const editorLeftSide = leftRoom >= rightRoom;
+    const editorWidth = Math.min(232, Math.max(leftRoom, rightRoom));
+    editor.style.width = `${editorWidth}px`;
+    editor.style.left = `${editorLeftSide ? chatLeft - gap - editorWidth : chatLeft + span + gap}px`;
+    const editorHeight = editor.offsetHeight || 300;
+    editor.style.top = `${Math.max(6, Math.min(innerHeight - editorHeight - 6, y - editorHeight / 2))}px`;
+    const pillWidth = pill.offsetWidth || 105, pillHeight = pill.offsetHeight || 38;
+    pill.style.left = `${Math.max(6, Math.min(innerWidth - pillWidth - 6, x - pillWidth / 2))}px`;
+    pill.style.top = `${Math.max(5, y - petHalfHeight - pillHeight - 10)}px`;
     shape();
   }
   function setExpanded(value) {
@@ -114,7 +143,7 @@
       $('pill-time').textContent = clock(a.remainingMs);
       $('pill-label').textContent = a.stage === 'break' ? '短休息' : label?.name || '';
       $('pill-dot').style.background = a.stage === 'break' ? '#FFC24B' : label?.color || '#6EF2CF';
-      $('pill-pause').textContent = a.status === 'paused' ? '▶' : 'Ⅱ';
+      $('pill-pause').replaceChildren(window.ReiconFilled.create(a.status === 'paused' ? 'Play' : 'Pause', 16));
       $('pill-pause').title = a.status === 'paused' ? '继续' : '暂停';
       $('start-timer').textContent = '结束当前计时';
     } else $('start-timer').textContent = '开始专注';

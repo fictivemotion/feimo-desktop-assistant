@@ -9,8 +9,8 @@
 
   view.innerHTML = `
     <div class="subtabs">
-      <button class="subtab active" data-sub="text">🧹 文本清洗</button>
-      <button class="subtab" data-sub="ocr">🖼 图片转文字</button>
+      <button class="subtab active" data-sub="text"><span data-icon="Broom" data-size="16"></span> 文本清洗</button>
+      <button class="subtab" data-sub="ocr"><span data-icon="Image" data-size="16"></span> 图片转文字</button>
     </div>
     <div id="proc-text">
       <div class="quick-rules" id="pt-quick-rules"></div>
@@ -32,7 +32,7 @@
         <button class="btn primary" id="pt-copy">复制结果</button>
         <button class="btn" id="pt-replace">替换剪贴板</button>
         <button class="btn" id="pt-undo">撤销全部修改</button>
-        <button class="btn" id="pt-ai">✨ AI 润色（可选）</button>
+        <button class="btn" id="pt-ai"><span data-icon="MagicWand" data-size="16"></span> AI 润色（可选）</button>
       </div>
       <div class="rules-grid" id="pt-rules"></div>
     </div>
@@ -51,8 +51,8 @@
             <option value="en">English</option>
           </select>
           <button class="btn" id="ocr-rerun">重新识别</button>
-          <button class="btn small" id="ocr-order">↕ 按阅读顺序重排</button>
-          <button class="btn small" id="ocr-proofread">✨ AI 校对</button>
+          <button class="btn small" id="ocr-order"><span data-icon="SortDownUp" data-size="16"></span> 按阅读顺序重排</button>
+          <button class="btn small" id="ocr-proofread"><span data-icon="MagicWand" data-size="16"></span> AI 校对</button>
         </div>
         <div class="ocr-lines" id="ocr-lines"></div>
         <div class="actionbar">
@@ -186,7 +186,7 @@
       UI.toast('AI 润色失败：' + err.message, true);
     } finally {
       aiBusy = false;
-      e.target.textContent = '✨ AI 润色（可选）';
+      e.target.innerHTML = '<span data-icon="MagicWand" data-size="16"></span> AI 润色（可选）';
       e.target.disabled = false;
     }
   });
@@ -265,7 +265,7 @@
       ocrResult = await api.ocrRecognize(currentDataUrl, langSel.value);
       renderOcrResult();
     } catch (e) {
-      linesEl.innerHTML = `<div class="empty"><span class="big">⚠️</span>${UI.esc(e.message)}</div>`;
+      linesEl.innerHTML = `<div class="empty"><span class="big" data-icon="Warning" data-size="24"></span>${UI.esc(e.message)}</div>`;
     } finally {
       ocrBusy = false;
     }
@@ -275,7 +275,7 @@
     if (ocrResult.empty) {
       mergedRevision++;
       mergedPending = Promise.resolve();
-      linesEl.innerHTML = `<div class="empty"><span class="big">🕳</span>未检测到文字<br/><span class="muted">换一张更清晰的图片，或检查语言选择</span></div>`;
+      linesEl.innerHTML = `<div class="empty"><span class="big" data-icon="InfoCircle" data-size="24"></span>未检测到文字<br/><span class="muted">换一张更清晰的图片，或检查语言选择</span></div>`;
       mergedEl.textContent = '';
       return;
     }
@@ -356,7 +356,7 @@
   langSel.addEventListener('change', runOcr);
   view.querySelector('#ocr-order').addEventListener('click', (e) => {
     lineOrder = lineOrder === 'raw' ? 'reading' : 'raw';
-    e.target.textContent = lineOrder === 'reading' ? '↕ 阅读顺序（点击还原）' : '↕ 按阅读顺序重排';
+    e.target.innerHTML = `<span data-icon="SortDownUp" data-size="16"></span> ${lineOrder === 'reading' ? '阅读顺序（点击还原）' : '按阅读顺序重排'}`;
     renderOcrResult();
   });
   view.querySelector('#ocr-copy').addEventListener('click', async () => {
@@ -388,7 +388,7 @@
       UI.toast('校对失败：' + err.message, true);
     } finally {
       e.target.disabled = false;
-      e.target.textContent = '✨ AI 校对';
+      e.target.innerHTML = '<span data-icon="MagicWand" data-size="16"></span> AI 校对';
     }
   });
   let lastConfirm = 0;

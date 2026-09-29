@@ -58,7 +58,7 @@
       const mins = Math.round((new Date(n.startsAtUtc).getTime() - now) / 60000);
       const when = mins >= 90 ? n.startsLocal : (mins <= 0 ? '进行中' : `${mins} 分钟后`);
       nextCard.style.display = '';
-      nextCard.innerHTML = `<div class="t">${UI.esc(n.title)}</div><div class="when">⏰ ${UI.esc(when)} · ${UI.esc(n.startsLocal)} · 来源：${SRC_LABEL[n.source] || n.source}</div>`;
+      nextCard.innerHTML = `<div class="t">${UI.esc(n.title)}</div><div class="when"><span data-icon="Clock" data-size="16"></span> ${UI.esc(when)} · ${UI.esc(n.startsLocal)} · 来源：${SRC_LABEL[n.source] || n.source}</div>`;
     } else {
       nextCard.style.display = 'none';
     }
@@ -97,8 +97,8 @@
         <span class="title" title="${UI.esc(it.title)}">${UI.esc(it.title)}</span>
         <span class="badge ${SRC_BADGE[it.source] || ''}">${SRC_LABEL[it.source] || it.source}</span>
         <span class="ops">
-          ${it.source === 'local' ? '<button class="btn small danger op-del" title="删除">✕</button>' : ''}
-          ${it.sourceUrl ? '<button class="btn small op-src" title="在 Notion 中打开">↗</button>' : ''}
+          ${it.source === 'local' ? '<button class="btn small danger op-del" title="删除"><span data-icon="CloseCircle" data-size="16"></span></button>' : ''}
+          ${it.sourceUrl ? '<button class="btn small op-src" title="在 Notion 中打开"><span data-icon="ArrowUpRight" data-size="16"></span></button>' : ''}
         </span>
       </div>`;
     const del = el.querySelector('.op-del');

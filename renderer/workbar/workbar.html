@@ -12,7 +12,7 @@
     <div id="titlebar">
       <div class="drag-region"></div>
       <span id="brand"><span class="brand-mark" id="brand-avatar"></span><span>斐墨 <small>DESK COMPANION</small></span></span>
-      <button id="btn-min" class="icon-btn" title="收起（Esc）" aria-label="收起工作栏">−</button>
+      <button id="btn-min" class="icon-btn" title="收起（Esc）" aria-label="收起工作栏"><span data-icon="Minus" data-size="16"></span></button>
     </div>
 
     <!-- 状态头 -->
@@ -23,18 +23,18 @@
       </div>
       <div id="status-right">
         <button id="btn-attention" class="chip attention hidden" title="查看需要处理的会话">0 个需要处理</button>
-        <button id="btn-settings" class="icon-btn" title="设置" aria-label="设置"><svg viewBox="0 0 24 24"><path d="M12 3v2m0 14v2M3 12h2m14 0h2M5.6 5.6 7 7m10 10 1.4 1.4m0-12.8L17 7M7 17l-1.4 1.4"/><circle cx="12" cy="12" r="4"/></svg></button>
+        <button id="btn-settings" class="icon-btn" title="设置" aria-label="设置"><span data-icon="Setting" data-size="20"></span></button>
       </div>
     </header>
 
     <!-- 页签 -->
     <nav id="tabs">
-      <button class="tab active" data-tab="chat"><span class="tab-ico"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4V5Z"/><path d="M8 9h8M8 13h5"/></svg></span>问答</button>
-      <button class="tab" data-tab="process"><span class="tab-ico"><svg viewBox="0 0 24 24"><path d="M7 3h8l4 4v14H7V3Z"/><path d="M15 3v5h4M10 12h6M10 16h6M3 8v11"/></svg></span>处理</button>
-      <button class="tab" data-tab="agents"><span class="tab-ico"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m7 10 3 2-3 2m6 0h4"/></svg></span>Agents<span id="agents-dot" class="dot hidden"></span></button>
-      <button class="tab" data-tab="usage"><span class="tab-ico"><svg viewBox="0 0 24 24"><path d="M4 20V11m5 9V5m5 15v-8m5 8V8"/></svg></span>用量</button>
-      <button class="tab" data-tab="schedule"><span class="tab-ico"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18m-14 5h4"/></svg></span>日程</button>
-      <button class="tab" data-tab="focus"><span class="tab-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 13V8m0 5 3 2M9 2h6"/></svg></span>倒计时</button>
+      <button class="tab active" data-tab="chat"><span class="tab-ico" data-icon="ChatDots" data-size="16"></span>问答</button>
+      <button class="tab" data-tab="process"><span class="tab-ico" data-icon="DocumentText" data-size="16"></span>处理</button>
+      <button class="tab" data-tab="agents"><span class="tab-ico" data-icon="CodeSquare" data-size="16"></span>Agents<span id="agents-dot" class="dot hidden"></span></button>
+      <button class="tab" data-tab="usage"><span class="tab-ico" data-icon="ChartBar" data-size="16"></span>用量</button>
+      <button class="tab" data-tab="schedule"><span class="tab-ico" data-icon="CalendarDays" data-size="16"></span>日程</button>
+      <button class="tab" data-tab="focus"><span class="tab-ico" data-icon="Timer" data-size="16"></span>倒计时</button>
     </nav>
 
     <!-- 内容区 -->
@@ -52,9 +52,9 @@
     <footer id="inputbar">
       <textarea id="input" rows="1" placeholder="问我点什么，或粘贴内容…"></textarea>
       <div class="input-actions">
-        <button id="btn-paste" class="icon-btn" title="读取剪贴板（Alt+Shift+T 处理文本 / Alt+Shift+O 图片转文字）"><svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 5V3h6v2M9 11h6m-6 4h6"/></svg></button>
-        <button id="btn-image" class="icon-btn" title="粘贴图片转文字"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="9" r="1.5"/><path d="m4 17 5-5 4 4 3-3 4 4"/></svg></button>
-        <button id="btn-send" class="primary" title="发送"><svg viewBox="0 0 24 24"><path d="m3 12 18-9-5 18-4-7-9-2Zm9 2 9-11"/></svg></button>
+        <button id="btn-paste" class="icon-btn" title="读取剪贴板"><span data-icon="ClipboardText" data-size="20"></span></button>
+        <button id="btn-image" class="icon-btn" title="粘贴图片转文字"><span data-icon="Image" data-size="20"></span></button>
+        <button id="btn-send" class="primary" title="发送"><span data-icon="Send" data-size="20"></span></button>
       </div>
     </footer>
   </div>
@@ -62,6 +62,8 @@
   <script src="../../node_modules/marked/lib/marked.umd.js"></script>
   <script src="../../node_modules/dompurify/dist/purify.min.js"></script>
   <script src="lib/ui.js"></script>
+  <script src="lib/pet-avatar.js"></script>
+  <script src="../shared/reicon-filled.js"></script>
   <script src="tabs/chat.js"></script>
   <script src="tabs/process.js"></script>
   <script src="tabs/agents.js"></script>

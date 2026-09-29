@@ -91,4 +91,5 @@ npm run dist:win
 - 软件源码按 [MIT License](LICENSE) 授权。
 - 伊埃斯同人素材按 [CC BY-NC-SA 4.0](assets/pets/eous/LICENSE.txt) 分享，仅限非商业用途。
 - 流体球着色器与运行时代码按 [orb 项目的 MIT License](assets/orb/LICENSE) 使用。
+- 界面图标采用 [Reicon Filled](https://github.com/dqev/reicon) 的 MIT 许可版本；所选图标已生成到 `renderer/shared/reicon-filled.js`，许可证见 [Reicon LICENSE](assets/icons/reicon/LICENSE)。
 - 米哈游 / HoYoverse 的原角色、名称及相关权利不属于本项目许可范围；第三方依赖适用各自许可证。

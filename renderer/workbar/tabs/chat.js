@@ -129,7 +129,7 @@
       if (!configured) {
         const empty = document.createElement('div');
         empty.className = 'empty';
-        empty.innerHTML = `<span class="big">💬</span>
+        empty.innerHTML = `<span class="big" data-icon="ChatDots" data-size="24"></span>
           还没有配置模型服务<br/>
           在 <b>设置 → 模型服务</b> 填入 OpenAI 兼容接口地址与密钥后即可提问<br/>
           <span class="muted">凭据保存在本机（Windows 凭据加密），仅在你发送时调用</span>`;
@@ -143,7 +143,7 @@
       } else {
         const empty = document.createElement('div');
         empty.className = 'empty';
-        empty.innerHTML = `<span class="big">👋</span>有什么可以帮你的？<br/><span class="muted">Enter 发送 · Shift+Enter 换行 · 代码块可单独复制</span>`;
+        empty.innerHTML = `<span class="big" data-icon="ChatDots" data-size="24"></span>有什么可以帮你的？<br/><span class="muted">Enter 发送 · Shift+Enter 换行 · 代码块可单独复制</span>`;
         list.appendChild(empty);
       }
       return;

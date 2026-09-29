@@ -20,12 +20,12 @@
 
     view.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <h3 style="font-size:14px">⚙ 设置</h3>
+        <h3><span data-icon="Setting" data-size="20"></span> 设置</h3>
         <button class="btn small" id="st-back">返回（Esc）</button>
       </div>
 
       <div class="settings-section">
-        <h4>🤖 模型服务（问答 / AI 润色）</h4>
+        <h4><span data-icon="Cpu" data-size="16"></span> 模型服务（问答 / AI 润色）</h4>
         <div class="card">
           <div class="field"><label>接口地址（OpenAI 兼容 /chat/completions）</label>
             <input type="text" id="st-baseurl" placeholder="https://api.openai.com/v1" value="${UI.esc(llm.baseUrl || '')}"/>
@@ -46,7 +46,7 @@
       </div>
 
       <div class="settings-section">
-        <h4>🐾 宠物形象</h4>
+        <h4><span data-icon="Paw" data-size="16"></span> 宠物形象</h4>
         <div class="card">
           <div class="pet-grid" id="st-pets"></div>
           <div style="margin-top:10px;display:flex;align-items:center;gap:10px">
@@ -64,7 +64,7 @@
       </div>
 
       <div class="settings-section">
-        <h4>✦ 小助手的声音</h4>
+        <h4><span data-icon="ChatDots" data-size="16"></span> 小助手的声音</h4>
         <div class="card">
           <div class="switch"><span class="lbl">悬浮对话<span class="sub">靠近宠物时打招呼，日程和 Coding 更新时主动说话</span></span>
             <label class="toggle"><input type="checkbox" id="st-speech" ${settings.ui?.companionSpeech !== false ? 'checked' : ''}/><span class="track"></span><span class="knob"></span></label></div>
@@ -74,7 +74,7 @@
       </div>
 
       <div class="settings-section">
-        <h4>⌨ 全局热键</h4>
+        <h4><span data-icon="Keyboard" data-size="16"></span> 全局热键</h4>
         <div class="card">
           <div class="hotkey-row"><span class="lbl">唤起 / 收起工作栏</span><input type="text" id="st-hk1" value="${UI.esc(hk.show || '')}"/></div>
           <div class="hotkey-row"><span class="lbl">文本清洗并复制结果</span><input type="text" id="st-hk2" value="${UI.esc(hk.processClipboard || 'Alt+Shift+O')}"/></div>
@@ -85,7 +85,7 @@
       </div>
 
       <div class="settings-section">
-        <h4>🤖 Agent 监控</h4>
+        <h4><span data-icon="CodeSquare" data-size="16"></span> Agent 监控</h4>
         <div class="card">
           <div class="switch"><span class="lbl">Codex（~/.codex/sessions）</span>
             <label class="toggle"><input type="checkbox" class="st-src" data-src="codex" ${ag.sources?.codex !== false ? 'checked' : ''}/><span class="track"></span><span class="knob"></span></label></div>
@@ -100,7 +100,7 @@
       </div>
 
       <div class="settings-section schedule-settings">
-        <h4>📅 日程同步</h4>
+        <h4><span data-icon="CalendarDays" data-size="16"></span> 日程同步</h4>
         <div class="card">
           <div class="schedule-settings-head"><div><strong>连接 Notion 日历</strong><span>从你的数据库读取日程，提醒会由小伙伴主动说出</span></div><span class="badge ${hasNotion && notion.databaseId ? 'done' : ''}">${hasNotion && notion.databaseId ? '已连接' : '待连接'}</span></div>
           <div class="schedule-step"><span class="schedule-step-no">1</span><div><b>授权数据库</b><p>在 Notion 创建 Integration，并将它添加到日程数据库的连接中。</p></div></div>
@@ -120,7 +120,7 @@
       </div>
 
       <div class="settings-section">
-        <h4>🔒 隐私</h4>
+        <h4><span data-icon="ShieldLock" data-size="16"></span> 隐私</h4>
         <div class="card">
           <div class="switch"><span class="lbl">保存问答历史<span class="sub">仅保存在本机；关闭后重启清空</span></span>
             <label class="toggle"><input type="checkbox" id="st-hist" ${settings.privacy?.saveChatHistory !== false ? 'checked' : ''}/><span class="track"></span><span class="knob"></span></label></div>
@@ -136,10 +136,10 @@
       </div>
 
       <div class="settings-section">
-        <h4>ℹ️ 关于</h4>
+        <h4><span data-icon="InfoCircle" data-size="16"></span> 关于</h4>
         <div class="card muted">
           斐墨 v1.0 · Opal Desk<br/>
-          形象：仅伊埃斯；素材由用户本机提供，不随公开版分发<br/>
+          形象：伊埃斯、Forest Flow、Iridescent Opal；形象许可见项目文档<br/>
           参考：Ping Island 状态优先级思路 · Token Monitor 用量信息层级（Apache-2.0 / MIT，未复制代码）
         </div>
       </div>`;
@@ -152,7 +152,15 @@
     for (const p of pets) {
       const c = document.createElement('div');
       c.className = 'pet-card' + (pet.style === p.id ? ' sel' : '');
-      c.innerHTML = `<div class="pet-preview">${p.type === 'orb' ? `<iframe src="../../${UI.esc(p.orb)}" title="${UI.esc(p.name)}" tabindex="-1"></iframe>` : `<img src="../../assets/pets/eous/preview.png" alt="伊埃斯"/>`}</div><div class="nm">${UI.esc(p.name)}</div>`;
+      c.innerHTML = `<div class="pet-preview"></div><div class="nm">${UI.esc(p.name)}</div>`;
+      const preview = c.querySelector('.pet-preview');
+      if (p.type === 'orb') {
+        const frame = document.createElement('iframe');
+        frame.src = `../../${p.orb}`;
+        frame.title = p.name;
+        frame.tabIndex = -1;
+        preview.appendChild(frame);
+      } else preview.appendChild(window.PetAvatar.eous(72));
       c.title = p.description;
       c.addEventListener('click', async () => {
         petGrid.querySelectorAll('.pet-card').forEach((x) => x.classList.remove('sel'));

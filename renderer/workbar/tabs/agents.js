@@ -43,7 +43,7 @@
 
     listEl.innerHTML = '';
     if (!snap.sessions.length) {
-      listEl.innerHTML = `<div class="empty"><span class="big">🤖</span>
+      listEl.innerHTML = `<div class="empty"><span class="big" data-icon="CodeSquare" data-size="24"></span>
         暂无观察到的 Agent 会话<br/>
         <span class="muted">Codex / ZCode / WorkBuddy 运行新任务后会自动出现<br/>（只读观察，不写入 Agent 配置）</span></div>`;
     } else {
@@ -67,9 +67,9 @@
       </div>
       <div class="summary">${UI.esc(s.lastSummary)}</div>
       <div class="meta">
-        ${projectName ? `<span>📁 ${UI.esc(projectName)}</span>` : ''}
+        ${projectName ? `<span><span data-icon="Folder" data-size="16"></span> ${UI.esc(projectName)}</span>` : ''}
         <span>可信度：${CONF[s.confidence] || s.confidence}</span>
-        ${s.staleNote ? `<span style="color:var(--amber)">⏱ ${UI.esc(s.staleNote)}</span>` : ''}
+        ${s.staleNote ? `<span style="color:var(--amber)"><span data-icon="Stopwatch" data-size="16"></span> ${UI.esc(s.staleNote)}</span>` : ''}
         <span class="ago">${UI.ago(s.lastSeenAt)}</span>
       </div>`;
     return card;

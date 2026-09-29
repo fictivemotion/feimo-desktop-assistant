@@ -121,9 +121,7 @@
       frame.title = style; frame.tabIndex = -1;
       brandAvatar.appendChild(frame);
     } else {
-      const image = document.createElement('img');
-      image.src = '../../assets/pets/eous/preview.png'; image.alt = '伊埃斯';
-      brandAvatar.appendChild(image);
+      brandAvatar.appendChild(window.PetAvatar.eous(34));
     }
   }
   api.getSettings().then((settings) => setBrandAvatar(settings.pet?.style));

@@ -22,6 +22,7 @@ const { FocusTimer } = require('./lib/focus-timer');
 const { NotionCalendarConnector } = require('./lib/calendar/notion');
 const { layoutSpeech } = require('./lib/speech-layout');
 const { speechShape } = require('./lib/speech-shape');
+const { placeSpeech } = require('./lib/overlay-layout');
 const { nearestDockSide, dockX, peekDockX } = require('./lib/pet-dock');
 const { ReminderScheduler } = require('./lib/calendar/scheduler');
 const { pickLine, noticeLine } = require('./lib/companion');
@@ -126,6 +127,8 @@ function bootstrap() {
   let quickPanel = 'none';
   let quickExpanded = false;
   let pendingQuickAnchor = null;
+  const QUICK_WIDTH = 520, QUICK_HEIGHT = 370;
+  let quickShapeRects = [];
   let pendingSpeech = null;
   let pendingDock = null;
   let petDockSide = settings.get('pet', {}).dockSide || null;
@@ -220,7 +223,7 @@ function bootstrap() {
 
   function createQuickWindow() {
     quickWin = new BrowserWindow({
-      width: 420, height: 370, show: false, frame: false, transparent: true,
+      width: QUICK_WIDTH, height: QUICK_HEIGHT, show: false, frame: false, transparent: true,
       resizable: false, focusable: true, skipTaskbar: true, hasShadow: false,
       alwaysOnTop: true, backgroundColor: '#00000000',
       webPreferences: { preload: path.join(__dirname, 'preload', 'quick-preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: false },
@@ -240,12 +243,12 @@ function bootstrap() {
   function positionQuick() {
     if (!quickWin || !petWin) return;
     const p = petWin.getBounds(), wa = screen.getDisplayMatching(p).workArea;
-    const w = 420, h = 370;
-    const x = Math.round(Math.max(wa.x, Math.min(p.x + p.width / 2 - 290, wa.x + wa.width - w)));
+    const w = QUICK_WIDTH, h = QUICK_HEIGHT;
+    const x = Math.round(Math.max(wa.x, Math.min(p.x + p.width / 2 - 360, wa.x + wa.width - w)));
     const y = Math.round(Math.max(wa.y, Math.min(p.y + p.height / 2 - 212, wa.y + wa.height - h)));
     quickWin.setBounds({ x, y, width: w, height: h }, false);
     const anchor = {
-      x: p.x + p.width / 2 - x, y: p.y + p.height / 2 - y, petWidth: p.width,
+      x: p.x + p.width / 2 - x, y: p.y + p.height / 2 - y, petWidth: p.width, petHeight: p.height,
       side: p.x + p.width / 2 - x < 145 ? 'right' : 'left',
     };
     if (quickWin.webContents.isLoading()) pendingQuickAnchor = anchor;
@@ -278,34 +281,15 @@ function bootstrap() {
     const b = speechLayout;
     const wa = screen.getDisplayMatching(p).workArea;
     const gap = focus.active ? 65 : 8;
-    const spaceTop = p.y - wa.y;
-    const spaceRight = wa.x + wa.width - (p.x + p.width);
-    const spaceLeft = p.x - wa.x;
-    let placement;
-    let x, y;
-    if (spaceTop >= b.height + gap) {
-      placement = 'top';
-      x = p.x + (p.width - b.width) / 2;
-      y = p.y - b.height - gap;
-    } else if (spaceRight >= b.width + gap || spaceRight >= spaceLeft) {
-      placement = 'right';
-      x = p.x + p.width + gap;
-      y = p.y + (p.height - b.height) / 2;
-    } else {
-      placement = 'left';
-      x = p.x - b.width - gap;
-      y = p.y + (p.height - b.height) / 2;
-    }
-    x = Math.max(wa.x + 4, Math.min(x, wa.x + wa.width - b.width - 4));
-    y = Math.max(wa.y + 4, Math.min(y, wa.y + wa.height - b.height - 4));
-    const bounds = { x: Math.round(x), y: Math.round(y), width: b.width, height: b.height };
+    const quickBounds = quickWin?.isVisible() ? quickWin.getBounds() : null;
+    const obstacles = quickBounds ? quickShapeRects.map(r => ({ x: quickBounds.x + r.x, y: quickBounds.y + r.y, width: r.width, height: r.height })) : [];
+    if (workbarWin?.isVisible()) obstacles.push(workbarWin.getBounds());
+    const result = placeSpeech(p, b, wa, obstacles, gap);
+    if (!result) return null;
+    const { bounds, placement: info } = result;
     speechWin.setBounds(bounds, false);
-    const anchor = placement === 'top'
-      ? Math.max(19, Math.min(b.width - 19, p.x + p.width / 2 - bounds.x))
-      : Math.max(18, Math.min(b.height - 18, p.y + p.height / 2 - bounds.y));
-    const info = { side: placement, anchor: Math.round(anchor) };
     if (typeof speechWin.setShape === 'function') {
-      speechWin.setShape(speechShape(b.width, b.height, placement, info.anchor));
+      speechWin.setShape(speechShape(b.width, b.height, info.side, info.anchor));
     }
     speechWin.webContents.send('speech:placement', info);
     return info;
@@ -324,6 +308,7 @@ function bootstrap() {
     speechUntil = Date.now() + duration;
     speechLayout = layout;
     const placement = positionSpeech();
+    if (!placement) { speechWin.hide(); speechUntil = 0; speechPriority = -1; speechFromHover = false; return; }
     const send = () => {
       speechWin?.webContents.send('speech:placement', placement);
       speechWin?.webContents.send('speech:message', layout.text);
@@ -797,8 +782,17 @@ function bootstrap() {
   ipc.on('quick:panel', (_e, name) => { quickPanel = ['timer', 'schedule'].includes(name) ? name : 'none'; });
   ipc.on('quick:shape', (_e, rects) => {
     if (!quickWin || !Array.isArray(rects)) return;
-    const safe = rects.slice(0, 12).map((r) => ({ x: Math.max(0, Math.min(419, Math.round(r.x))), y: Math.max(0, Math.min(369, Math.round(r.y))), width: Math.max(1, Math.min(420, Math.round(r.width))), height: Math.max(1, Math.min(370, Math.round(r.height))) }));
+    const safe = rects.slice(0, 240).map((r) => {
+      const x = Math.max(0, Math.min(QUICK_WIDTH - 1, Math.round(r.x)));
+      const y = Math.max(0, Math.min(QUICK_HEIGHT - 1, Math.round(r.y)));
+      return { x, y, width: Math.max(1, Math.min(QUICK_WIDTH - x, Math.round(r.width))), height: Math.max(1, Math.min(QUICK_HEIGHT - y, Math.round(r.height))) };
+    });
+    quickShapeRects = safe;
     quickWin.setShape(safe);
+    if (speechUntil > Date.now()) {
+      const placement = positionSpeech();
+      if (placement) speechWin?.showInactive(); else speechWin?.hide();
+    }
   });
 
   ipc.handle('focus:state', () => focus.view());

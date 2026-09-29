@@ -6,7 +6,7 @@
     <div class="focus-hero card"><div><span class="focus-eyebrow">FOCUS WITH FEIMO</span><h2>专注一会儿</h2><p>选择任务，斐墨会在桌面陪你计时。</p></div><div class="focus-ring"><span id="f-clock">25:00</span></div></div>
     <div class="card focus-control">
       <div class="focus-modes"><button class="selected" data-mode="pomodoro">番茄钟</button><button data-mode="countdown">倒计时</button></div>
-      <div class="focus-duration"><button id="f-minus" aria-label="减少五分钟">−</button><label><input id="f-minutes" type="number" min="1" max="720" value="25"/><small>分钟</small></label><button id="f-plus" aria-label="增加五分钟">＋</button></div>
+      <div class="focus-duration"><button id="f-minus" aria-label="减少五分钟"><span data-icon="Minus" data-size="20"></span></button><label><input id="f-minutes" type="number" min="1" max="720" value="25"/><small>分钟</small></label><button id="f-plus" aria-label="增加五分钟"><span data-icon="Add" data-size="20"></span></button></div>
       <div class="focus-subtitle">任务标签</div><div id="f-labels" class="focus-labels"></div>
       <div class="focus-add"><input id="f-new-label" type="text" maxlength="24" placeholder="新任务标签"/><input id="f-new-color" type="color" value="#6ef2cf" aria-label="标签颜色"/><button id="f-add-label" class="btn">添加</button></div>
       <div class="focus-actions"><button id="f-start" class="btn primary">开始专注</button><button id="f-pause" class="btn hidden">暂停</button><button id="f-stop" class="btn danger hidden">结束</button></div>

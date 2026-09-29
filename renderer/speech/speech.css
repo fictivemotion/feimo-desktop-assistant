@@ -7,6 +7,8 @@ body[data-placement="right"]{padding:5px 8px 5px 14px}
 body[data-placement="right"] .speech::after{bottom:auto;left:-13px;top:calc(var(--dot-anchor, 50%) - 5px)}
 body[data-placement="left"]{padding:5px 14px 5px 8px}
 body[data-placement="left"] .speech::after{bottom:auto;left:auto;right:-13px;top:calc(var(--dot-anchor, 50%) - 5px)}
+body[data-placement="bottom"]{padding:13px 8px 5px}
+body[data-placement="bottom"] .speech::after{bottom:auto;top:-12px}
 #message{display:block;white-space:pre;overflow:hidden}
 @keyframes appear{from{opacity:0;transform:translateY(3px) scale(.97)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){.speech{animation:none}}
