@@ -91,13 +91,9 @@ button:active:not(:disabled){transform:scale(.98)}
 @media(max-width:440px){.noise-library-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 /* Shared by every module: painted header, frosted white veil, transparent lower edge. */
-#workspace-header { flex:none;display:flex;flex-direction:column;position:relative;isolation:isolate;overflow:hidden; }
-#workspace-header::before,#workspace-header::after { content:"";position:absolute;inset:0;z-index:-1;pointer-events:none; }
-#workspace-header::before { background:url('../../assets/soundscape/spring-halftone.png') center 40%/cover no-repeat;opacity:.72;mask-image:linear-gradient(to bottom,#000 0%,rgba(0,0,0,.6) 40%,rgba(0,0,0,.15) 76%,transparent 100%); }
-#workspace-header::after { background:linear-gradient(to bottom,rgba(255,255,255,.66) 0%,rgba(255,255,255,.6) 40%,rgba(255,255,255,.4) 76%,transparent 100%);backdrop-filter:blur(1.2px) saturate(.85);-webkit-backdrop-filter:blur(1.2px) saturate(.85);mask-image:linear-gradient(to bottom,#000 0%,rgba(0,0,0,.75) 40%,rgba(0,0,0,.2) 76%,transparent 100%); }
+#workspace-header { flex:none;display:flex;flex-direction:column; }
 #workspace-header #tabs { background:rgba(239,243,246,.84); }
 #workspace-header #page-title { color:#19232c; }
 #workspace-header #page-subtitle,#workspace-header #brand small { color:#63707b; }
 #workspace-header .next-event { color:#65727d; }
 .label,.focus-label { max-width:100%;overflow:hidden;text-overflow:ellipsis; }
-@media(prefers-reduced-transparency:reduce),(prefers-contrast:more){#workspace-header::before,#workspace-header::after{display:none}}

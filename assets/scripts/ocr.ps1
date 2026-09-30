@@ -10,6 +10,10 @@ try {
   $null = [Windows.Graphics.Imaging.BitmapDecoder, Windows.Graphics.Imaging, ContentType = WindowsRuntime]
   $null = [Windows.Storage.StorageFile, Windows.Storage, ContentType = WindowsRuntime]
   $null = [Windows.Graphics.Imaging.SoftwareBitmap, Windows.Graphics.Imaging, ContentType = WindowsRuntime]
+  $null = [Windows.Graphics.Imaging.BitmapPixelFormat, Windows.Graphics.Imaging, ContentType = WindowsRuntime]
+  $null = [Windows.Graphics.Imaging.BitmapAlphaMode, Windows.Graphics.Imaging, ContentType = WindowsRuntime]
+  $stream = $null
+  $bmp = $null
 
   $asTaskGeneric = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {
     $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1'
@@ -32,15 +36,24 @@ try {
     }
     if ($null -eq $engine) { throw "NO_LANGPACK: $Lang" }
   } else {
-    $engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromUserProfileLanguages()
-    $langUsed = 'user-profile'
+    # Chinese OCR also reads Latin text. Prefer an installed Simplified Chinese
+    # recognizer for the Chinese desktop UI, then use the user's profile engine.
+    $preferred = [Windows.Media.Ocr.OcrEngine]::AvailableRecognizerLanguages | Where-Object { $_.LanguageTag -match '^zh-(Hans|CN)' } | Select-Object -First 1
+    if ($preferred) { $engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromLanguage($preferred) }
+    if ($null -eq $engine) { $engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromUserProfileLanguages() }
+    if ($null -eq $engine) {
+      $fallback = [Windows.Media.Ocr.OcrEngine]::AvailableRecognizerLanguages | Select-Object -First 1
+      if ($fallback) { $engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromLanguage($fallback) }
+    }
+    if ($null -ne $engine) { $langUsed = $engine.RecognizerLanguage.LanguageTag }
   }
   if ($null -eq $engine) { throw 'NO_ENGINE' }
 
   $file = AwaitOp ([Windows.Storage.StorageFile]::GetFileFromPathAsync($ImagePath)) ([Windows.Storage.StorageFile])
   $stream = AwaitOp ($file.OpenAsync(0)) ([Windows.Storage.Streams.IRandomAccessStream])
   $decoder = AwaitOp ([Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync($stream)) ([Windows.Graphics.Imaging.BitmapDecoder])
-  $bmp = AwaitOp ($decoder.GetSoftwareBitmapAsync()) ([Windows.Graphics.Imaging.SoftwareBitmap])
+  if ($decoder.PixelWidth -gt [Windows.Media.Ocr.OcrEngine]::MaxImageDimension -or $decoder.PixelHeight -gt [Windows.Media.Ocr.OcrEngine]::MaxImageDimension) { throw 'IMAGE_TOO_LARGE: please use a smaller image' }
+  $bmp = AwaitOp ($decoder.GetSoftwareBitmapAsync([Windows.Graphics.Imaging.BitmapPixelFormat]::Bgra8, [Windows.Graphics.Imaging.BitmapAlphaMode]::Ignore)) ([Windows.Graphics.Imaging.SoftwareBitmap])
 
   $result = AwaitOp ($engine.RecognizeAsync($bmp)) ([Windows.Media.Ocr.OcrResult])
 
@@ -68,10 +81,11 @@ try {
     lines = $lines
   }
   $out | ConvertTo-Json -Depth 4 | Out-File -FilePath $OutFile -Encoding utf8
-  exit 0
 } catch {
   $msg = $_.Exception.Message
   $out = [pscustomobject]@{ ok = $false; error = "$msg" }
   $out | ConvertTo-Json | Out-File -FilePath $OutFile -Encoding utf8
-  exit 0
+} finally {
+  if ($bmp) { $bmp.Dispose() }
+  if ($stream) { $stream.Dispose() }
 }

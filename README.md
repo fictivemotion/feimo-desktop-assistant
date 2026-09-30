@@ -75,7 +75,9 @@
 
 ![白噪音快捷卡片：纯白背景、独立音量与预设混音](docs/images/white-noise-card.png)
 
-所有工作台模块共用春日田园油画与像素半调 Header：半透明白色毛玻璃遮罩增强文字可读性，背景与遮罩向下渐隐。白噪音页面与快捷卡片采用纯白背景；快捷卡片沿用 21 px 圆角，不添加外部阴影。音源目录共享自 Moodist，代码为 MIT，音频为 Pixabay / CC0，详见[素材说明](assets/soundscape/MOODIST-LICENSE.txt)。
+所有工作台模块共用春日田园油画与像素半调 Header：半透明白色毛玻璃遮罩增强文字可读性，2 / 6 / 14 px Progressive Blur 逐步模糊并渐隐到下方内容。白噪音页面与快捷卡片采用纯白背景；快捷卡片沿用 21 px 圆角，不添加外部阴影。音源目录共享自 Moodist，代码为 MIT，音频为 Pixabay / CC0，详见[素材说明](assets/soundscape/MOODIST-LICENSE.txt)。
+
+完整视觉规则及接入示例见[斐墨通用 UI 设计规范](docs/斐墨-通用UI设计规范.md)。
 
 ![工作台共用渐隐油画 Header 与纯白声音资料库](docs/images/workspace-header.png)
 

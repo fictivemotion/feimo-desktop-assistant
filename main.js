@@ -784,7 +784,11 @@ function bootstrap() {
       clipboardJobStatus.state = 'failed';
       clipboardJobStatus.error = err.message;
       flash('failed');
-      speak(kind === 'image' ? '图片文字提取失败，请检查 OCR 语言包' : '文字清理失败，请再试一次', { force: true, priority: 4, duration: 6500 });
+      const imageFailure = err.code === 'NO_LANGPACK' ? '缺少所选 OCR 语言包，请在 Windows 设置中添加'
+        : err.code === 'OCR_TIMEOUT' ? '图片识别超时，换张小一点的图片试试'
+        : err.code === 'OCR_BRIDGE' ? '本地图片识别进程未能启动，请重试'
+        : '图片文字提取失败，可以到工作台查看原因并重试';
+      speak(kind === 'image' ? imageFailure : '文字清理失败，请再试一次', { force: true, priority: 4, duration: 6500 });
     } finally {
       clipboardJobBusy = false;
       userProcessing = false;
