@@ -34,12 +34,13 @@
     <div class="card">
       <h3>按模型 · 前 8（30 日）</h3>
       <div id="u-models"></div>
-      <div class="muted" style="margin-top:6px">费用为按公开定价表的<b>估算值</b>（${''}priceVersion 见导出），未知模型不计费</div>
+      <div class="muted" style="margin-top:6px">模型名称来自真实会话记录；未配置价格的模型照常统计 Token，费用不估算。</div>
     </div>
 
-    <div class="card" id="u-limits-card" style="display:none">
-      <h3>账户限额（Codex 接口上报）</h3>
+    <div class="card" id="u-limits-card">
+      <div class="usage-section-head"><h3>Codex 账户额度</h3><button class="btn small" id="u-refresh-limits">刷新额度</button></div>
       <div id="u-limits"></div>
+      <div class="muted" id="u-limits-fresh" role="status"></div>
       <div class="muted" style="margin-top:4px">限额与本地用量分开统计，不互相换算</div>
     </div>
 
@@ -52,6 +53,7 @@
   const TOOL_NAMES = { codex: 'Codex', zcode: 'ZCode', workbuddy: 'WorkBuddy' };
   let heatmapDays = [];
   let rangeDays = 90;
+  let limitSnapshot=null,limitStatus={};
   const dayKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
   function describeDay(d) {
@@ -126,7 +128,7 @@
 
     view.querySelector('#u-today-in').textContent = UI.fmtTokens(u.today.input);
     view.querySelector('#u-today-out').textContent = UI.fmtTokens(u.today.output);
-    view.querySelector('#u-today-cost').textContent = UI.fmtCost(u.today.cost);
+    view.querySelector('#u-today-cost').textContent = u.today.requests>0 && u.today.unknownCostRequests===u.today.requests ? '—' : UI.fmtCost(u.today.cost)+(u.today.unknownCostRequests?'*':'');
 
     // 7 日趋势：每一天均可鼠标、键盘查看并固定明细。
     const byDate = new Map(u.perDay.map((d) => [d.key, d]));
@@ -186,9 +188,9 @@
       const row = document.createElement('div');
       row.className = 'usage-row';
       row.innerHTML = `
-        <span class="nm mono" title="${UI.esc(m.key)}">${UI.esc(m.key)}</span>
+        <span class="nm mono" title="${UI.esc(m.key)}">${UI.esc(m.key.replace(/\/ unknown$/, '/ 模型未记录'))}</span>
         <span class="val">入 ${UI.fmtTokens(m.input)} · 出 ${UI.fmtTokens(m.output)} · 缓存读 ${UI.fmtTokens(m.cacheRead)}</span>
-        <span class="val">${m.key.includes('unknown') ? '不计费' : UI.fmtCost(m.cost)}</span>`;
+        <span class="val">${m.key.includes('unknown') || m.unknownCostRequests===m.requests ? '价格未配置' : UI.fmtCost(m.cost)+(m.unknownCostRequests?'*':'')}</span>`;
       modelsEl.appendChild(row);
     }
 
@@ -197,30 +199,48 @@
   }
 
   function renderLimits(snap) {
+    limitSnapshot=snap;
     const card = view.querySelector('#u-limits-card');
     const el = view.querySelector('#u-limits');
     const limits = snap?.limits || {};
     const entries = Object.entries(limits);
-    if (!entries.length) { card.style.display = 'none'; return; }
+    if (!entries.length) { card.style.display = '';el.textContent='尚无有效额度记录，点击刷新查询当前 Codex 账号。';renderLimitStatus();return; }
     card.style.display = '';
     el.innerHTML = '';
     for (const [provider, l] of entries) {
-      for (const [k, scope] of [['primary', '主限额'], ['secondary', '周限额']]) {
+      for (const [k, scope] of [['primary', '短期窗口'], ['secondary', '长期窗口']]) {
         const x = l[k];
-        if (!x) continue;
+        if (!x || typeof x.usedPercent!=='number') continue;
+        const expired=x.resetsAt && x.resetsAt*1000<=Date.now();
+        const label=x.windowMinutes>=1440?`${Math.round(x.windowMinutes/1440)} 天窗口`:x.windowMinutes?`${x.windowMinutes/60} 小时窗口`:scope;
         const resets = x.resetsAt ? new Date(x.resetsAt * 1000).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
         const row = document.createElement('div');
         row.style.marginBottom = '8px';
         row.innerHTML = `
-          <div style="display:flex;justify-content:space-between;font-size:12px">
-            <span>${TOOL_NAMES[provider] || provider} · ${scope}</span>
-            <span class="mono">${x.usedPercent}% · 重置 ${resets}</span>
+          <div style="display:flex;flex-wrap:wrap;gap:4px 12px;justify-content:space-between;font-size:12px">
+            <span>${UI.esc(TOOL_NAMES[provider] || provider)} · ${UI.esc(label)}</span>
+            <span class="mono">${expired?'已到重置时间，待刷新':`已用 ${x.usedPercent}% · 剩余 ${100-x.usedPercent}%`} · ${resets}</span>
           </div>
-          <div class="limit-bar"><div style="width:${Math.min(100, x.usedPercent)}%"></div></div>`;
+          <div class="limit-bar"><div style="width:${expired?0:Math.min(100,x.usedPercent)}%"></div></div>`;
         el.appendChild(row);
       }
     }
+    renderLimitStatus();
   }
+
+  function renderLimitStatus(status=limitStatus) {
+    limitStatus=status||{};
+    const button=view.querySelector('#u-refresh-limits');button.disabled=!!limitStatus.refreshing;button.textContent=limitStatus.refreshing?'查询中…':'刷新额度';
+    const observed=limitSnapshot?.limits?.codex;
+    const line=observed?`${observed.source==='api'?'账户查询':'会话日志'} · 更新于 ${new Date(observed.observedAt).toLocaleString('zh-CN')} · 自动每分钟刷新`:'仅查询额度，不发起模型请求';
+    view.querySelector('#u-limits-fresh').textContent=line+(limitStatus.error?` · ${limitStatus.error}`:'');
+  }
+  view.querySelector('#u-refresh-limits').addEventListener('click',async()=>{
+    renderLimitStatus({...limitStatus,refreshing:true});
+    try{const r=await api.limitsRefresh();renderLimits(r.snapshot);renderLimitStatus(r.status);}catch(e){renderLimitStatus({...limitStatus,refreshing:false,error:e.message});}
+  });
+  api.onLimitsStatus?.(renderLimitStatus);
+  api.limitsStatus?.().then(renderLimitStatus);
 
   view.querySelector('#u-export').addEventListener('click', async () => {
     const r = await api.usageExport();
@@ -232,5 +252,5 @@
   api.onAgentsSnapshot((snap) => { renderLimits(snap); if (snap.detected) { /* noop */ } });
   api.agentsSnapshot().then((snap) => renderLimits(snap));
 
-  window.TABS.usage = { onShown: () => api.usageAggregate().then(render) };
+  window.TABS.usage = { onShown: () => {api.usageAggregate().then(render);api.agentsSnapshot().then(renderLimits);api.limitsStatus?.().then(renderLimitStatus);} };
 })();

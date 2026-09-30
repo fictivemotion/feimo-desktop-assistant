@@ -74,3 +74,24 @@ test('CSV 导出含 quality 与 priceVersion 字段', () => {
   assert.ok(csv.includes('price_version'));
   assert.ok(csv.split('\r\n').length >= 2);
 });
+
+test('历史 unknown 回填 6.1 Sol，记录数和 Token 不变，重启后保留', () => {
+  const file=tmp(),s=new UsageStore(file);
+  const fact={provider:'codex',model:'unknown',timestamp:new Date().toISOString(),input:100,output:15,cacheRead:80,sourceEventId:'codex:repair',quality:'reported'};
+  s.add(fact);
+  assert.strictEqual(s.add({...fact,model:'gpt-6.1-sol',input:999}),true);
+  const pending=s.aggregate({days:1});
+  assert.strictEqual(pending.totals.requests,1);
+  assert.strictEqual(pending.totals.input,100);
+  assert.strictEqual(pending.perModel[0].key,'codex / gpt-6.1-sol');
+  assert.strictEqual(pending.perModel[0].unknownCostRequests,1);
+  s.flushModelRepairs();
+  const reopened=new UsageStore(file),agg=reopened.aggregate({days:1});
+  assert.strictEqual(agg.perModel[0].key,'codex / gpt-6.1-sol');
+  assert.strictEqual(agg.totals.input,100);
+  assert.strictEqual(agg.totals.output,15);
+  assert.strictEqual(agg.totals.cacheRead,80);
+  assert.strictEqual(reopened.add({...fact,model:'gpt-6.1-sol'}),false);
+  assert.strictEqual(reopened.add(fact),false);
+  assert.strictEqual(estimateCost('gpt-6.1-sol',100,15),null);
+});

@@ -56,6 +56,26 @@ test('Codex：rate_limits 提取', () => {
   assert.strictEqual(limits[0].secondary.usedPercent, 72.0);
 });
 
+test('Codex：识别 6.1 Sol，切换模型后迟到的用量仍归属原回合', () => {
+  const {c,usages}=mkCodex();
+  const context=(turn_id,model)=>JSON.stringify({type:'turn_context',payload:{turn_id,model}});
+  const usage=(turn_id,response_id,model)=>JSON.stringify({type:'token_usage_record',payload:{turn_id,response_id,model,usage:{input_tokens:10,output_tokens:2}}});
+  c._ingest(SESSION_FILE,[context('a','gpt-6.1-sol'),usage('a','one'),context('b','gpt-6-luna'),usage('a','two'),usage('b','three'),usage('b','four','gpt-6-sol')],true);
+  assert.deepStrictEqual(usages.map(u=>u.model),['gpt-6.1-sol','gpt-6.1-sol','gpt-6-luna','gpt-6-sol']);
+});
+
+test('Registry：旧会话不能覆盖账户新额度，稀疏更新保留另一窗口', () => {
+  const {r}=mkRegistry();
+  const newer={provider:'codex',observedAt:'2026-09-30T10:00:00Z',source:'api',primary:{usedPercent:0},secondary:{usedPercent:97}};
+  assert.strictEqual(r.ingestLimits(newer),true);
+  assert.strictEqual(r.ingestLimits({...newer,observedAt:'2026-09-29T10:00:00Z',primary:{usedPercent:88}}),false);
+  assert.strictEqual(r.ingestLimits({...newer,observedAt:'invalid'}),false);
+  r.ingestLimits({...newer,observedAt:'2026-09-30T10:01:00Z',primary:{usedPercent:1},secondary:null});
+  const limits=r.snapshot().limits.codex;
+  assert.strictEqual(limits.primary.usedPercent,1);
+  assert.strictEqual(limits.secondary.usedPercent,97);
+});
+
 test('Codex：turn_aborted → failed', () => {
   const { c, events } = mkCodex();
   c._ingest(SESSION_FILE, [

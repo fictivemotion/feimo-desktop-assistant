@@ -46,6 +46,9 @@ contextBridge.exposeInMainWorld('api', {
   onOcrLoadImage: (cb) => ipcRenderer.on('ocr:loadImage', (_e, d) => cb(d)),
   // Agents
   agentsSnapshot: () => ipcRenderer.invoke('agents:snapshot'),
+  limitsRefresh: () => ipcRenderer.invoke('limits:refresh'),
+  limitsStatus: () => ipcRenderer.invoke('limits:status'),
+  onLimitsStatus: (cb) => ipcRenderer.on('limits:status', (_e, value) => cb(value)),
   onAgentsSnapshot: (cb) => ipcRenderer.on('agents:snapshot', (_e, s) => cb(s)),
   // 用量
   usageAggregate: () => ipcRenderer.invoke('usage:aggregate'),

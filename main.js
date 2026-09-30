@@ -20,6 +20,7 @@ const windowsIntegration = require('./lib/windows-integration');
 const { Toolbox } = require('./lib/toolbox');
 const { quotaCard, QuotaAlerts, noticeCard } = require('./lib/prompt-cards');
 const { AgentRegistry } = require('./lib/connectors/registry');
+const { CodexLimitsClient } = require('./lib/connectors/codex-limits');
 const { UsageStore } = require('./lib/usage/facts');
 const { CalendarStore } = require('./lib/calendar/store');
 const { FocusTimer } = require('./lib/focus-timer');
@@ -111,6 +112,19 @@ function bootstrap() {
   const registry = new AgentRegistry({ bus, enabledSources: settings.get('agents', {}).sources });
   let toolbox = null, toolboxError = '', clipboardPoll = null, clipboardPolling = false;
   const quotaAlerts = new QuotaAlerts();
+  const codexLimits = new CodexLimitsClient();
+  let limitsTimer=null,usageNotifyTimer=null;
+  let limitsStatus={refreshing:false,lastAttemptAt:null,lastSuccessAt:null,error:null};
+  async function refreshLimits() {
+    limitsStatus={...limitsStatus,refreshing:true,lastAttemptAt:new Date().toISOString()};
+    workbarWin?.webContents.send('limits:status',limitsStatus);
+    try {
+      const value=await codexLimits.read();registry.ingestLimits(value);
+      limitsStatus={...limitsStatus,refreshing:false,lastSuccessAt:value.observedAt,error:null};
+    } catch(e) {limitsStatus={...limitsStatus,refreshing:false,error:e.message};}
+    workbarWin?.webContents.send('limits:status',limitsStatus);
+    return {snapshot:registry.snapshot(),status:limitsStatus};
+  }
   function requireToolbox() { if (!toolbox) throw new Error(toolboxError || '工具箱尚未准备好'); return toolbox; }
   function toolboxView() { return { ...requireToolbox().view(), autoCapture: !!settings.get('toolbox', {}).autoCapture }; }
   function toolboxChanged() { workbarWin?.webContents.send('toolbox:changed', toolboxView()); }
@@ -563,7 +577,7 @@ function bootstrap() {
   // ---------- 事件接线 ----------
   bus.on('usage:fact', (fact) => {
     if (usage.add(fact)) {
-      workbarWin?.webContents.send('usage:updated', usageView());
+      if(!usageNotifyTimer)usageNotifyTimer=setTimeout(()=>{usageNotifyTimer=null;workbarWin?.webContents.send('usage:updated',usageView());},250);
     }
   });
   bus.on('agents:changed', (snap) => {
@@ -812,8 +826,9 @@ function bootstrap() {
   ipc.handle('speech:copy', () => { if (replyState?.full) return writeTextVerified(clipboard, replyState.full); });
   ipc.on('speech:stop', () => chatAbort.controller?.abort());
   ipc.on('speech:cardClose', () => { if (cardState) { dismissSpeech(); speechWin?.setIgnoreMouseEvents(true, { forward: true }); speechWin?.setFocusable(false); } });
-  ipc.on('speech:cardOpen', (_e, tab) => { if (['agents', 'schedule', 'focus'].includes(tab)) { if (cardState) dismissSpeech(); showWorkbar(tab); } });
-  ipc.handle('quick:quota', () => {
+  ipc.on('speech:cardOpen', (_e, tab) => { if (['agents', 'schedule', 'focus', 'usage'].includes(tab)) { if (cardState) dismissSpeech(); showWorkbar(tab); } });
+  ipc.handle('quick:quota', async () => {
+    await refreshLimits();
     const card = quotaCard(registry.snapshot().limits?.codex);
     if (card) showPromptCard(card, 3);
     else speak('还没有可用的 Codex 额度记录喔', { priority: 3 });
@@ -1068,6 +1083,8 @@ function bootstrap() {
 
   // Agents
   ipc.handle('agents:snapshot', () => registry.snapshot());
+  ipc.handle('limits:refresh', () => refreshLimits());
+  ipc.handle('limits:status', () => limitsStatus);
 
   // 用量
   function usageView() {
@@ -1144,6 +1161,10 @@ function bootstrap() {
     trayRebuild = t.rebuild;
 
     registry.start();
+    usage.flushModelRepairs();
+    if(settings.get('agents',{}).sources?.codex!==false) {
+      void refreshLimits();limitsTimer=setInterval(()=>void refreshLimits(),60000);limitsTimer.unref?.();
+    }
     scheduler.start();
     registerHotkeys();
     applyPetSettings();
@@ -1190,6 +1211,7 @@ function bootstrap() {
     if (speechTimer) clearTimeout(speechTimer);
     globalShortcut.unregisterAll();
     registry.stop();
+    codexLimits.stop();clearInterval(limitsTimer);clearTimeout(usageNotifyTimer);usage.flushModelRepairs();
     scheduler.stop();
     if (notionTimer) clearInterval(notionTimer);
     if (stateTimer) clearInterval(stateTimer);
