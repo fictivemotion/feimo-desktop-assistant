@@ -6,12 +6,13 @@
   view.innerHTML = `
     <div class="next-card" id="sc-next" style="display:none"></div>
 
-    <div class="card">
-      <h3>快速记录</h3>
+    <div class="card" id="sc-editor" hidden>
+      <h3>新建日程</h3>
+      <p class="schedule-editor-help">添加一项安排，斐墨会在你选择的时间提醒你。</p>
       <div class="field"><input type="text" id="sc-title" placeholder="日程标题，如：设计评审"/></div>
-      <div style="display:flex;gap:8px">
-        <div class="field" style="flex:1"><label>开始时间</label><input type="datetime-local" id="sc-start"/></div>
-        <div class="field" style="flex:1"><label>提醒</label>
+      <div class="schedule-fields">
+        <div class="field"><label>开始时间</label><input type="datetime-local" id="sc-start"/></div>
+        <div class="field"><label>提醒</label>
           <select id="sc-remind">
             <option value="0">开始时</option>
             <option value="5">提前 5 分钟</option>
@@ -20,8 +21,8 @@
             <option value="-1">不提醒</option>
           </select>
         </div>
-        <div class="field" style="flex:none;display:flex;align-items:flex-end"><button class="btn primary" id="sc-add">添加</button></div>
       </div>
+      <button class="btn primary schedule-submit" id="sc-add">保存日程</button>
     </div>
 
     <div class="card">
@@ -39,6 +40,11 @@
     </div>`;
 
   const SRC_LABEL = { local: '本地', notion: 'Notion 数据库', google: 'Google 日历' };
+  function setEditor(on) {
+    view.classList.toggle('editing', on); view.querySelector('#sc-editor').hidden = !on;
+    document.getElementById('page-action').textContent = on ? '返回日程' : '新建日程';
+    view.scrollTop = 0; if (on) view.querySelector('#sc-title').focus();
+  }
   const SRC_BADGE = { local: 'local', notion: 'done', google: 'inferred' };
 
   function fmtTime(iso, allDay) {
@@ -132,6 +138,7 @@
       view.querySelector('#sc-title').value = '';
       defaultTime();
       UI.toast('已添加日程');
+      setEditor(false);
     } catch (e) {
       UI.toast(e.message, true);
     }
@@ -161,5 +168,5 @@
   api.onCalendarSyncResult(() => { refreshStatus(); api.calendarView().then(render); });
   refreshStatus();
 
-  window.TABS.schedule = { onShown: () => { api.calendarView().then(render); refreshStatus(); } };
+  window.TABS.schedule = { toggleEditor: () => setEditor(!view.classList.contains('editing')), onShown: () => { api.calendarView().then(render); refreshStatus(); } };
 })();

@@ -56,3 +56,18 @@ test('speech is hidden when every position is occupied', () => {
   const bubble = { width: 145, height: 60 };
   assert.equal(placeSpeech(pet, bubble, area), null);
 });
+
+test('retained reply stack avoids timer, arc tools and input at all desktop corners', () => {
+  const area = { x: 0, y: 0, width: 1920, height: 1040 };
+  for (const [x,y] of [[8,8],[1800,8],[8,930],[1800,930],[800,520]]) {
+    const pet = { x,y,width:94,height:97 }, center = x+47;
+    const tools = [-70,-25,20].map(dy=>({x:Math.max(4,x-70),y:Math.max(4,y+dy),width:34,height:34}));
+    const input = {x:Math.max(4,Math.min(1784,center-66)),y:Math.min(985,y+115),width:132,height:42};
+    const timer = {x:Math.max(4,Math.min(1810,center-53)),y:Math.max(4,y-90),width:106,height:38};
+    const obstacles = [...tools,input,timer];
+    const result = placeSpeech(pet,{width:240,height:280},area,obstacles,12);
+    assert.ok(result,`reply stack has no placement at ${x},${y}`);
+    assert.ok(obstacles.every(r=>!intersects(result.bounds,r,4)));
+    assert.ok(!intersects(result.bounds,pet));
+  }
+});

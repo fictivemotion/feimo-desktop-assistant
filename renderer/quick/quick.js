@@ -8,6 +8,48 @@
   let focus = { labels: [], active: null };
   let toastTimer = null, toolAnimationTimer = null, toolsAnimating = false;
   const toolSize = 34;
+  const groups = [
+    [{icon:'CalendarAdd',title:'新建日程',run:()=>showPanel('schedule')},{icon:'Timer',title:'倒计时 / 番茄钟',run:()=>showPanel('timer')},{icon:'Widget',title:'打开工作台',run:()=>api.openWorkbar('chat')}],
+    [{icon:'ClipboardText',title:'剪贴板管理',run:()=>api.openWorkbar('tools:clipboard')},{icon:'NoteText',title:'随手速记',run:()=>showPanel('note')},{icon:'Palette',title:'配色与色卡',run:()=>api.openWorkbar('tools:palette')}],
+    [{icon:'Image',title:'截图提取并清洗文字',run:()=>api.clipboardRunQuick('image')},{icon:'Broom',title:'清洗剪贴板文字',run:()=>api.clipboardRunQuick('text')},{icon:'ChartBar',title:'Codex 额度卡片',run:()=>api.quota()}],
+  ];
+  let group = 0, paging = false, pointer = null, suppressClickUntil = 0, wheelAt = 0;
+  const toolButtons = [...tools.querySelectorAll('button')];
+  function renderGroup() {
+    toolButtons.forEach((b,i)=>{
+      const item=groups[group][i]; b.replaceChildren(window.ReiconFilled.create(item.icon,20));
+      b.title=`${item.title} · ${group+1}/${groups.length} · 滚轮/拖动翻页`; b.setAttribute('aria-label',b.title);
+      if(i===1){const badge=document.createElement('small');badge.className='tool-page';badge.textContent=String(group+1);b.appendChild(badge);}
+    });
+  }
+  function turnPage(direction) {
+    if(paging || !expanded || panel!=='none')return;
+    paging=true; toolsAnimating=true; shape();
+    const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const out=toolButtons.map((b,i)=>{
+      const dx=b.offsetLeft+17-anchor.x,dy=b.offsetTop+17-anchor.y, angle=direction*.48, c=Math.cos(angle),s=Math.sin(angle);
+      return reduced?Promise.resolve():b.animate([{opacity:1,transform:'none'},{opacity:0,transform:`translate(${dx*c-dy*s-dx}px,${dx*s+dy*c-dy}px) scale(.7)`}],{duration:140,delay:i*25,easing:'ease-in',fill:'forwards'}).finished.catch(()=>{});
+    });
+    Promise.all(out).then(()=>{
+      group=(group+direction+groups.length)%groups.length; renderGroup();
+      toolButtons.forEach((b,i)=>{
+        b.getAnimations().forEach(a=>a.cancel());
+        const dx=b.offsetLeft+17-anchor.x,dy=b.offsetTop+17-anchor.y,angle=-direction*.48,c=Math.cos(angle),s=Math.sin(angle);
+        if(!reduced)b.animate([{opacity:0,transform:`translate(${dx*c-dy*s-dx}px,${dx*s+dy*c-dy}px) scale(.7)`},{opacity:1,transform:'none'}],{duration:230,delay:i*35,easing:'cubic-bezier(.2,.8,.2,1)'});
+      });
+      setTimeout(()=>{paging=false;toolsAnimating=false;shape();},310);
+    });
+  }
+  tools.addEventListener('wheel',e=>{e.preventDefault();const now=Date.now();if(now-wheelAt<480||Math.abs(e.deltaY)<2)return;wheelAt=now;turnPage(e.deltaY>0?1:-1);},{passive:false});
+  toolButtons.forEach((b,i)=>{
+    b.addEventListener('click',async()=>{if(Date.now()<suppressClickUntil||paging)return;try{await groups[group][i].run();}catch(e){showError(e.message);}});
+    b.addEventListener('pointerdown',e=>{if(e.button!==0)return;pointer={id:e.pointerId,x:e.clientX,y:e.clientY,angle:Math.atan2(e.clientY-anchor.y,e.clientX-anchor.x),moved:false};b.setPointerCapture(e.pointerId);});
+    b.addEventListener('pointermove',e=>{if(!pointer||pointer.id!==e.pointerId)return;if(Math.hypot(e.clientX-pointer.x,e.clientY-pointer.y)>9)pointer.moved=true;});
+    b.addEventListener('pointerup',e=>{if(!pointer||pointer.id!==e.pointerId)return;const p=pointer;pointer=null;if(!p.moved)return;suppressClickUntil=Date.now()+450;const delta=Math.atan2(Math.sin(Math.atan2(e.clientY-anchor.y,e.clientX-anchor.x)-p.angle),Math.cos(Math.atan2(e.clientY-anchor.y,e.clientX-anchor.x)-p.angle));turnPage(Math.abs(delta)>.12?(delta>0?1:-1):e.clientY>p.y?1:-1);});
+    b.addEventListener('pointercancel',()=>{pointer=null;});
+    b.addEventListener('keydown',e=>{if(e.key==='ArrowDown'||e.key==='ArrowRight'||e.key==='ArrowUp'||e.key==='ArrowLeft'){e.preventDefault();turnPage(e.key==='ArrowDown'||e.key==='ArrowRight'?1:-1);}});
+  });
+  renderGroup();
   function showError(message) {
     const toast = $('quick-toast'); toast.textContent = String(message || '操作失败'); toast.classList.remove('hidden');
     clearTimeout(toastTimer); toastTimer = setTimeout(() => { toast.classList.add('hidden'); shape(); }, 3500);
@@ -48,6 +90,10 @@
           if (toolsAnimating) {
             const left = Math.min(anchor.x - 8, target.x), top = Math.min(anchor.y - 8, target.y);
             rects.push({ x: left, y: top, width: Math.max(anchor.x + 8, target.x + target.width) - left, height: Math.max(anchor.y + 8, target.y + target.height) - top });
+            if(paging) {
+              const dx=target.x+17-anchor.x,dy=target.y+17-anchor.y;
+              for(const angle of [-.48,-.24,.24,.48]){const c=Math.cos(angle),s=Math.sin(angle);rects.push({x:anchor.x+dx*c-dy*s-20,y:anchor.y+dx*s+dy*c-20,width:40,height:40});}
+            }
           }
         }
         if (panel !== 'none') rects.push(...roundedShape(bounds(editor), 18, 3));
@@ -147,12 +193,14 @@
   }
   function showPanel(name) {
     panel = panel === name ? 'none' : name;
+    if(panel==='none') {clearTimeout(toolAnimationTimer);toolsAnimating=true;toolAnimationTimer=setTimeout(()=>{toolsAnimating=false;shape();},650);}
     tools.classList.toggle('hidden', panel !== 'none');
     chat.classList.toggle('hidden', panel !== 'none');
     editor.classList.toggle('hidden', panel === 'none');
     $('timer-form').classList.toggle('hidden', panel !== 'timer');
     $('schedule-form').classList.toggle('hidden', panel !== 'schedule');
-    $('editor-title').textContent = panel === 'schedule' ? '记下新日程' : '陪你专注一会儿';
+    $('note-form').classList.toggle('hidden', panel !== 'note');
+    $('editor-title').textContent = panel === 'schedule' ? '记下新日程' : panel === 'note' ? '留住一个想法' : '陪你专注一会儿';
     api.panel(panel);
     layout();
   }
@@ -191,9 +239,11 @@
   api.focusState().then((value) => { focus = value; renderFocus(); layout(); });
   document.addEventListener('mouseenter', () => api.enter());
   document.addEventListener('mouseleave', () => api.leave());
-  $('tool-timer').addEventListener('click', () => showPanel('timer'));
-  $('tool-schedule').addEventListener('click', () => showPanel('schedule'));
-  $('tool-workbar').addEventListener('click', () => api.openWorkbar('chat'));
+  $('save-note').addEventListener('click', async () => {
+    try { await api.saveNote({text:$('quick-note').value});$('quick-note').value='';showPanel('none');showError('速记已保存'); }
+    catch(e){showError(e.message);}
+  });
+  $('open-notes').addEventListener('click', () => api.openWorkbar('tools:notes'));
   $('editor-close').addEventListener('click', () => showPanel('none'));
   $('minute-minus').addEventListener('click', () => { $('minutes').value = Math.max(1, (+$('minutes').value || 25) - 5); });
   $('minute-plus').addEventListener('click', () => { $('minutes').value = Math.min(720, (+$('minutes').value || 25) + 5); });
@@ -229,11 +279,16 @@
       $('schedule-title').value = ''; defaultScheduleTime(); showPanel('none');
     } catch (error) { showError(error.message); }
   });
+  let composing = false;
+  $('quick-input').addEventListener('compositionstart', () => { composing = true; });
+  $('quick-input').addEventListener('compositionend', () => { setTimeout(() => { composing = false; }, 0); });
   $('quick-chat').addEventListener('submit', async (event) => {
-    event.preventDefault(); const text = $('quick-input').value.trim(); if (!text) return;
+    event.preventDefault(); const text = $('quick-input').value.trim(); if (composing || !text || $('quick-send').disabled) return;
     $('quick-input').value = ''; $('quick-send').disabled = true;
+    api.draft(false);
     try { await api.chat(text); } catch (error) { showError(error.message); }
     finally { $('quick-send').disabled = false; }
   });
+  $('quick-input').addEventListener('input', () => api.draft(!!$('quick-input').value.trim()));
   layout();
 })();

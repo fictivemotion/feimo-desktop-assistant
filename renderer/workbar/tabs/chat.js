@@ -52,9 +52,10 @@
 
   function renderCurrent() {
     if (!curAssistant) return;
+    const stick = atBottom();
     curAssistant.bubble.innerHTML = '';
     curAssistant.bubble.appendChild(UI.renderMarkdown(curText));
-    scrollIfStick();
+    if (stick) scroll.scrollTop = scroll.scrollHeight;
   }
 
   function finishAssistant(finalText, ok) {
@@ -63,20 +64,21 @@
     renderTimer = null;
     curText = finalText || curText;
     renderCurrent();
+    const text = curText, bubble = curAssistant.bubble, question = lastQuestion;
     const actions = curAssistant.div.querySelector('.actions');
     actions.innerHTML = '';
     const bCopy = document.createElement('button');
     bCopy.className = 'btn small';
     bCopy.textContent = '复制全文';
-    bCopy.onclick = () => UI.copyText(finalText, '回答已复制（Markdown 原文）');
+    bCopy.onclick = () => UI.copyText(text, '回答已复制（Markdown 原文）');
     const bCopyPlain = document.createElement('button');
     bCopyPlain.className = 'btn small';
     bCopyPlain.textContent = '复制纯文本';
-    bCopyPlain.onclick = () => UI.copyText(curAssistant.bubble.innerText, '已复制纯文本');
+    bCopyPlain.onclick = () => UI.copyText(bubble.innerText, '已复制纯文本');
     const bRetry = document.createElement('button');
     bRetry.className = 'btn small';
     bRetry.textContent = '重试';
-    bRetry.onclick = () => { if (lastQuestion) send(lastQuestion, true); };
+    bRetry.onclick = () => { if (question) send(question, true); };
     actions.append(bCopy, bCopyPlain, bRetry);
     curAssistant = null;
     scrollIfStick();
@@ -84,6 +86,7 @@
 
   async function send(text, isRetry = false) {
     if (busy) { UI.toast('正在回答中…', true); return; }
+    list.querySelector('.empty')?.remove();
     if (!isRetry) addUser(text);
     lastQuestion = text;
     startAssistant();
@@ -122,9 +125,11 @@
 
   // 历史加载 + 空状态
   async function build() {
+    if (busy) return;
     const hist = await api.chatHistory();
-    list.innerHTML = '';
     const configured = await api.llmConfigured();
+    if (busy) return;
+    list.innerHTML = '';
     if (!hist.length) {
       if (!configured) {
         const empty = document.createElement('div');
@@ -143,13 +148,18 @@
       } else {
         const empty = document.createElement('div');
         empty.className = 'empty';
-        empty.innerHTML = `<span class="big" data-icon="ChatDots" data-size="24"></span>有什么可以帮你的？<br/><span class="muted">Enter 发送 · Shift+Enter 换行 · 代码块可单独复制</span>`;
+        empty.innerHTML = `<span class="big" data-icon="ChatDots" data-size="24"></span><h2>今天，想做点什么？</h2><p class="muted">问一个问题，整理一个想法。<br/>Enter 发送 · Shift+Enter 换行</p><div class="chat-starters"></div>`;
+        for (const prompt of ['帮我梳理一个想法', '解释一段代码', '整理今天的任务']) {
+          const button = document.createElement('button'); button.className = 'btn'; button.textContent = prompt;
+          button.addEventListener('click', () => { const input = document.getElementById('input'); input.value = prompt + '：'; input.focus(); });
+          empty.querySelector('.chat-starters').appendChild(button);
+        }
         list.appendChild(empty);
       }
       return;
     }
     for (const m of hist.slice(-20)) {
-      if (m.role === 'user') addUser(m.content);
+      if (m.role === 'user') { lastQuestion = m.content; addUser(m.content); }
       else {
         startAssistant();
         curText = m.content;
@@ -158,6 +168,6 @@
     }
   }
 
-  window.TABS.chat = { build, send, onShown: () => scrollIfStick() };
+  window.TABS.chat = { build, send, isBusy: () => busy, onShown: () => scrollIfStick() };
   build();
 })();

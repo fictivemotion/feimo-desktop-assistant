@@ -34,7 +34,7 @@
         <button class="btn" id="pt-undo">撤销全部修改</button>
         <button class="btn" id="pt-ai"><span data-icon="MagicWand" data-size="16"></span> AI 润色（可选）</button>
       </div>
-      <div class="rules-grid" id="pt-rules"></div>
+      <details class="advanced-rules"><summary>更多格式清理选项</summary><div class="rules-grid" id="pt-rules"></div></details>
     </div>
     <div id="proc-ocr" style="display:none">
       <div id="ocr-drop">

@@ -2,7 +2,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:" />
 <link rel="stylesheet" href="quick.css" /><title>斐墨快捷工具</title></head>
 <body>
-  <div id="tools" class="hidden" aria-label="快捷工具">
+  <div id="tools" class="hidden" aria-label="快捷工具，滚轮或沿弧线拖动翻页">
     <button class="tool" id="tool-schedule" title="新建日程" aria-label="新建日程"><span data-icon="CalendarAdd" data-size="20"></span></button>
     <button class="tool" id="tool-timer" title="倒计时 / 番茄钟" aria-label="倒计时 / 番茄钟"><span data-icon="Timer" data-size="20"></span></button>
     <button class="tool" id="tool-workbar" title="打开工作栏" aria-label="打开工作栏"><span data-icon="Widget" data-size="20"></span></button>
@@ -21,6 +21,12 @@
       <label class="field-label">日程名称</label><input id="schedule-title" maxlength="100" placeholder="例如：设计评审"/>
       <label class="field-label">开始时间</label><input id="schedule-time" type="datetime-local"/>
       <button id="save-schedule" class="primary">记下日程</button>
+    </div>
+    <div id="note-form" class="hidden">
+      <label class="field-label">此刻想记下什么？</label>
+      <textarea id="quick-note" maxlength="30000" rows="5" placeholder="灵感、待办、随手记…"></textarea>
+      <button id="save-note" class="primary">保存速记</button>
+      <button id="open-notes" class="note-link">查看全部速记</button>
     </div>
   </section>
   <form id="quick-chat" class="hidden"><input id="quick-input" maxlength="1000" autocomplete="off" placeholder="问斐墨…" aria-label="快捷提问"/><button id="quick-send" type="submit" title="发送" aria-label="发送"><span data-icon="Send" data-size="20"></span></button></form>

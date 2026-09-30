@@ -31,6 +31,10 @@ button:focus-visible, input:focus-visible { outline: 2px solid #242e3b; outline-
 .tool:nth-child(3) { animation-delay: .15s; }
 .tool:hover { color: #111a23; box-shadow: none; }
 .tool svg { width: 20px; height: 20px; display: block; }
+.tool { touch-action: none; }
+.tool-page { position:absolute;right:0;bottom:-1px;width:13px;height:13px;display:grid;place-items:center;border-radius:50%;background:#dce5ed;color:#536675;font-size:8px;pointer-events:none; }
+#quick-note { width:100%;resize:vertical;min-height:94px;max-height:150px;border:0;border-radius:8px;padding:10px;background:#e7edf3;font:inherit;font-size:12px;line-height:1.6;outline-offset:2px; }
+.note-link { width:100%;margin-top:8px;background:transparent;border:0;color:#738092;font-size:11px;padding:6px; }
 @keyframes glassToolOut {
   0% { opacity: 0; transform: translate(var(--origin-x), var(--origin-y)) scale(.18); filter: blur(3px); }
   66% { opacity: 1; transform: translate(var(--overshoot-x), -2px) scale(1.09); filter: blur(0); }

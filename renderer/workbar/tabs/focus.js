@@ -3,6 +3,8 @@
   const api = window.api;
   const view = document.getElementById('view-focus');
   view.innerHTML = `
+    <div class="focus-view-tabs" role="group" aria-label="计时页面"><button class="active" data-focus-view="editor">开始计时</button><button data-focus-view="stats">统计与记录</button></div>
+    <div id="focus-editor">
     <div class="focus-hero card"><div><span class="focus-eyebrow">FOCUS WITH FEIMO</span><h2>专注一会儿</h2><p>选择任务，斐墨会在桌面陪你计时。</p></div><div class="focus-ring"><span id="f-clock">25:00</span></div></div>
     <div class="card focus-control">
       <div class="focus-modes"><button class="selected" data-mode="pomodoro">番茄钟</button><button data-mode="countdown">倒计时</button></div>
@@ -11,15 +13,22 @@
       <div class="focus-add"><input id="f-new-label" type="text" maxlength="24" placeholder="新任务标签"/><input id="f-new-color" type="color" value="#6ef2cf" aria-label="标签颜色"/><button id="f-add-label" class="btn">添加</button></div>
       <div class="focus-actions"><button id="f-start" class="btn primary">开始专注</button><button id="f-pause" class="btn hidden">暂停</button><button id="f-stop" class="btn danger hidden">结束</button></div>
     </div>
+    </div><div id="focus-stats" hidden>
     <div class="focus-summary"><div class="card"><strong id="f-yesterday">0</strong><span>昨日分钟</span></div><div class="card"><strong id="f-month">0</strong><span>本月分钟</span></div><div class="card"><strong id="f-year">0</strong><span>今年分钟</span></div></div>
     <div class="card"><div class="focus-section-head"><h3>专注趋势</h3><div class="focus-ranges"><button data-range="yesterday">昨日</button><button data-range="month" class="selected">月度</button><button data-range="year">年度</button></div></div><div id="f-bar-detail" class="focus-detail">选择柱形查看记录</div><div id="f-bars" class="focus-bars"></div></div>
     <div class="card"><div class="focus-section-head"><h3>年度热力图</h3><span class="muted">完成与提前结束均计入实际分钟</span></div><div id="f-heat-detail" class="focus-detail">选择日期查看专注时间</div><div class="focus-heat-scroll"><div id="f-heat" class="focus-heat" role="grid"></div></div><div class="focus-heat-legend">少 <i data-level="0"></i><i data-level="1"></i><i data-level="2"></i><i data-level="3"></i><i data-level="4"></i> 多</div></div>
     <div class="card"><h3>按任务</h3><div id="f-tasks"></div></div>
-    <div class="card"><h3>最近记录</h3><div id="f-sessions"></div></div>`;
+    <div class="card"><h3>最近记录</h3><div id="f-sessions"></div></div></div>`;
   let state = { labels: [], sessions: [], active: null };
   let stats = { byDay: [], byLabel: [], yesterdayMinutes: 0, monthMinutes: 0, yearMinutes: 0 };
   let mode = 'pomodoro', selected = 'focus', range = 'month';
   const $ = (s) => view.querySelector(s);
+  view.querySelectorAll('[data-focus-view]').forEach(button => button.addEventListener('click', () => {
+    const showStats = button.dataset.focusView === 'stats';
+    $('#focus-editor').hidden = showStats; $('#focus-stats').hidden = !showStats;
+    view.querySelectorAll('[data-focus-view]').forEach(b => { b.classList.toggle('active', b === button); b.setAttribute('aria-pressed', b === button); });
+    view.scrollTop = 0;
+  }));
   const esc = UI.esc;
   const pad = (n) => String(n).padStart(2, '0');
   const dayKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;

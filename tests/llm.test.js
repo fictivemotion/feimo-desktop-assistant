@@ -36,3 +36,36 @@ test('兼容返回普通 JSON 的模型接口', async () => {
     assert.deepEqual(deltas, ['已完成']);
   } finally { global.fetch = original; }
 });
+
+test('DeepSeek 请求关闭思考，保留流式模式，其他兼容接口不携带专属参数', async () => {
+  const original = global.fetch, requests = [];
+  global.fetch = async (_url, options) => {
+    requests.push(JSON.parse(options.body));
+    return new Response(JSON.stringify({ choices: [{ message: { content: '你好' } }] }), { headers: { 'content-type': 'application/json' } });
+  };
+  try {
+    const deepseek = new LlmGateway({ getSecret: async () => null, settings: { get: () => ({ baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-v4-flash' }) } });
+    await deepseek.chatStream({ messages: [] });
+    await gateway().chatStream({ messages: [] });
+    assert.deepEqual(requests[0].thinking, { type: 'disabled' });
+    assert.equal(requests[0].stream, true);
+    assert.equal('thinking' in requests[1], false);
+  } finally { global.fetch = original; }
+});
+
+test('首段文字在整个流结束前到达，思考字段不渲染进回答', async () => {
+  const original = global.fetch, encoder = new TextEncoder();
+  let stream, resolveFirst;
+  const first = new Promise(resolve => { resolveFirst = resolve; });
+  global.fetch = async () => new Response(new ReadableStream({ start(controller) { stream = controller; } }), { headers: { 'content-type': 'text/event-stream' } });
+  try {
+    let completed = false;
+    const pending = gateway().chatStream({ messages: [], onDelta: d => resolveFirst(d) }).then(text => { completed = true; return text; });
+    await new Promise(resolve => setImmediate(resolve));
+    stream.enqueue(encoder.encode('data: {"choices":[{"delta":{"reasoning_content":"hidden"}}]}\n\ndata: {"choices":[{"delta":{"content":"第一段"}}]}\n\n'));
+    assert.equal(await first, '第一段');
+    assert.equal(completed, false);
+    stream.enqueue(encoder.encode('data: {"choices":[{"delta":{"content":"第二段"}}]}\n\ndata: [DONE]\n\n')); stream.close();
+    assert.equal(await pending, '第一段第二段');
+  } finally { global.fetch = original; }
+});

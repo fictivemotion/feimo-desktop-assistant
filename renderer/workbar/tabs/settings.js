@@ -17,11 +17,21 @@
     const notion = settings.notion || {};
     const cal = settings.calendar || {};
     const pet = settings.pet || {};
+    const system = await api.systemState();
 
     view.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div class="settings-top" style="align-items:center;justify-content:space-between;margin-bottom:12px">
         <h3><span data-icon="Setting" data-size="20"></span> 设置</h3>
         <button class="btn small" id="st-back">返回（Esc）</button>
+      </div>
+
+      <div class="settings-section">
+        <h4><span data-icon="Widget" data-size="16"></span> Windows 启动</h4>
+        <div class="card">
+          <div class="switch"><span class="lbl">开机自启动<span class="sub">登录 Windows 后，让斐墨在桌面陪着你</span></span>
+            <label class="toggle"><input type="checkbox" id="st-startup" ${system.openAtLogin ? 'checked' : ''}/><span class="track"></span><span class="knob"></span></label></div>
+          <button class="btn" id="st-shortcut">创建桌面快捷方式</button>
+        </div>
       </div>
 
       <div class="settings-section">
@@ -138,13 +148,30 @@
       <div class="settings-section">
         <h4><span data-icon="InfoCircle" data-size="16"></span> 关于</h4>
         <div class="card muted">
-          斐墨 v1.0 · Opal Desk<br/>
+          斐墨 v${UI.esc(system.version)} · Opal Desk<br/>
           形象：伊埃斯、Forest Flow、Iridescent Opal；形象许可见项目文档<br/>
           参考：Ping Island 状态优先级思路 · Token Monitor 用量信息层级（Apache-2.0 / MIT，未复制代码）
         </div>
       </div>`;
 
     // ---------- 事件 ----------
+    const categories = [['general','常规'],['model','模型'],['shortcuts','快捷键'],['connections','连接'],['privacy','隐私']];
+    const nav = document.createElement('nav'); nav.className = 'settings-nav'; nav.setAttribute('aria-label', '设置分类');
+    const sections = [...view.querySelectorAll('.settings-section')];
+    sections.forEach(section => {
+      const title = section.querySelector('h4').textContent;
+      section.dataset.group = /模型/.test(title) ? 'model' : /全局热键/.test(title) ? 'shortcuts' : /Agent|Notion|日程同步/.test(title) ? 'connections' : /隐私/.test(title) ? 'privacy' : 'general';
+    });
+    function showGroup(group) {
+      sections.forEach(section => { section.hidden = section.dataset.group !== group; });
+      nav.querySelectorAll('button').forEach(button => { button.classList.toggle('active', button.dataset.settingsGroup === group); button.setAttribute('aria-pressed', button.dataset.settingsGroup === group); });
+      view.scrollTop = 0;
+    }
+    for (const [id,label] of categories) {
+      const button = document.createElement('button'); button.type = 'button'; button.dataset.settingsGroup = id; button.textContent = label;
+      button.addEventListener('click', () => showGroup(id)); nav.appendChild(button);
+    }
+    view.prepend(nav); showGroup('general');
     view.querySelector('#st-back').addEventListener('click', () => window.switchTab('chat'));
 
     // 宠物选择
@@ -186,6 +213,14 @@
     }
 
     // 模型服务
+    view.querySelector('#st-startup').addEventListener('change', async e => {
+      try { settings = await api.setSettings({ system: { openAtLogin: e.target.checked } }); UI.toast(e.target.checked ? '已开启开机自启动' : '已关闭开机自启动'); }
+      catch (error) { e.target.checked = !e.target.checked; UI.toast(error.message, true); }
+    });
+    view.querySelector('#st-shortcut').addEventListener('click', async () => {
+      try { await api.createDesktopShortcut(); UI.toast('已添加到桌面'); }
+      catch (error) { UI.toast(error.message, true); }
+    });
     view.querySelector('#st-save-llm').addEventListener('click', async () => {
       const key = view.querySelector('#st-key').value.trim();
       try {

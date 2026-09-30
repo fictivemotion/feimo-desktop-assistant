@@ -11,6 +11,7 @@ npm-debug.log*
 .env.*
 !.env.example
 secrets.bin
+toolbox.bin
 settings.json
 *.pem
 *.key

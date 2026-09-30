@@ -1,7 +1,7 @@
 {
   "name": "feimo-desktop-assistant",
   "productName": "斐墨",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "常驻 Windows 桌面的轻量即时助手：悬浮宠物 + 工作栏（问答 / 文本处理 / OCR / Agent 状态 / Token 用量 / 日程提醒）",
   "main": "main.js",
   "author": "Opal Desk",

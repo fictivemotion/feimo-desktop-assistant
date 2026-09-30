@@ -48,7 +48,7 @@
       <span class="muted" id="u-fresh"></span>
     </div>`;
 
-  const TOOL_COLORS = { codex: '#6EF2CF', zcode: '#756BFF', workbuddy: '#FF91D8' };
+  const TOOL_COLORS = { codex: '#9bb7ae', zcode: '#8d9eb5', workbuddy: '#baacb7' };
   const TOOL_NAMES = { codex: 'Codex', zcode: 'ZCode', workbuddy: 'WorkBuddy' };
   let heatmapDays = [];
   let rangeDays = 90;
@@ -116,7 +116,7 @@
     heatmapDays = u?.heatmapDays || [];
     renderHeatmap();
     if (!u || !u.totalFacts) {
-      view.querySelector('.usage-hero').innerHTML = `<div class="stat" style="flex:1"><div class="v">—</div><div class="l">暂无可靠统计</div></div>`;
+      for (const id of ['u-today-in', 'u-today-out', 'u-today-cost']) view.querySelector('#' + id).textContent = '—';
       view.querySelector('#u-chart').closest('.card').style.display = 'none';
       view.querySelector('#u-tools').closest('.card').style.display = 'none';
       view.querySelector('#u-models').closest('.card').style.display = 'none';
@@ -157,8 +157,8 @@
       }
     }
     view.querySelector('#u-legend').innerHTML = `
-      <span class="it"><span class="sw" style="background:#6EF2CF"></span>输入（含缓存计为输入口径）</span>
-      <span class="it"><span class="sw" style="background:#756BFF"></span>输出</span>`;
+      <span class="it"><span class="sw" style="background:#9bb7ae"></span>输入（含缓存）</span>
+      <span class="it"><span class="sw" style="background:#71849b"></span>输出</span>`;
 
     // 按工具
     const toolsEl = view.querySelector('#u-tools');

@@ -3,7 +3,7 @@
  *  架构（§5 适配版）：宠物窗口（透明常驻）+ 工作栏窗口（按需显示）+ 托盘 + 后台服务层。
  *  通信：版本化 DTO（AgentEvent / UsageFact / CalendarItem）经 IPC 白名单桥接，渲染层不直接读文件与密钥。
  */
-const { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, clipboard, nativeImage, Notification, screen, powerMonitor, shell, safeStorage, dialog } = require('electron');
+const { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, clipboard, ClipboardItem, nativeImage, Notification, screen, powerMonitor, shell, safeStorage, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -12,9 +12,13 @@ const { EventBus } = require('./lib/events');
 const { JsonStore } = require('./lib/store');
 const { PETS } = require('./lib/pets');
 const { applyRules, RULES } = require('./lib/textRules');
-const { readImageBuffer, snapshotClipboard, writeTextVerified } = require('./lib/clipboard');
+const { readImageBuffer, snapshotClipboard, writeTextVerified, writeImageVerified } = require('./lib/clipboard');
 const { OcrService } = require('./lib/ocr');
 const { LlmGateway } = require('./lib/llm');
+const { splitReply } = require('./lib/reply-pages');
+const windowsIntegration = require('./lib/windows-integration');
+const { Toolbox } = require('./lib/toolbox');
+const { quotaCard, QuotaAlerts, noticeCard } = require('./lib/prompt-cards');
 const { AgentRegistry } = require('./lib/connectors/registry');
 const { UsageStore } = require('./lib/usage/facts');
 const { CalendarStore } = require('./lib/calendar/store');
@@ -52,6 +56,8 @@ function bootstrap() {
     privacy: { saveChatHistory: true },
     usage: { pruneDays: 365 },
     ui: { theme: 'glass', companionSpeech: true, ambientSpeech: true },
+    system: { openAtLogin: false },
+    toolbox: { autoCapture: false },
   });
   const savedPet = settings.get('pet', {});
   if (!PETS.some((pet) => pet.id === savedPet.style)) {
@@ -103,13 +109,35 @@ function bootstrap() {
   const focus = new FocusTimer(paths.focusFile());
   const notion = new NotionCalendarConnector({ getSecret, settings });
   const registry = new AgentRegistry({ bus, enabledSources: settings.get('agents', {}).sources });
+  let toolbox = null, toolboxError = '', clipboardPoll = null, clipboardPolling = false;
+  const quotaAlerts = new QuotaAlerts();
+  function requireToolbox() { if (!toolbox) throw new Error(toolboxError || '工具箱尚未准备好'); return toolbox; }
+  function toolboxView() { return { ...requireToolbox().view(), autoCapture: !!settings.get('toolbox', {}).autoCapture }; }
+  function toolboxChanged() { workbarWin?.webContents.send('toolbox:changed', toolboxView()); }
+  async function captureClip(automatic = false) {
+    const result = requireToolbox().capture(await snapshotClipboard(clipboard), automatic);
+    if (result.status === 'saved') toolboxChanged();
+    return result;
+  }
+  function restartClipboardPoll() {
+    clearInterval(clipboardPoll); clipboardPoll = null;
+    if (!toolbox || !settings.get('toolbox', {}).autoCapture) return;
+    clipboardPoll = setInterval(async () => {
+      if (clipboardPolling) return;
+      clipboardPolling = true;
+      try { await captureClip(true); } catch { /* A temporarily busy clipboard is retried on the next poll. */ }
+      finally { clipboardPolling = false; }
+    }, 1600);
+    clipboardPoll.unref?.();
+  }
 
   let currentPet = { state: 'idle', detail: null, stateSince: Date.now() };
   let userProcessing = false;   // 本产品自身任务（问答/OCR）
   let flashUntil = 0;           // 完成/失败闪烁窗口
   let flashKind = null;
   const chatAbort = { controller: null };
-  let quickReplyTimers = [];
+  let replyState = null;
+  let cardState = null;
   let chatHistory = [];
   try {
     if (settings.get('privacy', {}).saveChatHistory) {
@@ -126,6 +154,7 @@ function bootstrap() {
   let quickLeaveTimer = null;
   let quickPanel = 'none';
   let quickExpanded = false;
+  let quickDraft = false;
   let petHovered = false;
   let pendingQuickAnchor = null;
   const QUICK_WIDTH = 520, QUICK_HEIGHT = 370;
@@ -175,10 +204,11 @@ function bootstrap() {
   }
 
   function createWorkbarWindow() {
+    const area = screen.getDisplayMatching(petWin.getBounds()).workArea;
     workbarWin = new BrowserWindow({
-      width: 462, height: 640, minWidth: 380, minHeight: 460,
+      width: Math.min(520, area.width - 24), height: Math.min(740, area.height - 24), minWidth: 380, minHeight: 460,
       show: false, frame: false, resizable: false,
-      skipTaskbar: true, backgroundColor: '#00000000',
+      skipTaskbar: true, hasShadow: false, backgroundColor: '#00000000',
       transparent: true,
       webPreferences: {
         preload: path.join(__dirname, 'preload', 'workbar-preload.js'),
@@ -208,11 +238,14 @@ function bootstrap() {
       },
     });
     speechWin.setIgnoreMouseEvents(true, { forward: true });
+    speechWin.setAlwaysOnTop(true, 'screen-saver');
     speechWin.webContents.on('did-fail-load', (_e, code, description, url) => console.error('[speech] load failed', code, description, url));
     speechWin.webContents.on('did-finish-load', () => {
+      if (replyState) { speechWin.webContents.send('speech:reply', replyState); positionSpeech(); }
+      if (cardState) speechWin.webContents.send('speech:card', cardState);
       if (pendingSpeech) {
         speechWin?.webContents.send('speech:placement', pendingSpeech.placement);
-        speechWin?.webContents.send('speech:message', pendingSpeech.text);
+        if (!replyState) speechWin?.webContents.send('speech:message', pendingSpeech.text);
         pendingSpeech = null;
       }
     });
@@ -239,6 +272,7 @@ function bootstrap() {
     quickWin.webContents.on('will-navigate', (e) => e.preventDefault());
     quickWin.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     quickWin.on('closed', () => { quickWin = null; });
+    quickWin.on('blur', () => hideQuickSoon());
   }
 
   function positionQuick() {
@@ -280,7 +314,7 @@ function bootstrap() {
       const cursor = screen.getCursorScreenPoint();
       const pet = petWin?.getBounds();
       if (petHovered && pet && (cursor.x < pet.x || cursor.x >= pet.x + pet.width || cursor.y < pet.y || cursor.y >= pet.y + pet.height)) petHovered = false;
-      if (petHovered || cursorOnQuickControl()) { hideQuickSoon(); return; }
+      if (petHovered || cursorOnQuickControl() || (quickWin?.isFocused() && (quickDraft || quickPanel !== 'none'))) { hideQuickSoon(); return; }
       quickPanel = 'none';
       quickExpanded = false;
       quickWin?.webContents.send('quick:expanded', false);
@@ -298,20 +332,27 @@ function bootstrap() {
     const obstacles = quickBounds ? quickShapeRects.map(r => ({ x: quickBounds.x + r.x, y: quickBounds.y + r.y, width: r.width, height: r.height })) : [];
     if (workbarWin?.isVisible()) obstacles.push(workbarWin.getBounds());
     const result = placeSpeech(p, b, wa, obstacles, gap);
-    if (!result) return null;
+    if (!result) { speechWin.hide(); return null; }
     const { bounds, placement: info } = result;
     speechWin.setBounds(bounds, false);
     if (typeof speechWin.setShape === 'function') {
-      speechWin.setShape(speechShape(b.width, b.height, info.side, info.anchor));
+      if (!replyState && !cardState) speechWin.setShape(speechShape(b.width, b.height, info.side, info.anchor));
     }
     speechWin.webContents.send('speech:placement', info);
     return info;
   }
 
   function speak(text, { duration = 5200, force = false, priority = 0 } = {}) {
+    // A retained answer must not be replaced by an ambient greeting or timer tick.
+    if (replyState) {
+      if (priority >= 1) speechWin?.webContents.send('speech:notice', String(text || '').slice(0, 180));
+      return;
+    }
     if (!force && settings.get('ui', {}).companionSpeech === false) return;
     if (!petWin?.isVisible() || !speechWin) return;
     if (Date.now() < speechUntil && priority < speechPriority) return;
+    cardState = null;
+    speechWin.setIgnoreMouseEvents(true, { forward: true }); speechWin.setFocusable(false);
     const message = String(text || '').trim();
     if (!message) return;
     const layout = layoutSpeech(message);
@@ -329,15 +370,55 @@ function bootstrap() {
     if (speechWin.webContents.isLoading()) pendingSpeech = { placement, text: layout.text };
     else send();
     speechWin.showInactive();
-    speechTimer = setTimeout(() => { speechWin?.hide(); speechPriority = -1; speechUntil = 0; }, duration);
+    speechTimer = setTimeout(() => dismissSpeech(), duration);
+  }
+
+  function dismissSpeech() {
+    if (speechTimer) clearTimeout(speechTimer);
+    cardState = null;
+    speechWin?.webContents.send('speech:dismiss');
+    speechUntil = 0; speechPriority = -1; speechFromHover = false;
+    speechTimer = setTimeout(() => { if (!replyState && speechUntil === 0) speechWin?.hide(); }, 200);
+  }
+
+  function showReply(controller, phase, full = '') {
+    if (chatAbort.controller !== controller || controller.replyDismissed) return;
+    if (speechTimer) clearTimeout(speechTimer);
+    cardState = null;
+    if (!replyState || replyState.id !== controller.replyId) speechLayout = { width: 180, height: 112 };
+    replyState = { id: controller.replyId, phase, full, pages: splitReply(full) };
+    speechFromHover = false; speechPriority = 5; speechUntil = Infinity;
+    speechWin.setIgnoreMouseEvents(false);
+    speechWin.setFocusable(true);
+    if (!speechWin.webContents.isLoading()) speechWin.webContents.send('speech:reply', replyState);
+    if (positionSpeech()) speechWin.showInactive();
+  }
+
+  function showPromptCard(value, priority = 3) {
+    if (settings.get('ui', {}).companionSpeech === false || !speechWin || !petWin?.isVisible()) return;
+    const card = { ...value, id: `card-${Date.now()}-${Math.random().toString(36).slice(2, 7)}` };
+    if (replyState) { speechWin.webContents.send('speech:card', { ...card, inline: true }); return; }
+    if (Date.now() < speechUntil && priority < speechPriority) return;
+    clearTimeout(speechTimer); cardState = card; speechLayout = { width: 252, height: 210 };
+    speechFromHover = false; speechPriority = priority; speechUntil = Date.now() + 15000;
+    speechWin.setIgnoreMouseEvents(false); speechWin.setFocusable(true);
+    if (!speechWin.webContents.isLoading()) speechWin.webContents.send('speech:card', card);
+    if (positionSpeech()) speechWin.showInactive();
+    speechTimer = setTimeout(() => {
+      // Keep a prompt readable while the pointer is over it.
+      const p = screen.getCursorScreenPoint(), b = speechWin?.getBounds();
+      if (b && p.x >= b.x && p.x <= b.x+b.width && p.y >= b.y && p.y <= b.y+b.height) { speechTimer = setTimeout(() => { if (cardState?.id === card.id) dismissSpeech(); }, 15000); }
+      else dismissSpeech();
+    }, 15000);
   }
 
   function positionWorkbar() {
     if (!workbarWin || !petWin) return;
     const petBounds = petWin.getBounds();
-    const wb = workbarWin.getBounds();
     const display = screen.getDisplayMatching(petBounds);
     const wa = display.workArea;
+    workbarWin.setSize(Math.min(520, wa.width - 24), Math.min(740, wa.height - 24), false);
+    const wb = workbarWin.getBounds();
     let x = petBounds.x + petBounds.width + 12;
     if (x + wb.width > wa.x + wa.width) x = petBounds.x - wb.width - 12;
     if (x < wa.x) x = wa.x + 8;
@@ -363,6 +444,7 @@ function bootstrap() {
     if (focus.active && petWin?.isVisible()) {
       positionQuick(); quickWin?.showInactive(); quickExpanded = false; quickWin?.webContents.send('quick:expanded', false);
     }
+    if (replyState && positionSpeech()) speechWin?.showInactive();
   }
 
   function placeDock(hidden) {
@@ -395,6 +477,9 @@ function bootstrap() {
     if (petDockTimer) clearTimeout(petDockTimer);
     petDockTimer = setTimeout(() => {
       petDockTimer = null;
+      const cursor = screen.getCursorScreenPoint(), b = speechWin?.isVisible() && (replyState || cardState) ? speechWin.getBounds() : null;
+      const onReply = b && cursor.x >= b.x && cursor.x < b.x + b.width && cursor.y >= b.y && cursor.y < b.y + b.height;
+      if (onReply || petHovered || cursorOnQuickControl() || (quickWin?.isFocused() && (quickDraft || quickPanel !== 'none'))) { scheduleDockHide(); return; }
       if (!workbarWin?.isVisible() && !petDrag) placeDock(true);
     }, 1700);
   }
@@ -461,8 +546,7 @@ function bootstrap() {
   // ---------- 通知 ----------
   function pushNotice(n) {
     if (n.kind === 'reminder' || !settings.get('agents', {}).muteNotifications) {
-      speak(noticeLine(n), { duration: n.kind === 'reminder' || n.kind === 'needs_input' ? 9000 : 6500,
-        priority: n.kind === 'reminder' || n.kind === 'needs_input' ? 3 : 2 });
+      showPromptCard(noticeCard(n), n.kind === 'reminder' || n.kind === 'needs_input' ? 3 : 2);
     }
     if (Notification.isSupported() && (n.kind === 'reminder' || !settings.get('agents', {}).muteNotifications)) {
       const titles = { needs_input: '等待你的输入', completed: '任务完成', failed: '任务失败', reminder: '日程提醒' };
@@ -485,6 +569,8 @@ function bootstrap() {
   bus.on('agents:changed', (snap) => {
     workbarWin?.webContents.send('agents:snapshot', snap);
     broadcastPetState();
+    const card = quotaAlerts.next(snap.limits?.codex);
+    if (card && !settings.get('agents', {}).muteNotifications && !workbarWin?.isVisible()) showPromptCard(card, 2);
   });
   bus.on('agent:event', (event) => {
     if (event.kind !== 'progress') return;
@@ -688,15 +774,71 @@ function bootstrap() {
   ipc.handle('settings:get', () => settings.get());
   ipc.handle('settings:set', (_e, patch) => {
     for (const k of Object.keys(patch)) {
-      if (!['pet', 'llm', 'hotkeys', 'agents', 'calendar', 'notion', 'privacy', 'usage', 'ui'].includes(k)) continue;
+      if (!['pet', 'llm', 'hotkeys', 'agents', 'calendar', 'notion', 'privacy', 'usage', 'ui', 'system', 'toolbox'].includes(k)) continue;
+      if (k === 'system') patch[k] = { openAtLogin: windowsIntegration.setStartup(app, !!patch[k]?.openAtLogin) };
       settings.set(k, patch[k]);
     }
     applyPetSettings();
     if (patch.calendar || patch.notion) restartNotionTimer();
+    if (patch.toolbox) restartClipboardPoll();
     registerHotkeys();
     const trayRef = trayRebuild;
     trayRef?.();
     return settings.get();
+  });
+  ipc.handle('system:state', () => ({ openAtLogin: windowsIntegration.startupState(app), version: app.getVersion() }));
+  ipc.handle('system:shortcut', () => windowsIntegration.createDesktopShortcut(app, shell));
+  ipc.on('speech:layout', (_e, data) => {
+    if (data?.id !== (cardState?.id || replyState?.id) || !Array.isArray(data.rects)) return;
+    const width = Math.max(100, Math.min(320, Math.round(data.width)));
+    const height = Math.max(60, Math.min(340, Math.round(data.height)));
+    if (!Number.isFinite(width) || !Number.isFinite(height)) return;
+    speechLayout = { width, height };
+    if (!positionSpeech()) { speechWin?.hide(); return; }
+    const rects = data.rects.slice(0, 1400).filter(r => [r.x,r.y,r.width,r.height].every(Number.isFinite)).map(r => {
+      const x = Math.max(0, Math.min(width - 1, Math.floor(r.x)));
+      const y = Math.max(0, Math.min(height - 1, Math.floor(r.y)));
+      return { x, y, width: Math.max(1, Math.min(width - x, Math.ceil(r.width))), height: Math.max(1, Math.min(height - y, Math.ceil(r.height))) };
+    });
+    if (rects.length) speechWin.setShape(rects);
+    if (!workbarWin?.isVisible()) speechWin.showInactive();
+  });
+  ipc.on('speech:close', () => {
+    if (chatAbort.controller) chatAbort.controller.replyDismissed = true;
+    replyState = null; dismissSpeech();
+    speechWin?.setIgnoreMouseEvents(true, { forward: true });
+    speechWin?.setFocusable(false);
+  });
+  ipc.handle('speech:copy', () => { if (replyState?.full) return writeTextVerified(clipboard, replyState.full); });
+  ipc.on('speech:stop', () => chatAbort.controller?.abort());
+  ipc.on('speech:cardClose', () => { if (cardState) { dismissSpeech(); speechWin?.setIgnoreMouseEvents(true, { forward: true }); speechWin?.setFocusable(false); } });
+  ipc.on('speech:cardOpen', (_e, tab) => { if (['agents', 'schedule', 'focus'].includes(tab)) { if (cardState) dismissSpeech(); showWorkbar(tab); } });
+  ipc.handle('quick:quota', () => {
+    const card = quotaCard(registry.snapshot().limits?.codex);
+    if (card) showPromptCard(card, 3);
+    else speak('还没有可用的 Codex 额度记录喔', { priority: 3 });
+    return !!card;
+  });
+  ipc.handle('toolbox:state', () => toolboxView());
+  ipc.handle('toolbox:capture', () => captureClip(false));
+  ipc.handle('toolbox:clipEdit', (_e, { id, action }) => { const v = requireToolbox().editClip(id, action); toolboxChanged(); return v; });
+  ipc.handle('toolbox:clearClips', () => { requireToolbox().clearClips(); toolboxChanged(); return true; });
+  ipc.handle('toolbox:copyClip', async (_e, id) => {
+    const clip = requireToolbox().data.clips.find(c => c.id === id); if (!clip) throw new Error('记录已不存在');
+    if (clip.kind === 'text') await writeTextVerified(clipboard, clip.value);
+    else await writeImageVerified(clipboard, ClipboardItem, clip.value);
+    return true;
+  });
+  ipc.handle('toolbox:saveNote', (_e, data) => { const note = requireToolbox().saveNote(data || {}); toolboxChanged(); return note; });
+  ipc.handle('toolbox:deleteNote', (_e, id) => { requireToolbox().deleteNote(id); toolboxChanged(); return true; });
+  ipc.handle('toolbox:savePalette', (_e, data) => { requireToolbox().savePalette(data || {}); toolboxChanged(); return true; });
+  ipc.handle('toolbox:deletePalette', (_e, id) => { requireToolbox().deletePalette(id); toolboxChanged(); return true; });
+  ipc.handle('toolbox:exportNotes', async () => {
+    const notes = requireToolbox().data.notes;
+    if (!notes.length) throw new Error('还没有速记');
+    const choice = await dialog.showSaveDialog(workbarWin, { defaultPath:'斐墨速记.md', filters:[{ name:'Markdown', extensions:['md'] }] });
+    if (choice.canceled || !choice.filePath) return false;
+    fs.writeFileSync(choice.filePath, notes.map(n => `# ${n.title}\n\n${n.text}\n`).join('\n---\n\n'), 'utf8'); return true;
   });
   ipc.handle('secrets:set', async (_e, { name, value }) => {
     if (!['llmApiKey', 'notionToken'].includes(name)) throw new Error('未知密钥');
@@ -787,14 +929,15 @@ function bootstrap() {
   });
   ipc.on('pet:leave', () => {
     petHovered = false;
-    if (speechFromHover) { speechWin?.hide(); speechFromHover = false; speechUntil = 0; speechPriority = -1; }
+    if (speechFromHover) dismissSpeech();
     scheduleDockHide();
     hideQuickSoon();
   });
 
   ipc.on('quick:enter', () => { if (cursorOnQuickControl()) { revealDock(); hideQuickSoon(); } });
   ipc.on('quick:leave', () => { hideQuickSoon(); scheduleDockHide(); });
-  ipc.on('quick:panel', (_e, name) => { quickPanel = ['timer', 'schedule'].includes(name) ? name : 'none'; });
+  ipc.on('quick:panel', (_e, name) => { quickPanel = ['timer', 'schedule', 'note'].includes(name) ? name : 'none'; });
+  ipc.on('quick:draft', (_e, hasDraft) => { quickDraft = hasDraft === true; });
   ipc.on('quick:shape', (_e, rects) => {
     if (!quickWin || !Array.isArray(rects)) return;
     const safe = rects.slice(0, 240).map((r) => {
@@ -829,19 +972,23 @@ function bootstrap() {
   // 问答
   async function sendChat(text, quick = false) {
     if (typeof text !== 'string' || !text.trim()) throw new Error('空消息');
-    for (const timer of quickReplyTimers) clearTimeout(timer);
-    quickReplyTimers = [];
     if (chatAbort.controller) chatAbort.controller.abort();
     const controller = new AbortController();
+    controller.replyId = Date.now() + '-' + Math.random().toString(36).slice(2, 8);
     chatAbort.controller = controller;
     chatHistory.push({ role: 'user', content: text, at: new Date().toISOString() });
     userProcessing = true; broadcastPetState();
-    let lastQuickSpeech = 0;
+    if (quick) showReply(controller, 'thinking');
+    let streamed = '';
+    let updateTimer = null;
     const send = (ch) => {
+      if (controller.signal.aborted || chatAbort.controller !== controller) return;
       if (!quick) workbarWin?.webContents.send('chat:delta', ch);
-      else if (Date.now() - lastQuickSpeech > 480) {
-        speak(ch.full || '正在想…', { force: true, priority: 5, duration: 12000 });
-        lastQuickSpeech = Date.now();
+      else {
+        streamed = ch.full;
+        if (!updateTimer) updateTimer = setTimeout(() => {
+          updateTimer = null; showReply(controller, 'streaming', streamed);
+        }, 40);
       }
     };
     try {
@@ -850,35 +997,35 @@ function bootstrap() {
         onDelta: (delta, full) => send({ delta, full }),
         signal: controller.signal,
       });
+      if (controller.signal.aborted || chatAbort.controller !== controller) return { ok: false, aborted: true };
       chatHistory.push({ role: 'assistant', content: reply, at: new Date().toISOString() });
       saveChat();
       flash('completed');
       if (quick) {
-        const chars = [...new Intl.Segmenter('zh', { granularity: 'grapheme' }).segment(reply)].map((x) => x.segment);
-        const pages = [];
-        for (let i = 0; i < chars.length; i += 65) pages.push(chars.slice(i, i + 65).join(''));
-        pages.forEach((page, index) => {
-          const show = () => speak(pages.length > 1 ? `${index + 1}/${pages.length}  ${page}` : page, { force: true, priority: 5, duration: pages.length > 1 ? 6500 : 14000 });
-          if (index === 0) show();
-          else quickReplyTimers.push(setTimeout(show, index * 6700));
-        });
+        showReply(controller, 'done', reply || '模型没有返回文字，请重试。');
       }
       return { ok: true, reply };
     } catch (e) {
-      if (e.name === 'AbortError') { return { ok: false, aborted: true }; }
+      if (e.name === 'AbortError' || controller.signal.aborted) {
+        if (quick) showReply(controller, 'stopped', streamed || '已停止这次回答。');
+        return { ok: false, aborted: true };
+      }
       flash('failed');
-      if (quick) speak(`没能回答：${e.message}`, { force: true, priority: 5, duration: 8000 });
+      if (quick) showReply(controller, 'error', `没能回答：${e.message}`);
       throw e;
     } finally {
-      chatAbort.controller = null;
-      userProcessing = false; broadcastPetState();
+      if (updateTimer) clearTimeout(updateTimer);
+      if (chatAbort.controller === controller) {
+        chatAbort.controller = null;
+        userProcessing = false; broadcastPetState();
+      }
     }
   }
   ipc.handle('chat:send', (_e, { text }) => sendChat(text));
   ipc.handle('quick:chat', (_e, text) => sendChat(text, true));
   ipc.handle('chat:stop', () => { chatAbort.controller?.abort(); return true; });
   ipc.handle('chat:history', () => (settings.get('privacy', {}).saveChatHistory ? chatHistory.slice(-40) : []));
-  ipc.handle('chat:clear', () => { chatHistory = []; saveChat(); return true; });
+  ipc.handle('chat:clear', () => { chatAbort.controller?.abort(); chatHistory = []; saveChat(); return true; });
   ipc.handle('llm:test', () => llm.testConnection());
   ipc.handle('llm:configured', () => llm.isConfigured());
   ipc.handle('llm:proofread', async (_e, { text }) => {
@@ -980,6 +1127,12 @@ function bootstrap() {
   // ---------- 生命周期 ----------
   app.whenReady().then(() => {
     secretsCache = loadSecrets();
+    try {
+      if (!safeStorage.isEncryptionAvailable()) throw new Error('系统加密暂不可用，工具箱记录尚未启用');
+      toolbox = new Toolbox(path.join(paths.dataDir(), 'toolbox.bin'), { encrypt: v => safeStorage.encryptString(v), decrypt: v => safeStorage.decryptString(v) });
+      restartClipboardPoll();
+    } catch (e) { toolboxError = e.message; }
+    if (settings.get('system', {}).openAtLogin) windowsIntegration.setStartup(app, true);
     createPetWindow();
     createWorkbarWindow();
     createSpeechWindow();
@@ -1033,6 +1186,7 @@ function bootstrap() {
   });
 
   app.on('will-quit', () => {
+    clearInterval(clipboardPoll);
     if (speechTimer) clearTimeout(speechTimer);
     globalShortcut.unregisterAll();
     registry.stop();

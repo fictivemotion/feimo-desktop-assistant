@@ -25,6 +25,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run functional tests
+        run: npm test
+
       - name: Verify 伊埃斯 fan-art pack and non-commercial license
         shell: pwsh
         run: |

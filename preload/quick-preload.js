@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('quickApi', {
   enter: () => ipcRenderer.send('quick:enter'),
   leave: () => ipcRenderer.send('quick:leave'),
   panel: (name) => ipcRenderer.send('quick:panel', name),
+  draft: (hasDraft) => ipcRenderer.send('quick:draft', hasDraft),
   shape: (rects) => ipcRenderer.send('quick:shape', rects),
   chat: (text) => ipcRenderer.invoke('quick:chat', text),
   focusState: () => ipcRenderer.invoke('focus:state'),
@@ -18,4 +19,7 @@ contextBridge.exposeInMainWorld('quickApi', {
   focusAddLabel: (data) => ipcRenderer.invoke('focus:addLabel', data),
   schedule: (data) => ipcRenderer.invoke('quick:schedule', data),
   openWorkbar: (tab) => ipcRenderer.invoke('workbar:show', tab),
+  clipboardRunQuick: (kind) => ipcRenderer.invoke('clipboard:runQuick', kind),
+  saveNote: (data) => ipcRenderer.invoke('toolbox:saveNote', data),
+  quota: () => ipcRenderer.invoke('quick:quota'),
 });

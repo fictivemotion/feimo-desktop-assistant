@@ -5,14 +5,17 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'" />
   <title>斐墨</title>
   <link rel="stylesheet" href="workbar.css" />
+  <link rel="stylesheet" href="workspace.css" />
 </head>
 <body>
   <div id="panel">
     <!-- 标题栏（可拖动） -->
     <div id="titlebar">
       <div class="drag-region"></div>
-      <span id="brand"><span class="brand-mark" id="brand-avatar"></span><span>斐墨 <small>DESK COMPANION</small></span></span>
+      <span id="brand"><span class="brand-mark" id="brand-avatar"></span><span>斐墨 <small>你的桌面工作台</small></span></span>
+      <div class="window-actions"><button id="btn-tools" class="icon-btn" title="快捷工具箱" aria-label="快捷工具箱"><span data-icon="Widget" data-size="20"></span></button><button id="btn-settings" class="icon-btn" title="设置" aria-label="设置"><span data-icon="Setting" data-size="20"></span></button>
       <button id="btn-min" class="icon-btn" title="收起（Esc）" aria-label="收起工作栏"><span data-icon="Minus" data-size="16"></span></button>
+      </div>
     </div>
 
     <!-- 状态头 -->
@@ -23,19 +26,19 @@
       </div>
       <div id="status-right">
         <button id="btn-attention" class="chip attention hidden" title="查看需要处理的会话">0 个需要处理</button>
-        <button id="btn-settings" class="icon-btn" title="设置" aria-label="设置"><span data-icon="Setting" data-size="20"></span></button>
       </div>
     </header>
 
     <!-- 页签 -->
-    <nav id="tabs">
+    <nav id="tabs" aria-label="工作台模块">
       <button class="tab active" data-tab="chat"><span class="tab-ico" data-icon="ChatDots" data-size="16"></span>问答</button>
       <button class="tab" data-tab="process"><span class="tab-ico" data-icon="DocumentText" data-size="16"></span>处理</button>
-      <button class="tab" data-tab="agents"><span class="tab-ico" data-icon="CodeSquare" data-size="16"></span>Agents<span id="agents-dot" class="dot hidden"></span></button>
+      <button class="tab" data-tab="agents"><span class="tab-ico" data-icon="CodeSquare" data-size="16"></span>会话<span id="agents-dot" class="dot hidden"></span></button>
       <button class="tab" data-tab="usage"><span class="tab-ico" data-icon="ChartBar" data-size="16"></span>用量</button>
       <button class="tab" data-tab="schedule"><span class="tab-ico" data-icon="CalendarDays" data-size="16"></span>日程</button>
       <button class="tab" data-tab="focus"><span class="tab-ico" data-icon="Timer" data-size="16"></span>倒计时</button>
     </nav>
+    <div id="page-header"><div><h1 id="page-title">问答</h1><p id="page-subtitle">把眼前的问题，交给斐墨。</p></div><button class="btn small" id="page-action">回到最新</button></div>
 
     <!-- 内容区 -->
     <main id="content">
@@ -46,6 +49,7 @@
       <section id="view-schedule" class="view"></section>
       <section id="view-focus" class="view"></section>
       <section id="view-settings" class="view"></section>
+      <section id="view-tools" class="view"></section>
     </main>
 
     <!-- 底部输入 -->
@@ -61,9 +65,11 @@
 
   <script src="../../node_modules/marked/lib/marked.umd.js"></script>
   <script src="../../node_modules/dompurify/dist/purify.min.js"></script>
+  <script src="../shared/markdown.js"></script>
   <script src="lib/ui.js"></script>
   <script src="lib/pet-avatar.js"></script>
   <script src="../shared/reicon-filled.js"></script>
+  <script src="../shared/colors.js"></script>
   <script src="tabs/chat.js"></script>
   <script src="tabs/process.js"></script>
   <script src="tabs/agents.js"></script>
@@ -71,6 +77,7 @@
   <script src="tabs/schedule.js"></script>
   <script src="tabs/focus.js"></script>
   <script src="tabs/settings.js"></script>
+  <script src="tabs/tools.js"></script>
   <script src="workbar.js"></script>
 </body>
 </html>

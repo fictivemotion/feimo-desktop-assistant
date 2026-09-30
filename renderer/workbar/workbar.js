@@ -8,25 +8,51 @@
   const views = {};
   for (const v of document.querySelectorAll('.view')) views[v.id.replace('view-', '')] = v;
   let active = 'chat';
+  const pageInfo = {
+    chat: ['问答', '把眼前的问题，交给斐墨。', '回到最新'],
+    process: ['快捷处理', '清理文字，或从图片中提取内容。', '读取剪贴板'],
+    agents: ['Coding 会话', '关注进度，及时发现需要你的任务。', '刷新'],
+    usage: ['Token 用量', '查看用量趋势与每日活跃记录。', '导出 CSV'],
+    schedule: ['日程', '记下安排，把提醒交给斐墨。', '新建日程'],
+    focus: ['专注与计时', '一次只做一件事。', ''],
+    settings: ['设置', '让斐墨更符合你的习惯。', '返回问答'],
+    tools: ['快捷工具箱', '收好复制的内容，留住灵感，找到配色。', '返回问答'],
+  };
 
   function switchTab(name) {
+    const [route, sub] = String(name || 'chat').split(':'); name = route;
     if (!views[name]) name = 'chat';
     if (name === 'settings' && !views.settings._built) { window.TABS.settings?.build(); views.settings._built = true; }
     active = name;
+    const info = pageInfo[name];
+    $('#page-title').textContent = info[0]; $('#page-subtitle').textContent = info[1];
+    $('#page-action').textContent = name === 'schedule' && views.schedule.classList.contains('editing') ? '返回日程' : info[2];
+    $('#page-action').hidden = !info[2];
     document.getElementById('panel').dataset.activeTab = name;
     for (const [k, v] of Object.entries(views)) v.classList.toggle('active', k === name);
-    for (const t of document.querySelectorAll('.tab')) t.classList.toggle('active', t.dataset.tab === name);
+    for (const t of document.querySelectorAll('.tab')) { t.classList.toggle('active', t.dataset.tab === name); t.setAttribute('aria-current', t.dataset.tab === name ? 'page' : 'false'); }
     window.TABS[name]?.onShown?.();
+    if (name === 'tools' && sub) window.TABS.tools?.show(sub);
   }
   document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => switchTab(t.dataset.tab)));
   $('#btn-settings').addEventListener('click', () => switchTab('settings'));
+  $('#btn-tools').addEventListener('click', () => switchTab('tools:clipboard'));
   window.switchTab = switchTab;
+  $('#page-action').addEventListener('click', () => {
+    if (active === 'chat') { const el = $('#chat-scroll'); el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' }); }
+    else if (active === 'process') $('#pt-paste').click();
+    else if (active === 'agents') $('#ag-refresh').click();
+    else if (active === 'usage') $('#u-export').click();
+    else if (active === 'schedule') window.TABS.schedule.toggleEditor();
+    else if (active === 'settings' || active === 'tools') switchTab('chat');
+  });
 
   // ---------- 键盘 ----------
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       const linkBar = document.getElementById('link-confirm');
       if (linkBar?.classList.contains('show')) { linkBar.classList.remove('show'); return; }
+      if (active === 'schedule' && views.schedule.classList.contains('editing')) { window.TABS.schedule.toggleEditor(); return; }
       if (active === 'settings') { switchTab('chat'); return; }
       api.hideWorkbar();
       return;
@@ -34,7 +60,7 @@
     if ((e.ctrlKey || e.metaKey) && e.key === 'Tab') {
       e.preventDefault();
       const order = ['chat', 'process', 'agents', 'usage', 'schedule', 'focus'];
-      switchTab(order[(order.indexOf(active) + 1) % order.length]);
+      switchTab(order[(Math.max(0, order.indexOf(active)) + (e.shiftKey ? -1 : 1) + order.length) % order.length]);
     }
   });
 
@@ -42,6 +68,7 @@
   const input = $('#input');
   const send = $('#btn-send');
   input.addEventListener('keydown', (e) => {
+    if (e.isComposing || e.keyCode === 229) return;
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       doSend();
@@ -69,6 +96,7 @@
   async function doSend() {
     const text = input.value.trim();
     if (!text) return;
+    if (window.TABS.chat.isBusy()) { UI.toast('正在回答中，可以先停止当前回复'); return; }
     input.value = '';
     input.style.height = 'auto';
     if (active !== 'chat') switchTab('chat');

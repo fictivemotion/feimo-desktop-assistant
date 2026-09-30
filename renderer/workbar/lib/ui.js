@@ -66,19 +66,7 @@ window.UI = (() => {
 
   /** 渲染 Markdown → 安全 HTML 节点；代码块加复制按钮；链接走确认 */
   function renderMarkdown(text) {
-    const wrap = document.createElement('div');
-    wrap.className = 'md';
-    let html = '';
-    try {
-      html = window.marked.parse(text || '');
-    } catch {
-      html = '<p>' + esc(text || '') + '</p>';
-    }
-    wrap.innerHTML = window.DOMPurify.sanitize(html, {
-      ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'del', 's', 'code', 'pre', 'blockquote', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'hr', 'a', 'span'],
-      ALLOWED_ATTR: ['href', 'title', 'class'],
-      ALLOW_DATA_ATTR: false,
-    });
+    const wrap = window.SafeMarkdown.render(text);
 
     // 代码块：包裹头部（语言名 + 复制）
     wrap.querySelectorAll('pre > code').forEach((codeEl) => {
