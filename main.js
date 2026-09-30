@@ -3,7 +3,7 @@
  *  架构（§5 适配版）：宠物窗口（透明常驻）+ 工作栏窗口（按需显示）+ 托盘 + 后台服务层。
  *  通信：版本化 DTO（AgentEvent / UsageFact / CalendarItem）经 IPC 白名单桥接，渲染层不直接读文件与密钥。
  */
-const { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, clipboard, ClipboardItem, nativeImage, Notification, screen, powerMonitor, shell, safeStorage, dialog } = require('electron');
+const { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, clipboard, ClipboardItem, nativeImage, Notification, screen, powerMonitor, shell, safeStorage, dialog,net } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -18,6 +18,8 @@ const { LlmGateway } = require('./lib/llm');
 const { splitReply } = require('./lib/reply-pages');
 const windowsIntegration = require('./lib/windows-integration');
 const { Toolbox } = require('./lib/toolbox');
+const {StudyBridge,BASE:STUDY_BASE}=require('./lib/study-bridge');
+const {Soundscape,catalog:soundscapeCatalog}=require('./lib/soundscape');
 const { quotaCard, QuotaAlerts, noticeCard } = require('./lib/prompt-cards');
 const { AgentRegistry } = require('./lib/connectors/registry');
 const { CodexLimitsClient } = require('./lib/connectors/codex-limits');
@@ -59,6 +61,7 @@ function bootstrap() {
     ui: { theme: 'glass', companionSpeech: true, ambientSpeech: true },
     system: { openAtLogin: false },
     toolbox: { autoCapture: false },
+    study:{proactive:true,cardIntervalMin:30},
   });
   const savedPet = settings.get('pet', {});
   if (!PETS.some((pet) => pet.id === savedPet.style)) {
@@ -112,6 +115,14 @@ function bootstrap() {
   const registry = new AgentRegistry({ bus, enabledSources: settings.get('agents', {}).sources });
   let toolbox = null, toolboxError = '', clipboardPoll = null, clipboardPolling = false;
   const quotaAlerts = new QuotaAlerts();
+  let study=null,studyError='',studyAuthWin=null,studyAuthPoll=null,lastStudyPrompt=Date.now(),lastPracticeCount=null;
+  const requireStudy=()=>{if(!study)throw new Error(studyError||'学习互联尚未准备好');return study};
+  function studyChanged(value){
+    workbarWin?.webContents.send('study:changed',value);
+    const count=value.snapshot?.practice?.today?.total;
+    if(lastPracticeCount!==null&&count>lastPracticeCount&&settings.get('study',{}).proactive!==false&&!workbarWin?.isVisible()&&!replyState){const card=study.prompt();if(card)showPromptCard(card,2)}
+    if(Number.isFinite(count))lastPracticeCount=count;
+  }
   const codexLimits = new CodexLimitsClient();
   let limitsTimer=null,usageNotifyTimer=null;
   let limitsStatus={refreshing:false,lastAttemptAt:null,lastSuccessAt:null,error:null};
@@ -164,7 +175,13 @@ function bootstrap() {
   };
 
   // ---------- 窗口 ----------
-  let petWin = null, workbarWin = null, speechWin = null, quickWin = null, tray = null;
+  let petWin = null, workbarWin = null, speechWin = null, quickWin = null, tray = null, soundscapeWin = null;
+  const soundscape=new Soundscape({settings,send:state=>soundscapeWin?.webContents.send('soundscape:player',{...state,sounds:soundscapeCatalog.sounds}),onChange:value=>{workbarWin?.webContents.send('soundscape:changed',value);quickWin?.webContents.send('soundscape:changed',value)}});
+  function createSoundscapeWindow(){
+    soundscapeWin=new BrowserWindow({show:false,width:200,height:100,webPreferences:{preload:path.join(__dirname,'preload','soundscape-preload.js'),sandbox:true,nodeIntegration:false,contextIsolation:true,backgroundThrottling:false}});
+    soundscapeWin.webContents.setWindowOpenHandler(()=>({action:'deny'}));soundscapeWin.webContents.on('will-navigate',e=>e.preventDefault());
+    soundscapeWin.loadFile(path.join(__dirname,'renderer','soundscape','player.html'));
+  }
   let quickLeaveTimer = null;
   let quickPanel = 'none';
   let quickExpanded = false;
@@ -535,6 +552,7 @@ function bootstrap() {
   }
 
   focus.onChange = (view) => {
+    study?.observe(view);
     workbarWin?.webContents.send('focus:changed', view);
     quickWin?.webContents.send('focus:changed', view);
     if (!view.active && !quickExpanded) quickWin?.hide();
@@ -556,6 +574,12 @@ function bootstrap() {
     }
   }, 1000);
   focusTicker.unref?.();
+  const studyPromptTimer=setInterval(async()=>{
+    if(!study?.data.identity||settings.get('study',{}).proactive===false||settings.get('ui',{}).ambientSpeech===false||scheduler.isPaused()||workbarWin?.isVisible()||focus.active||replyState||powerMonitor.getSystemIdleTime()>600)return;
+    const hour=new Date().getHours();if(hour<8||hour>=23)return;
+    if(Date.now()-lastStudyPrompt<Math.max(10,Number(settings.get('study',{}).cardIntervalMin)||30)*60000)return;
+    lastStudyPrompt=Date.now();try{await study.randomCard();if(!workbarWin?.isVisible()&&!replyState){const card=study.prompt('knowledge');if(card)showPromptCard(card,2)}}catch{}
+  },60000);studyPromptTimer.unref?.();
 
   // ---------- 通知 ----------
   function pushNotice(n) {
@@ -788,7 +812,7 @@ function bootstrap() {
   ipc.handle('settings:get', () => settings.get());
   ipc.handle('settings:set', (_e, patch) => {
     for (const k of Object.keys(patch)) {
-      if (!['pet', 'llm', 'hotkeys', 'agents', 'calendar', 'notion', 'privacy', 'usage', 'ui', 'system', 'toolbox'].includes(k)) continue;
+      if (!['pet', 'llm', 'hotkeys', 'agents', 'calendar', 'notion', 'privacy', 'usage', 'ui', 'system', 'toolbox','study'].includes(k)) continue;
       if (k === 'system') patch[k] = { openAtLogin: windowsIntegration.setStartup(app, !!patch[k]?.openAtLogin) };
       settings.set(k, patch[k]);
     }
@@ -826,7 +850,44 @@ function bootstrap() {
   ipc.handle('speech:copy', () => { if (replyState?.full) return writeTextVerified(clipboard, replyState.full); });
   ipc.on('speech:stop', () => chatAbort.controller?.abort());
   ipc.on('speech:cardClose', () => { if (cardState) { dismissSpeech(); speechWin?.setIgnoreMouseEvents(true, { forward: true }); speechWin?.setFocusable(false); } });
-  ipc.on('speech:cardOpen', (_e, tab) => { if (['agents', 'schedule', 'focus', 'usage'].includes(tab)) { if (cardState) dismissSpeech(); showWorkbar(tab); } });
+  ipc.on('speech:cardOpen', (_e, tab) => { if (['agents', 'schedule', 'focus', 'usage','study'].includes(String(tab).split(':')[0])) { if (cardState) dismissSpeech(); showWorkbar(tab); } });
+  ipc.handle('soundscape:state',()=>soundscape.view());
+  ipc.handle('soundscape:command',(_e,data)=>soundscape.command(data||{}));
+  ipcMain.on('soundscape:ready',e=>{if(e.sender===soundscapeWin?.webContents)soundscapeWin.webContents.send('soundscape:player',{...soundscape.state,sounds:soundscapeCatalog.sounds})});
+  ipcMain.on('soundscape:report',(e,data)=>{if(e.sender===soundscapeWin?.webContents)soundscape.report(data||{})});
+  const studyConnectionView=()=>study?{...study.view(),authWindow:!!studyAuthWin&&!studyAuthWin.isDestroyed(),authVisible:!!studyAuthWin&&!studyAuthWin.isDestroyed()&&studyAuthWin.isVisible()}: {connected:false,error:studyError};
+  ipc.handle('study:state',studyConnectionView);
+  ipc.handle('study:sync',async()=>{await requireStudy().sync(true);return study.view()});
+  ipc.handle('study:resolve',(_e,choice)=>requireStudy().resolve(choice==='local'?'local':'cloud'));
+  ipc.handle('study:task',(_e,data)=>requireStudy().task(data||{}));
+  ipc.handle('study:card',async(_e,id)=>requireStudy().randomCard(id));
+  ipc.handle('study:prompt',async(_e,kind)=>{const s=requireStudy();if(!s.data.identity){showWorkbar('study');return false}if(kind==='knowledge')await s.randomCard();else if(kind==='current'&&!s.currentCard)await s.randomCard();else await s.sync(true);const card=s.prompt(kind==='current'?'knowledge':kind);if(card)showPromptCard(card,3);else speak('暂时没有可展示的知识卡片喔',{force:true});return true});
+  ipc.handle('study:website',()=>shell.openExternal(STUDY_BASE));
+  ipc.handle('study:disconnect',async()=>{requireStudy().disconnect();await setSecret('studyToken','');lastPracticeCount=null;return study.view()});
+  ipc.handle('study:connect',()=>{
+    requireStudy();studyError='';
+    const showLogin=win=>{workbarWin?.hide();quickWin?.hide();speechWin?.hide();win.show();if(win.isMinimized())win.restore();win.moveTop();win.focus();workbarWin?.webContents.send('study:changed',studyConnectionView())};
+    if(studyAuthWin&&!studyAuthWin.isDestroyed()){showLogin(studyAuthWin);return true}
+    const area=screen.getDisplayMatching(workbarWin?.getBounds()||petWin.getBounds()).workArea;
+    const width=Math.min(920,area.width-32),height=Math.min(760,area.height-32);
+    const win=new BrowserWindow({show:false,width,height,x:Math.round(area.x+(area.width-width)/2),y:Math.round(area.y+(area.height-height)/2),title:'登录闪念上岸 · 连接斐墨',webPreferences:{partition:`study-auth-${Date.now()}`,contextIsolation:true,sandbox:true,nodeIntegration:false}});studyAuthWin=win;win.setAlwaysOnTop(true,'screen-saver');showLogin(win);
+    win.webContents.on('did-fail-load',(_e,code)=>{if(code===-3)return;studyError='登录页面加载失败，请检查网络后重新打开';workbarWin?.webContents.send('study:changed',{...studyConnectionView(),error:studyError})});
+    win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
+    win.webContents.on('will-navigate',(e,url)=>{if(new URL(url).origin!==STUDY_BASE)e.preventDefault()});
+    let checking=false;
+    studyAuthPoll=setInterval(async()=>{
+      if(checking||win.isDestroyed())return;checking=true;
+      try{
+        const cookies=await win.webContents.session.cookies.get({url:STUDY_BASE,name:'anshang_session'});if(!cookies[0]?.value)return;
+        const response=await net.fetch(STUDY_BASE+'/api/v1/auth/me',{headers:{Authorization:'Bearer '+cookies[0].value}});if(!response.ok)return;
+        const account=await response.json(),workspace=account.workspaces?.find(w=>w.role!=='viewer');if(!workspace)throw new Error('没有可同步的学习工作区');
+        if(study.data.identity&&study.data.identity.userId!==account.user.id)throw new Error('请先断开当前学习账号，再连接另一个账号');
+        await setSecret('studyToken',cookies[0].value);await study.connect({userId:account.user.id,workspaceId:workspace.id,displayName:account.user.displayName});win.close();
+      }catch(e){studyError=e.message;workbarWin?.webContents.send('study:changed',{...study.view(),error:studyError})}
+      finally{checking=false}
+    },2000);
+    win.on('closed',()=>{clearInterval(studyAuthPoll);studyAuthPoll=null;studyAuthWin=null;showWorkbar('study');workbarWin?.webContents.send('study:changed',studyConnectionView())});win.loadURL(STUDY_BASE).catch(()=>{studyError='登录页面无法加载，请检查网络后重试'});return true;
+  });
   ipc.handle('quick:quota', async () => {
     await refreshLimits();
     const card = quotaCard(registry.snapshot().limits?.codex);
@@ -951,7 +1012,7 @@ function bootstrap() {
 
   ipc.on('quick:enter', () => { if (cursorOnQuickControl()) { revealDock(); hideQuickSoon(); } });
   ipc.on('quick:leave', () => { hideQuickSoon(); scheduleDockHide(); });
-  ipc.on('quick:panel', (_e, name) => { quickPanel = ['timer', 'schedule', 'note'].includes(name) ? name : 'none'; });
+  ipc.on('quick:panel', (_e, name) => { quickPanel = ['timer', 'schedule', 'note','noise'].includes(name) ? name : 'none'; });
   ipc.on('quick:draft', (_e, hasDraft) => { quickDraft = hasDraft === true; });
   ipc.on('quick:shape', (_e, rects) => {
     if (!quickWin || !Array.isArray(rects)) return;
@@ -970,7 +1031,7 @@ function bootstrap() {
 
   ipc.handle('focus:state', () => focus.view());
   ipc.handle('focus:stats', () => focus.stats());
-  ipc.handle('focus:addLabel', (_e, data) => focus.addLabel(data?.name, data?.color));
+  ipc.handle('focus:addLabel', async(_e, data) => {if(!study?.data.identity)return focus.addLabel(data?.name,data?.color);if(!String(data?.name||'').trim())throw new Error('请填写任务标签');const result=await study.task({title:String(data.name).trim(),estimateMinutes:25});return focus.labels.find(l=>l.remoteId===result.taskId)});
   ipc.handle('focus:start', (_e, data) => { const r = focus.start(data || {}); speak('开始啦，我会安静陪着你。', { force: true, priority: 2 }); return r; });
   ipc.handle('focus:pause', () => focus.pause());
   ipc.handle('focus:resume', () => focus.resume());
@@ -1149,11 +1210,13 @@ function bootstrap() {
       toolbox = new Toolbox(path.join(paths.dataDir(), 'toolbox.bin'), { encrypt: v => safeStorage.encryptString(v), decrypt: v => safeStorage.decryptString(v) });
       restartClipboardPoll();
     } catch (e) { toolboxError = e.message; }
+    try{study=new StudyBridge({file:path.join(paths.dataDir(),'study-bridge.bin'),encrypt:v=>safeStorage.encryptString(v),decrypt:v=>safeStorage.decryptString(v),getToken:()=>getSecret('studyToken'),fetcher:(url,options)=>net.fetch(url,options),focus,onChange:studyChanged});if(study.data.identity)study.start()}catch(e){studyError=e.message}
     if (settings.get('system', {}).openAtLogin) windowsIntegration.setStartup(app, true);
     createPetWindow();
     createWorkbarWindow();
     createSpeechWindow();
     createQuickWindow();
+    createSoundscapeWindow();
     if (focus.active) quickWin.webContents.once('did-finish-load', () => {
       positionQuick(); quickWin.showInactive(); quickExpanded = false; quickWin.webContents.send('quick:expanded', false);
     });
@@ -1212,6 +1275,7 @@ function bootstrap() {
     globalShortcut.unregisterAll();
     registry.stop();
     codexLimits.stop();clearInterval(limitsTimer);clearTimeout(usageNotifyTimer);usage.flushModelRepairs();
+    study?.stop();clearInterval(studyAuthPoll);clearInterval(studyPromptTimer);studyAuthWin?.close();
     scheduler.stop();
     if (notionTimer) clearInterval(notionTimer);
     if (stateTimer) clearInterval(stateTimer);

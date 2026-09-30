@@ -12,6 +12,7 @@ npm-debug.log*
 !.env.example
 secrets.bin
 toolbox.bin
+study-bridge.bin
 settings.json
 *.pem
 *.key

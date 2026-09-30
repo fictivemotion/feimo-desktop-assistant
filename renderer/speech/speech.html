@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="zh-CN"><head><meta charset="UTF-8" />
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
-<link rel="stylesheet" href="speech.css" /></head>
+<link rel="stylesheet" href="speech.css" /><link rel="stylesheet" href="study-cards.css" /><link rel="stylesheet" href="../../node_modules/katex/dist/katex.min.css" /></head>
 <body><div class="speech" id="speech" role="status" aria-live="polite"><span id="message"></span></div>
 <div id="reply-stack" hidden></div>
 <section id="prompt-card" hidden></section>
@@ -9,4 +9,7 @@
 <script src="../../node_modules/dompurify/dist/purify.min.js"></script>
 <script src="../shared/reicon-filled.js"></script>
 <script src="../shared/markdown.js"></script>
+<script src="../../node_modules/katex/dist/katex.min.js"></script>
+<script src="../../node_modules/katex/dist/contrib/auto-render.min.js"></script>
+<script src="../shared/study-rich.js"></script>
 <script src="speech.js"></script></body></html>

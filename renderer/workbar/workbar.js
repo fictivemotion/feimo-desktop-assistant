@@ -17,6 +17,7 @@
     focus: ['专注与计时', '一次只做一件事。', ''],
     settings: ['设置', '让斐墨更符合你的习惯。', '返回问答'],
     tools: ['快捷工具箱', '收好复制的内容，留住灵感，找到配色。', '返回问答'],
+    study:['闪念上岸','学习进度、任务和知识卡片，随手掌握。','同步'],
   };
 
   function switchTab(name) {
@@ -33,16 +34,19 @@
     for (const t of document.querySelectorAll('.tab')) { t.classList.toggle('active', t.dataset.tab === name); t.setAttribute('aria-current', t.dataset.tab === name ? 'page' : 'false'); }
     window.TABS[name]?.onShown?.();
     if (name === 'tools' && sub) window.TABS.tools?.show(sub);
+    if (name === 'study' && sub) window.TABS.study?.show(sub);
   }
   document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => switchTab(t.dataset.tab)));
   $('#btn-settings').addEventListener('click', () => switchTab('settings'));
   $('#btn-tools').addEventListener('click', () => switchTab('tools:clipboard'));
+  $('#btn-study').addEventListener('click',()=>switchTab('study'));
   window.switchTab = switchTab;
   $('#page-action').addEventListener('click', () => {
     if (active === 'chat') { const el = $('#chat-scroll'); el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' }); }
     else if (active === 'process') $('#pt-paste').click();
     else if (active === 'agents') $('#ag-refresh').click();
     else if (active === 'usage') $('#u-export').click();
+    else if(active==='study')window.TABS.study?.sync();
     else if (active === 'schedule') window.TABS.schedule.toggleEditor();
     else if (active === 'settings' || active === 'tools') switchTab('chat');
   });

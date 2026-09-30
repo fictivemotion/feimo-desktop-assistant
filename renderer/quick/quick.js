@@ -12,6 +12,8 @@
     [{icon:'CalendarAdd',title:'新建日程',run:()=>showPanel('schedule')},{icon:'Timer',title:'倒计时 / 番茄钟',run:()=>showPanel('timer')},{icon:'Widget',title:'打开工作台',run:()=>api.openWorkbar('chat')}],
     [{icon:'ClipboardText',title:'剪贴板管理',run:()=>api.openWorkbar('tools:clipboard')},{icon:'NoteText',title:'随手速记',run:()=>showPanel('note')},{icon:'Palette',title:'配色与色卡',run:()=>api.openWorkbar('tools:palette')}],
     [{icon:'Image',title:'截图提取并清洗文字',run:()=>api.clipboardRunQuick('image')},{icon:'Broom',title:'清洗剪贴板文字',run:()=>api.clipboardRunQuick('text')},{icon:'ChartBar',title:'Codex 额度卡片',run:()=>api.quota()}],
+    [{icon:'Music',title:'白噪音声景',run:()=>showPanel('noise')},{icon:'DocumentText',title:'随机知识卡片',run:()=>api.studyPrompt('knowledge')},{icon:'CheckCircle',title:'学习任务',run:()=>api.openWorkbar('study:tasks')}],
+    [{icon:'ChartBar',title:'刷题与学习统计',run:()=>api.studyPrompt('stats')},{icon:'Timer',title:'学习计时与统计',run:()=>api.openWorkbar('focus')},{icon:'Music',title:'完整白噪音音库',run:()=>api.openWorkbar('study:soundscape')}],
   ];
   let group = 0, paging = false, pointer = null, suppressClickUntil = 0, wheelAt = 0;
   const toolButtons = [...tools.querySelectorAll('button')];
@@ -96,7 +98,7 @@
             }
           }
         }
-        if (panel !== 'none') rects.push(...roundedShape(bounds(editor), 18, 3));
+        if (panel !== 'none') rects.push(...roundedShape(bounds(editor), 21, 3));
       }
       if (focus.active && !pill.classList.contains('layout-hidden')) rects.push(...roundedShape(bounds(pill), 18, 3));
       if (!$('quick-toast').classList.contains('hidden')) rects.push(...roundedShape(bounds($('quick-toast')), 12, 3));
@@ -200,7 +202,9 @@
     $('timer-form').classList.toggle('hidden', panel !== 'timer');
     $('schedule-form').classList.toggle('hidden', panel !== 'schedule');
     $('note-form').classList.toggle('hidden', panel !== 'note');
-    $('editor-title').textContent = panel === 'schedule' ? '记下新日程' : panel === 'note' ? '留住一个想法' : '陪你专注一会儿';
+    $('noise-form').classList.toggle('hidden',panel!=='noise');editor.classList.toggle('noise-editor',panel==='noise');
+    if(panel==='noise')window.FeimoNoise.refresh();
+    $('editor-title').textContent = panel === 'schedule' ? '记下新日程' : panel === 'note' ? '留住一个想法' : panel==='noise'?'春日声景':'陪你专注一会儿';
     api.panel(panel);
     layout();
   }
@@ -213,7 +217,7 @@
       b.style.setProperty('--accent', label.color); b.title = label.name;
       const dot = document.createElement('i'); const name = document.createTextNode(label.name);
       b.append(dot, name);
-      b.addEventListener('click', () => { selectedLabel = label.id; renderLabels(); });
+      b.addEventListener('click', () => { selectedLabel = label.id;if(label.estimateMinutes)$('minutes').value=Math.min(720,label.estimateMinutes); renderLabels(); });
       list.appendChild(b);
     }
   }

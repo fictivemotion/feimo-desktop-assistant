@@ -112,3 +112,20 @@ button:focus-visible, input:focus-visible { outline: 2px solid #242e3b; outline-
 #quick-toast { position: absolute; z-index: 6; max-width: 170px; padding: 8px 10px; border: 0; border-radius: 9px; background: rgba(255,248,248,.94); color: #884951; box-shadow: 0 5px 16px rgba(58,64,76,.1); font-size: 11px; }
 .tool,#quick-chat,#quick-send { box-shadow:none; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+
+/* Same 21px sheet corner as every quick editor; the outer window stays clear. */
+#editor.noise-editor { padding:0;background:#fff;overflow:hidden; }
+.noise-editor .editor-head { position:absolute;z-index:2;top:13px;left:14px;right:12px;margin:0;color:#17271e; }
+.noise-editor .editor-head button { background:#fffffff0; }
+.noise-hero { height:108px;position:relative;background:url('../../assets/soundscape/spring-halftone.png') center 45%/cover; }
+.noise-hero::after { content:"";position:absolute;left:-15px;right:-15px;bottom:-13px;height:44px;background:linear-gradient(transparent,#fff 76%);filter:blur(8px); }
+.noise-controls { position:relative;padding:7px 14px 11px;background:#fff; }
+.noise-play-row { display:flex;align-items:center;gap:10px;margin-bottom:8px; }
+#noise-play { width:30px;height:30px;flex:none;border:0;border-radius:50%;display:grid;place-items:center;color:#fff;background:#29372f; }
+#noise-preset { width:100%;min-width:0;border:0;border-radius:8px;background:#f3f5f3;padding:6px;color:#24302a;font-size:11px; }
+.noise-track { display:grid;grid-template-columns:55px minmax(0,1fr) 27px;align-items:center;gap:6px;min-height:28px;font-size:10px; }
+.noise-track span { overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.noise-track input { width:100%;min-width:0;accent-color:#35483b; }
+.noise-track output { font-variant-numeric:tabular-nums;color:#738078;font-size:9px; }
+#noise-status { margin:6px 0 0;font-size:10px;color:#6c786f;line-height:1.5;min-height:15px; }
+#noise-library { margin:1px 0 0;padding:4px;font-size:10px; }

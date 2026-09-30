@@ -41,7 +41,7 @@
       b.className = 'focus-label' + (selected === label.id ? ' selected' : '');
       b.style.setProperty('--label-color', label.color);
       b.innerHTML = `<i></i>${esc(label.name)}`;
-      b.addEventListener('click', () => { selected = label.id; labels(); });
+      b.addEventListener('click', () => { selected = label.id;if(label.estimateMinutes)$('#f-minutes').value=Math.min(720,label.estimateMinutes); labels();active(); });
       $('#f-labels').appendChild(b);
     }
   }
