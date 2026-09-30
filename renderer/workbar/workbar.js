@@ -35,6 +35,7 @@
     if (!views[name]) name = 'chat';
     if (name === 'settings' && !views.settings._built) { window.TABS.settings?.build(); views.settings._built = true; }
     active = name;
+    api.workbarScene?.(name);
     const info = pageInfo[name];
     $('#page-title').textContent = info[0]; $('#page-subtitle').textContent = info[1];
     $('#page-action').textContent = name === 'schedule' && views.schedule.classList.contains('editing') ? '返回日程' : info[2];

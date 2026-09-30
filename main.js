@@ -11,6 +11,7 @@ const paths = require('./lib/paths');
 const { EventBus } = require('./lib/events');
 const { JsonStore } = require('./lib/store');
 const { PETS } = require('./lib/pets');
+const { petScene } = require('./lib/pet-scenes');
 const { applyRules, RULES } = require('./lib/textRules');
 const { readImageBuffer, snapshotClipboard, writeTextVerified, writeImageVerified } = require('./lib/clipboard');
 const { OcrService } = require('./lib/ocr');
@@ -166,6 +167,8 @@ function bootstrap() {
 
   let currentPet = { state: 'idle', detail: null, stateSince: Date.now() };
   let userProcessing = false;   // 本产品自身任务（问答/OCR）
+  let processingMode = 'thinking', workbarTab = 'voice';
+  function playBloub(scene){petWin?.webContents.send('pet:activity',{scene});}
   let flashUntil = 0;           // 完成/失败闪烁窗口
   let flashKind = null;
   const chatAbort = { controller: null };
@@ -210,6 +213,8 @@ function bootstrap() {
       else if(state.phase==='completed'||state.phase==='error'){positionVoice();voiceWin?.showInactive();if(state.phase==='completed'){voiceDismissTimer=setTimeout(()=>voiceWin?.webContents.send('voice:exit'),320);}else voiceDismissTimer=setTimeout(()=>voiceWin?.hide(),10000);}
       else voiceWin?.hide();
       broadcastPetState();
+      if(state.phase==='completed')playBloub('completed');
+      if(state.phase==='error')playBloub('failed');
     }
   }
   function createVoiceWindow(){
@@ -222,7 +227,7 @@ function bootstrap() {
     voiceWin.webContents.on('render-process-gone',()=>{voiceReady=false;void voice?.cancel();});
     voiceWin.on('closed',()=>{voiceReady=false;voiceWin=null;void voice?.cancel();});
   }
-  const soundscape=new Soundscape({settings,send:state=>soundscapeWin?.webContents.send('soundscape:player',{...state,sounds:soundscapeCatalog.sounds}),onChange:value=>{workbarWin?.webContents.send('soundscape:changed',value);quickWin?.webContents.send('soundscape:changed',value)}});
+  const soundscape=new Soundscape({settings,send:state=>soundscapeWin?.webContents.send('soundscape:player',{...state,sounds:soundscapeCatalog.sounds}),onChange:value=>{workbarWin?.webContents.send('soundscape:changed',value);quickWin?.webContents.send('soundscape:changed',value);broadcastPetState();if(value.error)playBloub('failed')}});
   function createSoundscapeWindow(){
     soundscapeWin=new BrowserWindow({show:false,width:200,height:100,webPreferences:{preload:path.join(__dirname,'preload','soundscape-preload.js'),sandbox:true,nodeIntegration:false,contextIsolation:true,backgroundThrottling:false}});
     soundscapeWin.webContents.setWindowOpenHandler(()=>({action:'deny'}));soundscapeWin.webContents.on('will-navigate',e=>e.preventDefault());
@@ -478,6 +483,7 @@ function bootstrap() {
   function showPromptCard(value, priority = 3) {
     if (settings.get('ui', {}).companionSpeech === false || !speechWin || !petWin?.isVisible()) return;
     const card = { ...value, id: `card-${Date.now()}-${Math.random().toString(36).slice(2, 7)}` };
+    playBloub(value.kind==='schedule'?'reminder':'notification');
     if (replyState) { speechWin.webContents.send('speech:card', { ...card, inline: true }); return; }
     if (Date.now() < speechUntil && priority < speechPriority) return;
     clearTimeout(speechTimer); cardState = card; speechLayout = { width: 252, height: 210 };
@@ -517,12 +523,15 @@ function bootstrap() {
     positionWorkbar();
     workbarWin.show();
     workbarWin.focus();
+    if(tab)workbarTab=String(tab).split(':')[0];
+    broadcastPetState();playBloub(workbarTab==='settings'?'settingsOpen':'workbenchOpen');
     if (tab) workbarWin.webContents.send('workbar:navigate', tab);
     if(voiceWin?.isVisible())positionVoice();
   }
 
   function hideWorkbar() {
     workbarWin?.hide(); scheduleDockHide();
+    uiListening=false;broadcastPetState();
     if (focus.active && petWin?.isVisible() && !voice?.active()) {
       positionQuick(); quickWin?.showInactive(); quickExpanded = false; quickWin?.webContents.send('quick:expanded', false);
     }
@@ -552,7 +561,7 @@ function bootstrap() {
   function revealDock() {
     if (petDockTimer) clearTimeout(petDockTimer);
     petDockTimer = null;
-    if (petDockSide && petDockHidden) placeDock(false);
+    if (petDockSide && petDockHidden){placeDock(false);playBloub('wake');}
   }
 
   function scheduleDockHide() {
@@ -587,10 +596,11 @@ function bootstrap() {
   let stateTimer = null;
   function broadcastPetState() {
     const [state, detail] = computePetState();
-    if (state !== currentPet.state || detail !== currentPet.detail) {
+    const scene=petScene({state,voicePhase:voice?.state().phase,processingMode,focus:focus.active,soundscape:soundscape.state,workbarVisible:workbarWin?.isVisible(),workbarTab});
+    if (state !== currentPet.state || detail !== currentPet.detail || scene !== currentPet.scene) {
       const previousState = currentPet.state;
-      currentPet = { state, detail, stateSince: Date.now() };
-      petWin?.webContents.send('pet:state', { state, detail });
+      currentPet = { state, detail, scene, stateSince: Date.now() };
+      petWin?.webContents.send('pet:state', { state, detail, scene });
       workbarWin?.webContents.send('pet:state', { state, detail });
       if (state === 'processing' && previousState !== 'processing' && !workbarWin?.isVisible()) {
         speak('收到啦，我正在认真处理。', { duration: 3200 });
@@ -601,6 +611,7 @@ function bootstrap() {
   function flash(kind, ms = 4000) {
     flashKind = kind; flashUntil = Date.now() + ms;
     broadcastPetState();
+    if(kind==='completed'||kind==='failed')playBloub(kind);
     setTimeout(broadcastPetState, ms + 50);
   }
 
@@ -608,6 +619,7 @@ function bootstrap() {
     study?.observe(view);
     workbarWin?.webContents.send('focus:changed', view);
     quickWin?.webContents.send('focus:changed', view);
+    broadcastPetState();
     if (!view.active && !quickExpanded) quickWin?.hide();
     if (view.active && !quickWin?.isVisible() && petWin?.isVisible() && !workbarWin?.isVisible()) {
       positionQuick(); quickWin?.showInactive(); quickExpanded = false; quickWin?.webContents.send('quick:expanded', false);
@@ -616,6 +628,7 @@ function bootstrap() {
   const focusTicker = setInterval(() => {
     const result = focus.tick();
     if (result.finished?.outcome === 'completed') {
+      playBloub('completed');
       const label = focus.labels.find((l) => l.id === result.finished.labelId)?.name || '任务';
       const breakEnded = result.finished.stage === 'break';
       speak(breakEnded ? '休息结束啦，准备好下一轮了吗？' : result.breakStarted ? `${label}完成啦，现在休息 5 分钟。` : `${label}的计时结束啦，休息一下吧。`, { force: true, priority: 4, duration: 8000 });
@@ -636,6 +649,7 @@ function bootstrap() {
 
   // ---------- 通知 ----------
   function pushNotice(n) {
+    if(n.kind==='reminder'||!settings.get('agents',{}).muteNotifications)playBloub(({reminder:'reminder',needs_input:'reminder',completed:'completed',failed:'failed'})[n.kind]||'notification');
     if (n.kind === 'reminder' || !settings.get('agents', {}).muteNotifications) {
       showPromptCard(noticeCard(n), n.kind === 'reminder' || n.kind === 'needs_input' ? 3 : 2);
     }
@@ -668,6 +682,7 @@ function bootstrap() {
     const now = Date.now();
     if (now - lastProgressSpeech < 90000 || workbarWin?.isVisible() || settings.get('agents', {}).muteNotifications) return;
     lastProgressSpeech = now;
+    playBloub('notification');
     const source = ({ codex: 'Codex', zcode: 'ZCode', workbuddy: 'WorkBuddy' })[event.source] || 'Coding 助手';
     speak(`${source} 有新进展：${String(event.summary || '仍在处理中').slice(0, 54)}`, { duration: 5500, priority: 1 });
   });
@@ -791,6 +806,7 @@ function bootstrap() {
     clipboardJobBusy = true;
     clipboardJobStatus.state = 'processing';
     userProcessing = true;
+    processingMode='thinking';
     broadcastPetState();
     speak(kind === 'image' ? '正在提取图片文字' : '正在提取清洗文字', { force: true, priority: 3, duration: 60000 });
     const startedAt = Date.now();
@@ -1028,6 +1044,11 @@ function bootstrap() {
 
   ipc.handle('pets:list', () => PETS);
   ipc.handle('workbar:show', (_e, tab) => showWorkbar(tab));
+  ipc.on('workbar:scene',(e,tab)=>{
+    if(e.sender!==workbarWin?.webContents||!['voice','chat','process','agents','schedule','focus','settings','tools','study'].includes(tab)||tab===workbarTab)return;
+    workbarTab=tab;broadcastPetState();
+    if(workbarWin?.isVisible())playBloub(tab==='settings'?'settingsOpen':['tools','study'].includes(tab)?'toolsOpen':'workbenchOpen');
+  });
   ipc.handle('workbar:hide', () => { hideWorkbar(); return true; });
 
   // 以系统指针绝对位置拖动，避免窗口移动后 renderer 相对位移重复计算。
@@ -1096,6 +1117,7 @@ function bootstrap() {
     if(voice?.active())return;
     revealDock();
     showQuick();
+    playBloub('greeting');
     if (settings.get('ui', {}).companionSpeech === false || workbarWin?.isVisible()) return;
     const now = Date.now();
     if (now - lastHoverSpeech < 1000) return;
@@ -1111,7 +1133,7 @@ function bootstrap() {
 
   ipc.on('quick:enter', () => { if (cursorOnQuickControl()) { revealDock(); hideQuickSoon(); } });
   ipc.on('quick:leave', () => { hideQuickSoon(); scheduleDockHide(); });
-  ipc.on('quick:panel', (_e, name) => { quickPanel = ['timer', 'schedule', 'note','noise'].includes(name) ? name : 'none'; });
+  ipc.on('quick:panel', (_e, name) => { quickPanel = ['timer', 'schedule', 'note','noise'].includes(name) ? name : 'none';if(quickPanel!=='none')playBloub('toolsOpen'); });
   ipc.on('quick:draft', (_e, hasDraft) => { quickDraft = hasDraft === true; });
   ipc.on('quick:shape', (_e, rects) => {
     if (!quickWin || !Array.isArray(rects)) return;
@@ -1152,12 +1174,13 @@ function bootstrap() {
     controller.replyId = Date.now() + '-' + Math.random().toString(36).slice(2, 8);
     chatAbort.controller = controller;
     chatHistory.push({ role: 'user', content: text, at: new Date().toISOString() });
-    userProcessing = true; broadcastPetState();
+    userProcessing = true;processingMode='thinking'; broadcastPetState();
     if (quick) showReply(controller, 'thinking');
     let streamed = '';
     let updateTimer = null;
     const send = (ch) => {
       if (controller.signal.aborted || chatAbort.controller !== controller) return;
+      if(processingMode!=='streaming'){processingMode='streaming';broadcastPetState();}
       if (!quick) workbarWin?.webContents.send('chat:delta', ch);
       else {
         streamed = ch.full;
@@ -1193,6 +1216,7 @@ function bootstrap() {
       if (chatAbort.controller === controller) {
         chatAbort.controller = null;
         userProcessing = false; broadcastPetState();
+        processingMode='thinking';
       }
     }
   }
@@ -1210,11 +1234,12 @@ function bootstrap() {
   ipc.handle('llm:configured', () => llm.isConfigured());
   ipc.handle('llm:proofread', async (_e, { text }) => {
     // AI 辅助（显式触发，§P0-4）：调用方在 text 中携带完整指令与待处理内容
-    userProcessing = true; broadcastPetState();
+    userProcessing = true;processingMode='thinking'; broadcastPetState();
     try {
       const out = await llm.complete(text);
+      flash('completed');
       return { ok: true, text: out };
-    } finally { userProcessing = false; broadcastPetState(); }
+    } catch(e){flash('failed');throw e;}finally { userProcessing = false; broadcastPetState(); }
   });
 
   // 文本处理
@@ -1238,12 +1263,12 @@ function bootstrap() {
 
   // OCR
   ipc.handle('ocr:recognize', async (_e, { dataUrl, lang }) => {
-    userProcessing = true; broadcastPetState();
+    userProcessing = true;processingMode='thinking'; broadcastPetState();
     try {
       const b64 = String(dataUrl || '').split(',')[1];
       if (!b64) throw new Error('没有图片数据');
-      return await ocr.recognize(Buffer.from(b64, 'base64'), lang || 'auto');
-    } finally { userProcessing = false; broadcastPetState(); }
+      const result=await ocr.recognize(Buffer.from(b64, 'base64'), lang || 'auto');flash('completed');return result;
+    } catch(e){flash('failed');throw e;}finally { userProcessing = false; broadcastPetState(); }
   });
 
   // Agents

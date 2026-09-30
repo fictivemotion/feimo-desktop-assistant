@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('petApi', {
   onState: (cb) => ipcRenderer.on('pet:state', (_e, s) => cb(s)),
+  onActivity: (cb) => ipcRenderer.on('pet:activity', (_e, value) => cb(value)),
   onConfig: (cb) => ipcRenderer.on('pet:config', (_e, c) => cb(c)),
   onSnapped: (cb) => ipcRenderer.on('pet:snapped', () => cb()),
   onDock: (cb) => ipcRenderer.on('pet:dock', (_e, state) => cb(state)),
