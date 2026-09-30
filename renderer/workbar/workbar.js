@@ -5,17 +5,22 @@
   const api = window.api;
 
   // ---------- 页签 ----------
+  const usageView=document.getElementById('view-usage');
+  const agentView=document.getElementById('view-agents');
+  const sessionsHeading=document.createElement('h2');sessionsHeading.className='agent-section-title';sessionsHeading.textContent='Coding 会话';agentView.prepend(sessionsHeading);
+  const usageHeading=document.createElement('h2');usageHeading.className='agent-section-title token-heading';usageHeading.textContent='Token 统计';agentView.append(usageHeading,usageView);
+  usageView.classList.remove('view');usageView.classList.add('agent-usage');
   const views = {};
   for (const v of document.querySelectorAll('.view')) {
     views[v.id.replace('view-', '')] = v;
     v.classList.add('feimo-scroll-fade');
     v.addEventListener('scroll', () => v.classList.toggle('is-scrolled', v.scrollTop > 2), { passive:true });
   }
-  let active = 'chat';
+  let active = 'voice';
   const pageInfo = {
     chat: ['问答', '把眼前的问题，交给斐墨。', '回到最新'],
     process: ['快捷处理', '清理文字，或从图片中提取内容。', '读取剪贴板'],
-    agents: ['Coding 会话', '关注进度，及时发现需要你的任务。', '刷新'],
+    agents: ['Agent', '会话进度与 Token 用量，一处掌握。', '刷新'],
     usage: ['Token 用量', '查看用量趋势与每日活跃记录。', '导出 CSV'],
     schedule: ['日程', '记下安排，把提醒交给斐墨。', '新建日程'],
     focus: ['专注与计时', '一次只做一件事。', ''],
@@ -26,7 +31,7 @@
   };
 
   function switchTab(name) {
-    const [route, sub] = String(name || 'chat').split(':'); name = route;
+    const [route, sub] = String(name || 'voice').split(':'); name = route==='usage'?'agents':route;
     if (!views[name]) name = 'chat';
     if (name === 'settings' && !views.settings._built) { window.TABS.settings?.build(); views.settings._built = true; }
     active = name;
@@ -34,10 +39,12 @@
     $('#page-title').textContent = info[0]; $('#page-subtitle').textContent = info[1];
     $('#page-action').textContent = name === 'schedule' && views.schedule.classList.contains('editing') ? '返回日程' : info[2];
     $('#page-action').hidden = !info[2];
+    $('#page-new-chat').hidden=name!=='chat';
     document.getElementById('panel').dataset.activeTab = name;
     for (const [k, v] of Object.entries(views)) v.classList.toggle('active', k === name);
     for (const t of document.querySelectorAll('.tab')) { t.classList.toggle('active', t.dataset.tab === name); t.setAttribute('aria-current', t.dataset.tab === name ? 'page' : 'false'); }
     window.TABS[name]?.onShown?.();
+    if(name==='agents'){window.TABS.usage?.onShown?.();if(route==='usage')usageHeading.scrollIntoView({block:'start',behavior:'smooth'});}
     if (name === 'tools' && sub) window.TABS.tools?.show(sub);
     if (name === 'study' && sub) window.TABS.study?.show(sub);
     if (name === 'voice' && sub) window.TABS.voice?.show(sub);
@@ -48,10 +55,11 @@
   $('#btn-study').addEventListener('click',()=>switchTab('study'));
   $('#btn-voice').addEventListener('click',()=>switchTab('voice'));
   window.switchTab = switchTab;
+  $('#page-new-chat').addEventListener('click',()=>window.TABS.chat.newConversation());
   $('#page-action').addEventListener('click', () => {
     if (active === 'chat') { const el = $('#chat-scroll'); el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' }); }
     else if (active === 'process') $('#pt-paste').click();
-    else if (active === 'agents') $('#ag-refresh').click();
+    else if (active === 'agents') {$('#ag-refresh').click();window.TABS.usage?.onShown?.();}
     else if (active === 'usage') $('#u-export').click();
     else if(active==='study')window.TABS.study?.sync();
     else if (active === 'schedule') window.TABS.schedule.toggleEditor();
@@ -70,7 +78,7 @@
     }
     if ((e.ctrlKey || e.metaKey) && e.key === 'Tab') {
       e.preventDefault();
-      const order = ['chat', 'process', 'agents', 'usage', 'schedule', 'focus'];
+      const order = ['voice', 'chat', 'process', 'agents', 'schedule', 'focus'];
       switchTab(order[(Math.max(0, order.indexOf(active)) + (e.shiftKey ? -1 : 1) + order.length) % order.length]);
     }
   });
@@ -154,9 +162,9 @@
   const brandAvatar = $('#brand-avatar');
   function setBrandAvatar(style) {
     brandAvatar.replaceChildren();
-    if (style === 'forest-flow' || style === 'iridescent-opal') {
+    if (['forest-flow','iridescent-opal','bloub'].includes(style)) {
       const frame = document.createElement('iframe');
-      frame.src = `../../assets/orb/${style}.html`;
+      frame.src = style==='bloub'?'../../assets/pets/bloub/bloub.html?preview=1':`../../assets/orb/${style}.html`;
       frame.title = style; frame.tabIndex = -1;
       brandAvatar.appendChild(frame);
     } else {
@@ -213,7 +221,7 @@
   // window.TABS 已在 lib/ui.js 初始化，各页签模块自行注册（此处不再重置）
   (async () => {
     await Promise.resolve();
-    switchTab('chat');
+    switchTab('voice');
     refreshNextEvent();
     setInterval(refreshNextEvent, 60000);
   })();

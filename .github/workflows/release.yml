@@ -86,4 +86,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
-        run: gh release create "${GITHUB_REF_NAME}" release/* --repo "${GITHUB_REPOSITORY}" --title "斐墨 ${GITHUB_REF_NAME}" --generate-notes
+        run: |
+          node scripts/release-notes.cjs > release-notes.md
+          gh release create "${GITHUB_REF_NAME}" release/* --repo "${GITHUB_REPOSITORY}" --title "斐墨 ${GITHUB_REF_NAME}" --notes-file release-notes.md

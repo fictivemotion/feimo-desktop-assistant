@@ -22,10 +22,11 @@
 
 | 功能 | 用法 |
 | --- | --- |
-| 桌面小宠物 | 伊埃斯、Forest Flow 或 Iridescent Opal；单击展开工作栏，拖动移动，靠近屏幕边缘时吸附 |
+| 桌面小宠物 | 伊埃斯、Bloub、Forest Flow 或 Iridescent Opal；单击展开工作栏，拖动移动，靠近屏幕边缘时吸附 |
 | 悬浮快捷区 | 悬停宠物出现底部提问框和弧形工具；提问结果从宠物气泡给出，可快速新建日程或计时 |
 | 弧形工具翻页 | 六组、每组三个工具；在按钮上滚动鼠标或沿弧线拖动，工具依次沿弧线切换；方向键也可翻页 |
-| 语音听写与热词 | `Ctrl+Alt+Space` 开始 / 结束；波形胶囊、实时写入输入框、热词纠正、AI 校对和全文复制；Qwen 实时 / 本机离线 / CapsWriter / 兼容接口 |
+| 语音听写与热词 | `Ctrl+Alt+Space` 或自定义 `Ctrl+Alt` 开始 / 结束；波形胶囊、实时写入输入框、热词纠正、AI 校对和全文复制；Qwen 实时 / 本机离线 / CapsWriter / 兼容接口 |
+| 语音输入统计 | 今日 / 月度 / 累计字数、活跃天数、时长与速度，7 / 30 日柱状图及年度热力图；仅本机聚合数据，不记录正文 |
 | 剪贴板管理 | 手动收录或可选自动记录文字与图片；搜索、固定、复制与删除；本机加密保存，常见密钥过滤 |
 | 随手速记 | 助手旁快速写下想法；工作台提供检索、编辑、Markdown 预览、复制与导出 |
 | 配色与色卡 | 六组精选搭配；从主色生成邻近、互补或三角色搭配，查看 RGB 和文字对比度，复制与收藏色值 |
@@ -34,7 +35,7 @@
 | 倒计时 / 番茄钟 | 自定分钟与彩色任务标签；番茄钟专注完成后进入 5 分钟短休息；工作栏保留记录、柱形趋势和年度热力图 |
 | 快速文本清洗 | `Alt+Shift+O` 清理剪贴板文字并自动复制结果；支持删除段落空行、清除 OCR 字间空格、去除无效符号等 |
 | 截图转文字 | `Alt+Shift+T` 识别剪贴板图片，在本机完成 OCR 与格式清洗，再把结果复制回剪贴板 |
-| AI 问答与润色 | 配置 OpenAI 兼容服务后使用流式问答和显式触发的润色；可复制完整回答或纯文本 |
+| AI 问答与润色 | 新建对话可清空旧上下文并停止旧回复；配置 OpenAI 兼容服务后使用流式问答和显式触发的润色；可复制完整回答或纯文本 |
 | Coding Agent 观察 | 只读观察本机 Codex、ZCode、WorkBuddy 的会话进度，提供状态变化提示 |
 | 用量汇总 | 按工具和模型查看输入、输出与缓存 Token 用量，提供本地热力图与 CSV 导出 |
 | 学习互联 | 可选连接闪念上岸账号；网站任务成为计时标签，共享开始、暂停、继续与结束；完成记录双端同步，离线补传，冲突显式处理 |
@@ -68,7 +69,7 @@
 
 ## 语音输入与 AI 校对
 
-点击工作台右上角麦克风，配置识别和校对服务。选中其他程序中的输入位置，按 `Ctrl+Alt+Space` 听写，再按一次结束；仅替换本次听写，自动复制最终正文。可暂停、取消、自定义热词、导入词典及设定校对角色。未启动时不录音，不影响原有输入法。
+点击 Dock 首项“语音”，配置识别和校对服务。选中其他程序中的输入位置，按 `Ctrl+Alt+Space`（可改为 `Ctrl+Alt`）听写，再按一次结束；在原文后追加新识别文字，只局部替换修订内容，自动复制最终正文。也可点击胶囊结束按钮，校对并复制完成后约 0.5 秒自动收起。可暂停、取消、自定义热词、导入词典及设定校对角色。未启动时不录音，不影响原有输入法。
 
 在线实时识别支持 Qwen 最新 `qwen-audio-3.1-asr-flash-streaming`；DeepSeek V4.1 Flash 使用官方名称 `deepseek-flash` 并关闭思考。也支持按需下载约 237 MB 的本机双语流式模型，或连接 CapsWriter 服务。密钥由用户填写、DPAPI 加密，公开发行包不包含凭据。
 
@@ -117,7 +118,7 @@ Releases 提供 Windows x64 NSIS 安装程序和便携版。当前发行包未�
 
 要求：Windows 10/11 x64、Node.js 22 或更新的 LTS 版本、npm。
 
-桌面形象可在设置中选择伊埃斯或两款 WebGPU 流体球。仓库和 Windows 发行包包含项目维护者独立绘制的伊埃斯同人复刻素材；这些素材单独采用 [CC BY-NC-SA 4.0 非商业许可](assets/pets/eous/LICENSE.txt)。伊埃斯及其原始角色设计的相关知识产权归米哈游 / HoYoverse 所有；此同人许可不授予底层角色或官方素材的权利。
+桌面形象可在设置中选择伊埃斯、两款 WebGPU 流体球或 Bloub。仓库和 Windows 发行包包含项目维护者独立绘制的伊埃斯同人复刻素材；这些素材单独采用 [CC BY-NC-SA 4.0 非商业许可](assets/pets/eous/LICENSE.txt)。伊埃斯及其原始角色设计的相关知识产权归米哈游 / HoYoverse 所有；此同人许可不授予底层角色或官方素材的权利。
 
 Forest Flow 使用开源 [orb 项目](https://github.com/LerSent001/orb)的 Frost Flow 着色器流场并调整为森林色板；Iridescent Opal 使用该项目同名预设。两者保留完整 WebGPU/WGSL 渲染和状态过渡，见[第三方 MIT 许可](assets/orb/LICENSE)。流体球需要可用的 WebGPU 图形环境。斐墨源码按根目录 MIT 许可发布，不涵盖伊埃斯素材。
 
@@ -155,3 +156,13 @@ npm run dist:win
 - 米哈游 / HoYoverse 的原角色、名称及相关权利不属于本项目许可范围；第三方依赖适用各自许可证。
 
 语音功能借鉴 [CapsWriter-Offline](https://github.com/HaujetZhao/CapsWriter-Offline) 的框架、服务协议与音素匹配思路，保留[上游 MIT 声明](assets/licenses/CapsWriter-Offline-LICENSE.txt)。离线引擎和双语模型采用 Apache-2.0；中文拼音由 pinyin-pro 提供。具体适配范围见语音技术说明。
+
+### 语音统计与 Bloub
+
+Dock 首项为斐墨语音，Agent 页整合 Coding 会话与 Token 用量。语音胶囊使用双向 Aura 边缘与校对文字 shimmer，只保留暂停、结束。`Ctrl+Alt` 配置后同时按下并松开切换录音；加按其他键不会触发。
+
+![语音统计工作台，演示数据](docs/images/voice-statistics.png)
+
+![Bloub 原版状态动作，演示界面](docs/images/bloub-states.png)
+
+Bloub 使用 [jeremy-prt/bloub](https://github.com/jeremy-prt/bloub) 的完整动画引擎，版权 © 2026 Jérémy Perret，MIT；固定源码、许可与构建说明见 [素材说明](assets/pets/bloub/SOURCE.md)。语音故障处理与数据口径见 [使用与技术说明](docs/斐墨-语音输入使用与技术说明.md)。

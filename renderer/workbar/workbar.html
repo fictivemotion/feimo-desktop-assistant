@@ -37,14 +37,14 @@
 
     <!-- 页签 -->
     <nav id="tabs" aria-label="工作台模块">
-      <button class="tab active" data-tab="chat"><span class="tab-ico" data-icon="ChatDots" data-size="16"></span>问答</button>
+      <button class="tab active" data-tab="voice"><span class="tab-ico" data-icon="Microphone" data-size="16"></span>语音</button>
+      <button class="tab" data-tab="chat"><span class="tab-ico" data-icon="ChatDots" data-size="16"></span>问答</button>
       <button class="tab" data-tab="process"><span class="tab-ico" data-icon="DocumentText" data-size="16"></span>处理</button>
-      <button class="tab" data-tab="agents"><span class="tab-ico" data-icon="CodeSquare" data-size="16"></span>会话<span id="agents-dot" class="dot hidden"></span></button>
-      <button class="tab" data-tab="usage"><span class="tab-ico" data-icon="ChartBar" data-size="16"></span>用量</button>
+      <button class="tab" data-tab="agents"><span class="tab-ico" data-icon="CodeSquare" data-size="16"></span>Agent<span id="agents-dot" class="dot hidden"></span></button>
       <button class="tab" data-tab="schedule"><span class="tab-ico" data-icon="CalendarDays" data-size="16"></span>日程</button>
       <button class="tab" data-tab="focus"><span class="tab-ico" data-icon="Timer" data-size="16"></span>倒计时</button>
     </nav>
-    <div id="page-header"><div><h1 id="page-title">问答</h1><p id="page-subtitle">把眼前的问题，交给斐墨。</p></div><button class="btn small" id="page-action">回到最新</button></div>
+    <div id="page-header"><div><h1 id="page-title">斐墨语音</h1><p id="page-subtitle">说出想法，让文字准确落下。</p></div><div class="page-actions"><button class="btn small" id="page-action" hidden>回到最新</button><button class="btn small" id="page-new-chat" hidden><span data-icon="Add" data-size="16"></span>新建对话</button></div></div>
 
     </div>
 
@@ -89,6 +89,7 @@
   <script src="tabs/settings.js"></script>
   <script src="tabs/tools.js"></script>
   <script src="tabs/voice.js"></script>
+  <script src="lib/voice-stats.js"></script>
   <script src="../../node_modules/katex/dist/katex.min.js"></script>
   <script src="../../node_modules/katex/dist/contrib/auto-render.min.js"></script>
   <script src="../shared/study-rich.js"></script>

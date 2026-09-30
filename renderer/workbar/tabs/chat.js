@@ -16,6 +16,7 @@
   let curText = '';
   let lastQuestion = null;
   let renderTimer = null;
+  let generation=0;
 
   function atBottom() {
     return scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 60;
@@ -86,6 +87,7 @@
 
   async function send(text, isRetry = false) {
     if (busy) { UI.toast('正在回答中…', true); return; }
+    const turn=generation;
     list.querySelector('.empty')?.remove();
     if (!isRetry) addUser(text);
     lastQuestion = text;
@@ -94,12 +96,14 @@
     window.switchTab('chat');
     try {
       const r = await api.chatSend(text);
+      if(turn!==generation)return;
       if (r.ok) {
         finishAssistant(r.reply, true);
       } else if (r.aborted) {
         finishAssistant(curText + '\n\n*（已停止）*', false);
       }
     } catch (e) {
+      if(turn!==generation)return;
       if (curAssistant) {
         curAssistant.bubble.innerHTML = `<span style="color:var(--error)">${UI.esc(e.message)}</span>`;
         curAssistant.div.querySelector('.actions').innerHTML = '';
@@ -112,7 +116,7 @@
       }
       UI.toast(e.message, true);
     } finally {
-      busy = false;
+      if(turn===generation)busy = false;
     }
   }
 
@@ -126,9 +130,10 @@
   // 历史加载 + 空状态
   async function build() {
     if (busy) return;
+    const token=generation;
     const hist = await api.chatHistory();
     const configured = await api.llmConfigured();
-    if (busy) return;
+    if (busy||token!==generation) return;
     list.innerHTML = '';
     if (!hist.length) {
       if (!configured) {
@@ -168,6 +173,17 @@
     }
   }
 
-  window.TABS.chat = { build, send, isBusy: () => busy, onShown: () => scrollIfStick() };
+  async function newConversation(){
+    const button=document.getElementById('page-new-chat');button.disabled=true;
+    try{
+      // Invalidate pending rendering before aborting the network request.
+      generation++;await api.chatClear();
+      if(renderTimer)cancelAnimationFrame(renderTimer);renderTimer=null;
+      busy=false;curAssistant=null;curText='';lastQuestion=null;list.replaceChildren();
+      const input=document.getElementById('input');input.value='';input.style.height='auto';
+      await build();input.focus();UI.toast('新对话已开始');
+    }catch(e){busy=false;curAssistant=null;UI.toast(e.message,true);}finally{button.disabled=false;}
+  }
+  window.TABS.chat = { build, send, newConversation, isBusy: () => busy, onShown: () => scrollIfStick() };
   build();
 })();

@@ -36,6 +36,8 @@ const { pickLine, noticeLine } = require('./lib/companion');
 const { VoiceService } = require('./lib/voice/service');
 const { VoiceModels } = require('./lib/voice/models');
 const { InputTarget } = require('./lib/voice/input-target');
+const {VoiceStats}=require('./lib/voice/stats');
+const {ModifierShortcut,isModifierShortcut}=require('./lib/voice/modifier-shortcut');
 const { DEFAULTS:VOICE_DEFAULTS, validateConfig:validateVoiceConfig } = require('./lib/voice/config');
 const { correct:correctVoice, parseRules:parseVoiceRules } = require('./lib/voice/hotwords');
 
@@ -185,6 +187,9 @@ function bootstrap() {
   let voice=null,voiceDismissTimer=null,voicePhase='idle',voiceReady=false,pendingVoiceCapture=null,voiceStateSentAt=0;
   const voiceModels=new VoiceModels(path.join(paths.dataDir(),'voice-models','paraformer-bilingual'),{fetcher:(url,options)=>net.fetch(url,options),onChange:()=>workbarWin?.webContents.send('voice:changed',voice?.state())});
   const voiceInput=new InputTarget(path.join(paths.dataDir(),'voice-input'));
+  const voiceStats=new VoiceStats(path.join(paths.dataDir(),'voice-stats.json'));
+  const modifierShortcut=new ModifierShortcut(path.join(paths.dataDir(),'voice-input'),()=>{void voice?.toggle().catch(()=>{});});
+  const voiceShortcutRegistered=()=>isModifierShortcut(voice?.config().shortcut)?modifierShortcut.ready:globalShortcut.isRegistered(voice?.config().shortcut||VOICE_DEFAULTS.shortcut);
   function positionVoice(){
     if(!voiceWin||!petWin)return;
     const p=petWin.getBounds(),area=screen.getDisplayMatching(p).workArea;
@@ -202,7 +207,7 @@ function bootstrap() {
     if(changed){
       clearTimeout(voiceDismissTimer);
       if(state.active){dismissSpeech();quickExpanded=false;quickPanel='none';quickWin?.webContents.send('quick:expanded',false);quickWin?.hide();positionVoice();voiceWin?.showInactive();}
-      else if(state.phase==='completed'||state.phase==='error'){positionVoice();voiceWin?.showInactive();voiceDismissTimer=setTimeout(()=>voiceWin?.hide(),state.phase==='error'||state.warning?10000:4500);}
+      else if(state.phase==='completed'||state.phase==='error'){positionVoice();voiceWin?.showInactive();if(state.phase==='completed'){voiceDismissTimer=setTimeout(()=>voiceWin?.webContents.send('voice:exit'),320);}else voiceDismissTimer=setTimeout(()=>voiceWin?.hide(),10000);}
       else voiceWin?.hide();
       broadcastPetState();
     }
@@ -566,7 +571,7 @@ function bootstrap() {
   // ---------- 宠物状态机（§4.2 优先级） ----------
   let uiListening = false;
   function computePetState() {
-    if(voice?.active())return ['listening',voice.state().message];
+    if(voice?.active())return [voice.state().phase==='polishing'?'processing':voice.state().phase==='paused'?'sleeping':'listening',voice.state().message];
     if (userProcessing) return ['processing', currentPet.detail];
     if (flashUntil > Date.now()) return [flashKind, currentPet.detail];
     const snap = registry.snapshot();
@@ -856,7 +861,9 @@ function bootstrap() {
     tryReg(hk.processClipboard || 'Alt+Shift+O', () => { void runClipboardJob('text'); });
     tryReg(hk.ocrClipboard || 'Alt+Shift+T', () => { void runClipboardJob('image'); });
     const voiceShortcut=voice?.config().shortcut||VOICE_DEFAULTS.shortcut;
-    tryReg(voiceShortcut,()=>{void voice?.toggle().catch(e=>voiceChanged({...voice.state(),phase:'error',message:e.message,active:false}));});
+    if(isModifierShortcut(voiceShortcut)){
+      void modifierShortcut.enable().then(()=>workbarWin?.webContents.send('voice:configChanged',{...voice.config(),registered:true})).catch(()=>workbarWin?.webContents.send('voice:configChanged',{...voice.config(),registered:false}));
+    }else{modifierShortcut.disable();tryReg(voiceShortcut,()=>{void voice?.toggle().catch(e=>voiceChanged({...voice.state(),phase:'error',message:e.message,active:false}));});}
   }
 
   // ---------- IPC 白名单（§7：参数校验 + 白名单命令） ----------
@@ -865,18 +872,22 @@ function bootstrap() {
   ipc.handle('app:ready', () => ({ ok: true }));
   ipc.handle('voice:state',()=>voice?.state());
   ipc.handle('voice:devices',()=>voiceWin?.webContents.executeJavaScript("navigator.mediaDevices.enumerateDevices().then(list=>list.filter(d=>d.kind==='audioinput').map(d=>({deviceId:d.deviceId,label:d.label,kind:d.kind})))"));
-  ipc.handle('voice:config',()=>({...VOICE_DEFAULTS,...settings.get('voice',{}),registered:globalShortcut.isRegistered(voice?.config().shortcut||VOICE_DEFAULTS.shortcut)}));
-  ipc.handle('voice:save',(_e,value)=>{
+  ipc.handle('voice:stats',()=>voiceStats.view());
+  ipc.handle('voice:config',()=>({...VOICE_DEFAULTS,...settings.get('voice',{}),registered:voiceShortcutRegistered()}));
+  ipc.handle('voice:save',async(_e,value)=>{
     if(voice?.active())throw new Error('请先结束当前听写，再修改语音设置');
     const config=validateVoiceConfig(value);parseVoiceRules(config.rules);
     const current=voice?.config().shortcut||VOICE_DEFAULTS.shortcut;
     if(config.shortcut.toLowerCase()!==current.toLowerCase()){
-      if(globalShortcut.isRegistered(config.shortcut))throw new Error('这个快捷键已被斐墨的其他功能使用');
-      const success=globalShortcut.register(config.shortcut,()=>{void voice?.toggle().catch(()=>{});});
-      if(!success)throw new Error('快捷键注册失败，可能与其他程序冲突');
-      globalShortcut.unregister(current);
+      if(isModifierShortcut(config.shortcut))await modifierShortcut.enable();
+      else{
+        if(globalShortcut.isRegistered(config.shortcut))throw new Error('这个快捷键已被斐墨的其他功能使用');
+        const success=globalShortcut.register(config.shortcut,()=>{void voice?.toggle().catch(()=>{});});
+        if(!success)throw new Error('快捷键注册失败，可能与其他程序冲突');
+      }
+      if(!isModifierShortcut(current))globalShortcut.unregister(current);
     }
-    settings.set('voice',config);registerHotkeys();return {...config,registered:globalShortcut.isRegistered(config.shortcut)};
+    settings.set('voice',config);registerHotkeys();return {...config,registered:voiceShortcutRegistered()};
   });
   ipc.handle('voice:download',()=>voiceModels.install());
   ipc.handle('voice:downloadCancel',()=>voiceModels.cancel());
@@ -1189,7 +1200,12 @@ function bootstrap() {
   ipc.handle('quick:chat', (_e, text) => sendChat(text, true));
   ipc.handle('chat:stop', () => { chatAbort.controller?.abort(); return true; });
   ipc.handle('chat:history', () => (settings.get('privacy', {}).saveChatHistory ? chatHistory.slice(-40) : []));
-  ipc.handle('chat:clear', () => { chatAbort.controller?.abort(); chatHistory = []; saveChat(); return true; });
+  ipc.handle('chat:clear', () => {
+    if(chatAbort.controller){chatAbort.controller.replyDismissed=true;chatAbort.controller.abort();chatAbort.controller=null;}
+    chatHistory=[];replyState=null;dismissSpeech();userProcessing=false;broadcastPetState();
+    fs.writeFileSync(paths.chatFile(),JSON.stringify({messages:[]}));
+    return true;
+  });
   ipc.handle('llm:test', () => llm.testConnection());
   ipc.handle('llm:configured', () => llm.isConfigured());
   ipc.handle('llm:proofread', async (_e, { text }) => {
@@ -1293,7 +1309,7 @@ function bootstrap() {
   // ---------- 生命周期 ----------
   app.whenReady().then(() => {
     secretsCache = loadSecrets();
-    voice=new VoiceService({settings,getSecret,models:voiceModels,input:voiceInput,fetcher:(url,options)=>net.fetch(url,options),connectOptions:async url=>{const resolved=await voiceWin.webContents.session.resolveProxy(url);const proxy=resolved.split(';').map(s=>s.trim()).find(s=>s.startsWith('PROXY ')||s.startsWith('HTTPS '));return proxy?{agent:new(require('https-proxy-agent').HttpsProxyAgent)('http://'+proxy.replace(/^\S+\s+/,''))}:{};},copy:text=>writeTextVerified(clipboard,text),onChange:voiceChanged,capture:command=>{if(!voiceReady)pendingVoiceCapture=command;else voiceWin?.webContents.send('voice:capture',command);}});
+    voice=new VoiceService({settings,getSecret,models:voiceModels,input:voiceInput,fetcher:(url,options)=>net.fetch(url,options),connectOptions:async url=>{const resolved=await voiceWin.webContents.session.resolveProxy(url);const proxy=resolved.split(';').map(s=>s.trim()).find(s=>s.startsWith('PROXY ')||s.startsWith('HTTPS '));return proxy?{agent:new(require('https-proxy-agent').HttpsProxyAgent)('http://'+proxy.replace(/^\S+\s+/,''))}:{};},copy:text=>writeTextVerified(clipboard,text),onChange:voiceChanged,onComplete:(id,text,seconds)=>{voiceStats.record(id,text,seconds);workbarWin?.webContents.send('voice:statsChanged',voiceStats.view());},capture:command=>{if(!voiceReady)pendingVoiceCapture=command;else voiceWin?.webContents.send('voice:capture',command);}});
     try {
       if (!safeStorage.isEncryptionAvailable()) throw new Error('系统加密暂不可用，工具箱记录尚未启用');
       toolbox = new Toolbox(path.join(paths.dataDir(), 'toolbox.bin'), { encrypt: v => safeStorage.encryptString(v), decrypt: v => safeStorage.decryptString(v) });
@@ -1363,7 +1379,7 @@ function bootstrap() {
   });
 
   app.on('will-quit', () => {
-    voice?.close();clearTimeout(voiceDismissTimer);
+    voice?.close();modifierShortcut.disable();clearTimeout(voiceDismissTimer);
     clearInterval(clipboardPoll);
     if (speechTimer) clearTimeout(speechTimer);
     globalShortcut.unregisterAll();

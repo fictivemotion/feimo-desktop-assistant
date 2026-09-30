@@ -150,7 +150,7 @@
         <h4><span data-icon="InfoCircle" data-size="16"></span> 关于</h4>
         <div class="card muted">
           斐墨 v${UI.esc(system.version)} · Opal Desk<br/>
-          形象：伊埃斯、Forest Flow、Iridescent Opal；形象许可见项目文档<br/>
+            形象：伊埃斯、Bloub、Forest Flow、Iridescent Opal；形象许可见项目文档<br/>
           参考：Ping Island 状态优先级思路 · Token Monitor 用量信息层级（Apache-2.0 / MIT，未复制代码）
         </div>
       </div>`;
@@ -185,7 +185,7 @@
       const preview = c.querySelector('.pet-preview');
       if (p.type === 'orb') {
         const frame = document.createElement('iframe');
-        frame.src = `../../${p.orb}`;
+          frame.src = `../../${p.orb}${p.id==='bloub'?'?preview=1':''}`;
         frame.title = p.name;
         frame.tabIndex = -1;
         preview.appendChild(frame);

@@ -28,10 +28,24 @@ async function start(command){
 api.onCommand(command=>{if(command.type==='start')void start(command);else if(session?.id===command.id){if(command.type==='pause')session.paused=true;if(command.type==='resume')session.paused=false;if(command.type==='stop'){generation++;release();}}});
 api.onState(state=>{
   phase=state.phase;level=state.level||0;$('capsule').dataset.phase=phase;$('message').textContent=state.message;
-  $('time').textContent=state.targetOk===false?'已停止写入 · 结果会保留':state.warning?'已保留听写原文':`${String(Math.floor((state.elapsed||0)/60)).padStart(2,'0')}:${String((state.elapsed||0)%60).padStart(2,'0')}`;
+  if(state.active)$('capsule').classList.remove('exiting');
+  if(state.targetOk===false&&['listening','paused'].includes(phase))$('message').textContent=phase==='paused'?'听写已暂停':'继续听写中';
+  $('time').textContent=state.targetOk===false?'写入暂停 · 结束后复制全文':state.warning?'已保留听写原文':`${String(Math.floor((state.elapsed||0)/60)).padStart(2,'0')}:${String((state.elapsed||0)%60).padStart(2,'0')}`;
   $('capsule').title=state.warning||state.message;$('pause').hidden=!['listening','paused'].includes(phase);$('finish').hidden=!['listening','paused'].includes(phase);
-  $('close').title=state.active?'取消听写，保留已输入的文字':'收起提示';$('pause').replaceChildren(window.ReiconFilled.create(phase==='paused'?'Play':'Pause',16));
+  const pauseIcon=phase==='paused'?'Play':'Pause';
+  $('pause').setAttribute('aria-label',phase==='paused'?'继续听写':'暂停听写');
+  // Audio level updates must not replace the node under a pressed mouse pointer.
+  if($('pause').dataset.icon!==pauseIcon){$('pause').dataset.icon=pauseIcon;$('pause').replaceChildren(window.ReiconFilled.create(pauseIcon,16));}
   const bars=[...$('wave').children];bars.forEach((bar,i)=>{const weight=[.35,.7,1,.85,.65,.9,.45][i];bar.style.height=`${phase==='listening'?4+Math.round(level*24*weight):4}px`;});
 });
-$('pause').onclick=()=>api.pause();$('finish').onclick=()=>api.finish();$('close').onclick=()=>['starting','listening','paused','finishing','polishing'].includes(phase)?api.cancel():api.dismiss();
+function commandButton(id,action){
+  const button=$(id);let pending=false;
+  async function run(){if(pending||!['listening','paused'].includes(phase))return;pending=true;try{await action();}catch{ $('time').textContent='操作未完成，请再试一次'; }finally{pending=false;}}
+  // Nonactivating floating windows keep the editor focused. Dispatch on press,
+  // before state updates or a moved pointer can interrupt the click sequence.
+  button.addEventListener('pointerdown',e=>{if(e.button!==0)return;e.preventDefault();void run();});
+  button.addEventListener('click',e=>{if(e.detail===0)void run();});
+}
+commandButton('pause',()=>api.pause());commandButton('finish',()=>api.finish());
+api.onExit(()=>{if(phase!=='completed')return;$('capsule').classList.add('exiting');setTimeout(()=>{if(phase==='completed')api.dismiss();},180);});
 window.addEventListener('beforeunload',release);api.ready();

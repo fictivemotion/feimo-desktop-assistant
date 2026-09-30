@@ -106,8 +106,10 @@
       hideTooltipLater();
     }
   }
-  function updateOrbState() {
-    const mapped = ({ processing: 'thinking', agentWorking: 'agentWorking', attention: 'attention', completed: 'completed', failed: 'failed', listening: 'listening' })[state] || 'idle';
+  let lastOrbState=null;
+  function updateOrbState(effective=state) {
+    const mapped = body.dataset.pet==='bloub'?effective:({ processing: 'thinking', agentWorking: 'agentWorking', attention: 'attention', completed: 'completed', failed: 'failed', listening: 'listening' })[state] || 'idle';
+    lastOrbState=mapped;
     orbFrame.contentWindow?.postMessage({ type: 'feimo:orb-state', state: mapped }, '*');
   }
   function detailText() {
@@ -144,6 +146,7 @@
     let effState = state;
     if (greetingUntil > ts && (state === 'idle' || state === 'listening')) effState = 'greeting';
     if (dragging) effState = lastDragDx < 0 ? 'dragging-left' : 'dragging-right';
+    if(body.dataset.pet==='bloub'&&lastOrbState!==effState)updateOrbState(effState);
 
     if (manifest && spriteImg?.complete) {
       if (dockHidden && !dragging && body.dataset.pet === 'eous' && peekImg.complete && peekImg.naturalWidth) {

@@ -8,6 +8,8 @@ contextBridge.exposeInMainWorld('api', {
   voicePause:()=>ipcRenderer.invoke('voice:pause'),voiceFinish:()=>ipcRenderer.invoke('voice:finish'),voiceCancel:()=>ipcRenderer.invoke('voice:cancel'),voiceCopy:()=>ipcRenderer.invoke('voice:copy'),
   voiceHotwordTest:(text,config)=>ipcRenderer.invoke('voice:hotwordTest',{text,config}),voiceExport:()=>ipcRenderer.invoke('voice:export'),voiceTestLlm:()=>ipcRenderer.invoke('voice:testLlm'),
   onVoiceChanged:cb=>ipcRenderer.on('voice:changed',(_e,value)=>cb(value)),
+  voiceStats:()=>ipcRenderer.invoke('voice:stats'),onVoiceConfigChanged:cb=>ipcRenderer.on('voice:configChanged',(_e,value)=>cb(value)),
+  onVoiceStatsChanged:cb=>ipcRenderer.on('voice:statsChanged',(_e,value)=>cb(value)),
   soundscapeState:()=>ipcRenderer.invoke('soundscape:state'),
   soundscapeCommand:data=>ipcRenderer.invoke('soundscape:command',data),
   onSoundscapeChanged:cb=>ipcRenderer.on('soundscape:changed',(_e,value)=>cb(value)),
