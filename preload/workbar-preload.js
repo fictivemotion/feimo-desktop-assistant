@@ -3,6 +3,11 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 /** 工作栏桥：仅白名单方法，参数在主进程校验。 */
 contextBridge.exposeInMainWorld('api', {
+  voiceState:()=>ipcRenderer.invoke('voice:state'),voiceDevices:()=>ipcRenderer.invoke('voice:devices'),voiceConfig:()=>ipcRenderer.invoke('voice:config'),voiceSave:config=>ipcRenderer.invoke('voice:save',config),
+  voiceDownload:()=>ipcRenderer.invoke('voice:download'),voiceDownloadCancel:()=>ipcRenderer.invoke('voice:downloadCancel'),
+  voicePause:()=>ipcRenderer.invoke('voice:pause'),voiceFinish:()=>ipcRenderer.invoke('voice:finish'),voiceCancel:()=>ipcRenderer.invoke('voice:cancel'),voiceCopy:()=>ipcRenderer.invoke('voice:copy'),
+  voiceHotwordTest:(text,config)=>ipcRenderer.invoke('voice:hotwordTest',{text,config}),voiceExport:()=>ipcRenderer.invoke('voice:export'),voiceTestLlm:()=>ipcRenderer.invoke('voice:testLlm'),
+  onVoiceChanged:cb=>ipcRenderer.on('voice:changed',(_e,value)=>cb(value)),
   soundscapeState:()=>ipcRenderer.invoke('soundscape:state'),
   soundscapeCommand:data=>ipcRenderer.invoke('soundscape:command',data),
   onSoundscapeChanged:cb=>ipcRenderer.on('soundscape:changed',(_e,value)=>cb(value)),

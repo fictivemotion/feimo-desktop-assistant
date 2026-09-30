@@ -4,7 +4,7 @@
 
 **A small desktop companion for quick everyday tasks.**
 
-悬浮桌宠 · 快捷对话 · 倒计时 / 番茄钟 · 剪贴板速清 · 本地 OCR · Coding 会话提醒 · Token 用量 · Notion 日程 · 学习互联 · 白噪音
+悬浮桌宠 · 语音输入与 AI 校对 · 快捷对话 · 倒计时 / 番茄钟 · 剪贴板速清 · 本地 OCR · Coding 会话提醒 · Token 用量 · Notion 日程 · 学习互联 · 白噪音
 
 [Windows 发布页](https://github.com/fictivemotion/feimo-desktop-assistant/releases) · [功能介绍](#功能一览) · [隐私说明](docs/PRIVACY.md) · [发布记录](RELEASE_NOTES.md)
 
@@ -24,7 +24,8 @@
 | --- | --- |
 | 桌面小宠物 | 伊埃斯、Forest Flow 或 Iridescent Opal；单击展开工作栏，拖动移动，靠近屏幕边缘时吸附 |
 | 悬浮快捷区 | 悬停宠物出现底部提问框和弧形工具；提问结果从宠物气泡给出，可快速新建日程或计时 |
-| 弧形工具翻页 | 五组、每组三个工具；在按钮上滚动鼠标或沿弧线拖动，工具依次沿弧线切换；方向键也可翻页 |
+| 弧形工具翻页 | 六组、每组三个工具；在按钮上滚动鼠标或沿弧线拖动，工具依次沿弧线切换；方向键也可翻页 |
+| 语音听写与热词 | `Ctrl+Alt+Space` 开始 / 结束；波形胶囊、实时写入输入框、热词纠正、AI 校对和全文复制；Qwen 实时 / 本机离线 / CapsWriter / 兼容接口 |
 | 剪贴板管理 | 手动收录或可选自动记录文字与图片；搜索、固定、复制与删除；本机加密保存，常见密钥过滤 |
 | 随手速记 | 助手旁快速写下想法；工作台提供检索、编辑、Markdown 预览、复制与导出 |
 | 配色与色卡 | 六组精选搭配；从主色生成邻近、互补或三角色搭配，查看 RGB 和文字对比度，复制与收藏色值 |
@@ -56,13 +57,24 @@
 
 ### 弧形工具分组
 
-- 第 1 组：新建日程、倒计时 / 番茄钟、工作台。
-- 第 2 组：剪贴板历史、快捷速记、配色。
-- 第 3 组：图片提取、文字清洗、Codex 额度卡片。
-- 第 4 组：白噪音小卡片、随机知识卡片、学习任务。
-- 第 5 组：学习统计小卡片、计时统计、完整白噪音音库。
+- 第 1 组：斐墨语音、热词词典、识别服务。
+- 第 2 组：新建日程、倒计时 / 番茄钟、工作台。
+- 第 3 组：剪贴板历史、快捷速记、配色。
+- 第 4 组：图片提取、文字清洗、Codex 额度卡片。
+- 第 5 组：白噪音小卡片、随机知识卡片、学习任务。
+- 第 6 组：学习统计小卡片、计时统计、完整白噪音音库。
 
 工作台右上角的工具箱按钮也可访问剪贴板、速记和配色。Codex 额度通过本机原生 CLI 的只读账户接口查询，启动和每分钟自动刷新，也可在用量页手动刷新；接口不可用时保留最近会话日志观测值，并标明来源、更新时间和错误。查询不创建会话或发起模型请求。用量模型名称来自回合上下文，支持 `gpt-6.1-sol` 等模型；历史 `unknown` 自动补全，未配置价格时不估算费用。
+
+## 语音输入与 AI 校对
+
+点击工作台右上角麦克风，配置识别和校对服务。选中其他程序中的输入位置，按 `Ctrl+Alt+Space` 听写，再按一次结束；仅替换本次听写，自动复制最终正文。可暂停、取消、自定义热词、导入词典及设定校对角色。未启动时不录音，不影响原有输入法。
+
+在线实时识别支持 Qwen 最新 `qwen-audio-3.1-asr-flash-streaming`；DeepSeek V4.1 Flash 使用官方名称 `deepseek-flash` 并关闭思考。也支持按需下载约 237 MB 的本机双语流式模型，或连接 CapsWriter 服务。密钥由用户填写、DPAPI 加密，公开发行包不包含凭据。
+
+![斐墨语音工作台，演示数据](docs/images/voice-workbench.png)
+
+完整用法、范围校验、故障处理及 CapsWriter 借鉴范围见[语音输入使用与技术说明](docs/斐墨-语音输入使用与技术说明.md)。
 
 ## 学习互联与白噪音
 
@@ -85,6 +97,7 @@
 
 | 快捷键 | 操作 |
 | --- | --- |
+| `Ctrl+Alt+Space` | 开始语音听写 / 结束并校对复制 |
 | `Alt+Shift+P` | 唤起 / 收起工作栏 |
 | `Alt+Shift+T` | 剪贴板图片 → 本地 OCR → 清洗并复制文字 |
 | `Alt+Shift+O` | 剪贴板文本 → 清洗并复制结果 |
@@ -140,3 +153,5 @@ npm run dist:win
 - 流体球着色器与运行时代码按 [orb 项目的 MIT License](assets/orb/LICENSE) 使用。
 - 界面图标采用 [Reicon Filled](https://github.com/dqev/reicon) 的 MIT 许可版本；所选图标已生成到 `renderer/shared/reicon-filled.js`，许可证见 [Reicon LICENSE](assets/icons/reicon/LICENSE)。
 - 米哈游 / HoYoverse 的原角色、名称及相关权利不属于本项目许可范围；第三方依赖适用各自许可证。
+
+语音功能借鉴 [CapsWriter-Offline](https://github.com/HaujetZhao/CapsWriter-Offline) 的框架、服务协议与音素匹配思路，保留[上游 MIT 声明](assets/licenses/CapsWriter-Offline-LICENSE.txt)。离线引擎和双语模型采用 Apache-2.0；中文拼音由 pinyin-pro 提供。具体适配范围见语音技术说明。

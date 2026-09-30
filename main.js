@@ -33,6 +33,11 @@ const { placeSpeech } = require('./lib/overlay-layout');
 const { nearestDockSide, dockX, peekDockX } = require('./lib/pet-dock');
 const { ReminderScheduler } = require('./lib/calendar/scheduler');
 const { pickLine, noticeLine } = require('./lib/companion');
+const { VoiceService } = require('./lib/voice/service');
+const { VoiceModels } = require('./lib/voice/models');
+const { InputTarget } = require('./lib/voice/input-target');
+const { DEFAULTS:VOICE_DEFAULTS, validateConfig:validateVoiceConfig } = require('./lib/voice/config');
+const { correct:correctVoice, parseRules:parseVoiceRules } = require('./lib/voice/hotwords');
 
 // Keep the existing Windows data folder stable across the product-name change to 斐墨.
 app.setPath('userData', process.env.FEIMO_USER_DATA_DIR || path.join(app.getPath('appData'), '桌面宠物助手'));
@@ -62,6 +67,7 @@ function bootstrap() {
     system: { openAtLogin: false },
     toolbox: { autoCapture: false },
     study:{proactive:true,cardIntervalMin:30},
+    voice:{...VOICE_DEFAULTS},
   });
   const savedPet = settings.get('pet', {});
   if (!PETS.some((pet) => pet.id === savedPet.style)) {
@@ -175,7 +181,42 @@ function bootstrap() {
   };
 
   // ---------- 窗口 ----------
-  let petWin = null, workbarWin = null, speechWin = null, quickWin = null, tray = null, soundscapeWin = null;
+  let petWin = null, workbarWin = null, speechWin = null, quickWin = null, tray = null, soundscapeWin = null, voiceWin = null;
+  let voice=null,voiceDismissTimer=null,voicePhase='idle',voiceReady=false,pendingVoiceCapture=null,voiceStateSentAt=0;
+  const voiceModels=new VoiceModels(path.join(paths.dataDir(),'voice-models','paraformer-bilingual'),{fetcher:(url,options)=>net.fetch(url,options),onChange:()=>workbarWin?.webContents.send('voice:changed',voice?.state())});
+  const voiceInput=new InputTarget(path.join(paths.dataDir(),'voice-input'));
+  function positionVoice(){
+    if(!voiceWin||!petWin)return;
+    const p=petWin.getBounds(),area=screen.getDisplayMatching(p).workArea;
+    const obstacles=[];
+    if(workbarWin?.isVisible())obstacles.push(workbarWin.getBounds());
+    if(quickWin?.isVisible()){const b=quickWin.getBounds();obstacles.push(...quickShapeRects.map(r=>({x:b.x+r.x,y:b.y+r.y,width:r.width,height:r.height})));}
+    const placement=placeSpeech(p,{width:300,height:60},area,obstacles,10);
+    if(placement)voiceWin.setBounds(placement.bounds,false);
+    else {quickWin?.hide();const fallback=placeSpeech(p,{width:300,height:60},area,[],10);if(fallback)voiceWin.setBounds(fallback.bounds,false);}
+  }
+  function voiceChanged(state){
+    if(!state)return;const changed=state.phase!==voicePhase;voicePhase=state.phase;
+    voiceWin?.webContents.send('voice:changed',state);
+    if(changed||Date.now()-voiceStateSentAt>160){workbarWin?.webContents.send('voice:changed',state);voiceStateSentAt=Date.now();}
+    if(changed){
+      clearTimeout(voiceDismissTimer);
+      if(state.active){dismissSpeech();quickExpanded=false;quickPanel='none';quickWin?.webContents.send('quick:expanded',false);quickWin?.hide();positionVoice();voiceWin?.showInactive();}
+      else if(state.phase==='completed'||state.phase==='error'){positionVoice();voiceWin?.showInactive();voiceDismissTimer=setTimeout(()=>voiceWin?.hide(),state.phase==='error'||state.warning?10000:4500);}
+      else voiceWin?.hide();
+      broadcastPetState();
+    }
+  }
+  function createVoiceWindow(){
+    voiceWin=new BrowserWindow({width:300,height:60,show:false,frame:false,transparent:true,backgroundColor:'#00000000',resizable:false,movable:false,skipTaskbar:true,hasShadow:false,focusable:false,alwaysOnTop:true,webPreferences:{preload:path.join(__dirname,'preload','voice-preload.js'),contextIsolation:true,nodeIntegration:false,sandbox:true,backgroundThrottling:false,partition:'persist:feimo-voice'}});
+    voiceWin.setAlwaysOnTop(true,'screen-saver');
+    voiceWin.webContents.session.setPermissionRequestHandler((contents,permission,callback)=>{if(permission==='media')callback(contents===voiceWin?.webContents&&!!voice?.active());else callback(permission==='clipboard-sanitized-write');});
+    voiceWin.webContents.session.setPermissionCheckHandler((contents,permission)=>permission==='media'?contents===voiceWin?.webContents&&!!voice?.active():permission==='clipboard-sanitized-write');
+    voiceWin.webContents.setWindowOpenHandler(()=>({action:'deny'}));voiceWin.webContents.on('will-navigate',e=>e.preventDefault());
+    voiceWin.loadFile(path.join(__dirname,'renderer','voice','capsule.html'));
+    voiceWin.webContents.on('render-process-gone',()=>{voiceReady=false;void voice?.cancel();});
+    voiceWin.on('closed',()=>{voiceReady=false;voiceWin=null;void voice?.cancel();});
+  }
   const soundscape=new Soundscape({settings,send:state=>soundscapeWin?.webContents.send('soundscape:player',{...state,sounds:soundscapeCatalog.sounds}),onChange:value=>{workbarWin?.webContents.send('soundscape:changed',value);quickWin?.webContents.send('soundscape:changed',value)}});
   function createSoundscapeWindow(){
     soundscapeWin=new BrowserWindow({show:false,width:200,height:100,webPreferences:{preload:path.join(__dirname,'preload','soundscape-preload.js'),sandbox:true,nodeIntegration:false,contextIsolation:true,backgroundThrottling:false}});
@@ -307,6 +348,7 @@ function bootstrap() {
   }
 
   function positionQuick() {
+    if(voiceWin?.isVisible())positionVoice();
     if (!quickWin || !petWin) return;
     const p = petWin.getBounds(), wa = screen.getDisplayMatching(p).workArea;
     const w = QUICK_WIDTH, h = QUICK_HEIGHT;
@@ -321,6 +363,7 @@ function bootstrap() {
     else quickWin.webContents.send('quick:anchor', anchor);
   }
   function showQuick() {
+    if(voice?.active())return;
     if (workbarWin?.isVisible() || !petWin?.isVisible()) return;
     if (quickLeaveTimer) clearTimeout(quickLeaveTimer);
     if (!quickWin) createQuickWindow();
@@ -362,6 +405,7 @@ function bootstrap() {
     const quickBounds = quickWin?.isVisible() ? quickWin.getBounds() : null;
     const obstacles = quickBounds ? quickShapeRects.map(r => ({ x: quickBounds.x + r.x, y: quickBounds.y + r.y, width: r.width, height: r.height })) : [];
     if (workbarWin?.isVisible()) obstacles.push(workbarWin.getBounds());
+    if(voiceWin?.isVisible())obstacles.push(voiceWin.getBounds());
     const result = placeSpeech(p, b, wa, obstacles, gap);
     if (!result) { speechWin.hide(); return null; }
     const { bounds, placement: info } = result;
@@ -374,6 +418,7 @@ function bootstrap() {
   }
 
   function speak(text, { duration = 5200, force = false, priority = 0 } = {}) {
+    if(voice?.active())return;
     // A retained answer must not be replaced by an ambient greeting or timer tick.
     if (replyState) {
       if (priority >= 1) speechWin?.webContents.send('speech:notice', String(text || '').slice(0, 180));
@@ -468,11 +513,12 @@ function bootstrap() {
     workbarWin.show();
     workbarWin.focus();
     if (tab) workbarWin.webContents.send('workbar:navigate', tab);
+    if(voiceWin?.isVisible())positionVoice();
   }
 
   function hideWorkbar() {
     workbarWin?.hide(); scheduleDockHide();
-    if (focus.active && petWin?.isVisible()) {
+    if (focus.active && petWin?.isVisible() && !voice?.active()) {
       positionQuick(); quickWin?.showInactive(); quickExpanded = false; quickWin?.webContents.send('quick:expanded', false);
     }
     if (replyState && positionSpeech()) speechWin?.showInactive();
@@ -495,6 +541,7 @@ function bootstrap() {
     if (hidden) petWin.setIgnoreMouseEvents(false);
     if (speechWin?.isVisible()) positionSpeech();
     if (quickWin?.isVisible()) positionQuick();
+    if (voiceWin?.isVisible()) positionVoice();
   }
 
   function revealDock() {
@@ -519,6 +566,7 @@ function bootstrap() {
   // ---------- 宠物状态机（§4.2 优先级） ----------
   let uiListening = false;
   function computePetState() {
+    if(voice?.active())return ['listening',voice.state().message];
     if (userProcessing) return ['processing', currentPet.detail];
     if (flashUntil > Date.now()) return [flashKind, currentPet.detail];
     const snap = registry.snapshot();
@@ -807,12 +855,45 @@ function bootstrap() {
     tryReg(hk.show || 'Alt+Shift+P', () => { if (workbarWin?.isVisible()) hideWorkbar(); else showWorkbar(); });
     tryReg(hk.processClipboard || 'Alt+Shift+O', () => { void runClipboardJob('text'); });
     tryReg(hk.ocrClipboard || 'Alt+Shift+T', () => { void runClipboardJob('image'); });
+    const voiceShortcut=voice?.config().shortcut||VOICE_DEFAULTS.shortcut;
+    tryReg(voiceShortcut,()=>{void voice?.toggle().catch(e=>voiceChanged({...voice.state(),phase:'error',message:e.message,active:false}));});
   }
 
   // ---------- IPC 白名单（§7：参数校验 + 白名单命令） ----------
   const ipc = ipcMain;
 
   ipc.handle('app:ready', () => ({ ok: true }));
+  ipc.handle('voice:state',()=>voice?.state());
+  ipc.handle('voice:devices',()=>voiceWin?.webContents.executeJavaScript("navigator.mediaDevices.enumerateDevices().then(list=>list.filter(d=>d.kind==='audioinput').map(d=>({deviceId:d.deviceId,label:d.label,kind:d.kind})))"));
+  ipc.handle('voice:config',()=>({...VOICE_DEFAULTS,...settings.get('voice',{}),registered:globalShortcut.isRegistered(voice?.config().shortcut||VOICE_DEFAULTS.shortcut)}));
+  ipc.handle('voice:save',(_e,value)=>{
+    if(voice?.active())throw new Error('请先结束当前听写，再修改语音设置');
+    const config=validateVoiceConfig(value);parseVoiceRules(config.rules);
+    const current=voice?.config().shortcut||VOICE_DEFAULTS.shortcut;
+    if(config.shortcut.toLowerCase()!==current.toLowerCase()){
+      if(globalShortcut.isRegistered(config.shortcut))throw new Error('这个快捷键已被斐墨的其他功能使用');
+      const success=globalShortcut.register(config.shortcut,()=>{void voice?.toggle().catch(()=>{});});
+      if(!success)throw new Error('快捷键注册失败，可能与其他程序冲突');
+      globalShortcut.unregister(current);
+    }
+    settings.set('voice',config);registerHotkeys();return {...config,registered:globalShortcut.isRegistered(config.shortcut)};
+  });
+  ipc.handle('voice:download',()=>voiceModels.install());
+  ipc.handle('voice:downloadCancel',()=>voiceModels.cancel());
+  ipc.handle('voice:pause',()=>voice?.pause());
+  ipc.handle('voice:finish',()=>voice?.finish());
+  ipc.handle('voice:cancel',()=>voice?.cancel());
+  ipc.handle('voice:hotwordTest',(_e,{text,config})=>{const c=validateVoiceConfig(config);return correctVoice(String(text||'').slice(0,2000),c);});
+  ipc.handle('voice:copy',()=>{const text=voice?.state().text;if(text)return writeTextVerified(clipboard,text);});
+  ipc.handle('voice:export',async()=>{const c=voice.config();const result=await dialog.showSaveDialog(workbarWin,{title:'导出语音热词词典',defaultPath:'斐墨-语音热词.txt',filters:[{name:'文本词典',extensions:['txt']}]});if(result.canceled)return false;fs.writeFileSync(result.filePath,c.hotwords+'\n\n# 精确纠正规则\n'+c.rules,'utf8');return true;});
+  ipc.handle('voice:testLlm',async()=>{
+    const c=voice.config(),base=c.useGlobalLlm?settings.get('llm',{}):{baseUrl:c.llmUrl,model:c.llmModel};
+    const gateway=new LlmGateway({settings:{get:()=>base},getSecret:()=>getSecret(c.useGlobalLlm?'llmApiKey':'voiceLlmApiKey'),fetcher:(url,options)=>net.fetch(url,options)});return gateway.testConnection();
+  });
+  ipc.on('voice:ready',e=>{if(e.sender!==voiceWin?.webContents)return;voiceReady=true;voiceWin.webContents.send('voice:changed',voice.state());if(pendingVoiceCapture){voiceWin.webContents.send('voice:capture',pendingVoiceCapture);pendingVoiceCapture=null;}});
+  ipc.on('voice:audio',(e,data)=>{if(e.sender===voiceWin?.webContents)voice?.audio(data?.id,data?.samples,data?.level);});
+  ipc.on('voice:report',(e,data)=>{if(e.sender!==voiceWin?.webContents)return;if(data?.type==='ready')voice?.micReady(data.id);else if(data?.type==='error')voice?.micError(data.id,String(data.message||'').slice(0,200));});
+  ipc.on('voice:dismiss',()=>{if(!voice?.active())voiceWin?.hide();});
   ipc.handle('settings:get', () => settings.get());
   ipc.handle('settings:set', (_e, patch) => {
     for (const k of Object.keys(patch)) {
@@ -921,7 +1002,7 @@ function bootstrap() {
     fs.writeFileSync(choice.filePath, notes.map(n => `# ${n.title}\n\n${n.text}\n`).join('\n---\n\n'), 'utf8'); return true;
   });
   ipc.handle('secrets:set', async (_e, { name, value }) => {
-    if (!['llmApiKey', 'notionToken'].includes(name)) throw new Error('未知密钥');
+    if (!['llmApiKey', 'notionToken','voiceAsrApiKey','voiceCapsApiKey','voiceLlmApiKey'].includes(name)) throw new Error('未知密钥');
     await setSecret(name, value || null);
     return true;
   });
@@ -968,6 +1049,7 @@ function bootstrap() {
       }, false);
       if (speechWin?.isVisible()) positionSpeech();
       if (quickWin?.isVisible()) positionQuick();
+      if(voiceWin?.isVisible())positionVoice();
     }, 16);
   });
   ipc.handle('pet:dragEnd', () => {
@@ -984,6 +1066,7 @@ function bootstrap() {
     else petDockHidden = false;
     if (speechWin?.isVisible()) positionSpeech();
     if (quickWin?.isVisible()) positionQuick();
+    if(voiceWin?.isVisible())positionVoice();
     settings.set('pet', { ...settings.get('pet', {}), position: { x: b.x, y: b.y }, dockSide: petDockSide });
     petWin.webContents.send('pet:snapped');
     return true;
@@ -999,6 +1082,7 @@ function bootstrap() {
   });
   ipc.on('pet:hover', () => {
     petHovered = true;
+    if(voice?.active())return;
     revealDock();
     showQuick();
     if (settings.get('ui', {}).companionSpeech === false || workbarWin?.isVisible()) return;
@@ -1209,6 +1293,7 @@ function bootstrap() {
   // ---------- 生命周期 ----------
   app.whenReady().then(() => {
     secretsCache = loadSecrets();
+    voice=new VoiceService({settings,getSecret,models:voiceModels,input:voiceInput,fetcher:(url,options)=>net.fetch(url,options),connectOptions:async url=>{const resolved=await voiceWin.webContents.session.resolveProxy(url);const proxy=resolved.split(';').map(s=>s.trim()).find(s=>s.startsWith('PROXY ')||s.startsWith('HTTPS '));return proxy?{agent:new(require('https-proxy-agent').HttpsProxyAgent)('http://'+proxy.replace(/^\S+\s+/,''))}:{};},copy:text=>writeTextVerified(clipboard,text),onChange:voiceChanged,capture:command=>{if(!voiceReady)pendingVoiceCapture=command;else voiceWin?.webContents.send('voice:capture',command);}});
     try {
       if (!safeStorage.isEncryptionAvailable()) throw new Error('系统加密暂不可用，工具箱记录尚未启用');
       toolbox = new Toolbox(path.join(paths.dataDir(), 'toolbox.bin'), { encrypt: v => safeStorage.encryptString(v), decrypt: v => safeStorage.decryptString(v) });
@@ -1221,6 +1306,9 @@ function bootstrap() {
     createSpeechWindow();
     createQuickWindow();
     createSoundscapeWindow();
+    createVoiceWindow();
+    // Warm up the tiny input helper without capturing a target or requesting microphone access.
+    voiceInput.prepare().catch(()=>{});
     if (focus.active) quickWin.webContents.once('did-finish-load', () => {
       positionQuick(); quickWin.showInactive(); quickExpanded = false; quickWin.webContents.send('quick:expanded', false);
     });
@@ -1268,12 +1356,14 @@ function bootstrap() {
       scheduler.onWake();
       broadcastPetState();
     });
-    powerMonitor.on('lock-screen', () => { /* 低频待机 */ });
+    powerMonitor.on('lock-screen', () => { void voice?.cancel(); });
+    powerMonitor.on('suspend',()=>{void voice?.cancel();});
 
     app.on('activate', () => { if (!BrowserWindow.getAllWindows().length) { createPetWindow(); createWorkbarWindow(); } });
   });
 
   app.on('will-quit', () => {
+    voice?.close();clearTimeout(voiceDismissTimer);
     clearInterval(clipboardPoll);
     if (speechTimer) clearTimeout(speechTimer);
     globalShortcut.unregisterAll();

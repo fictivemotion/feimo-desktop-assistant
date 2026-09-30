@@ -22,6 +22,7 @@
     settings: ['设置', '让斐墨更符合你的习惯。', '返回问答'],
     tools: ['快捷工具箱', '收好复制的内容，留住灵感，找到配色。', '返回问答'],
     study:['闪念上岸','学习进度、任务和知识卡片，随手掌握。','同步'],
+    voice:['斐墨语音','说出想法，让文字准确落下。',''],
   };
 
   function switchTab(name) {
@@ -39,11 +40,13 @@
     window.TABS[name]?.onShown?.();
     if (name === 'tools' && sub) window.TABS.tools?.show(sub);
     if (name === 'study' && sub) window.TABS.study?.show(sub);
+    if (name === 'voice' && sub) window.TABS.voice?.show(sub);
   }
   document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => switchTab(t.dataset.tab)));
   $('#btn-settings').addEventListener('click', () => switchTab('settings'));
   $('#btn-tools').addEventListener('click', () => switchTab('tools:clipboard'));
   $('#btn-study').addEventListener('click',()=>switchTab('study'));
+  $('#btn-voice').addEventListener('click',()=>switchTab('voice'));
   window.switchTab = switchTab;
   $('#page-action').addEventListener('click', () => {
     if (active === 'chat') { const el = $('#chat-scroll'); el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' }); }
