@@ -204,7 +204,7 @@
     $('note-form').classList.toggle('hidden', panel !== 'note');
     $('noise-form').classList.toggle('hidden',panel!=='noise');editor.classList.toggle('noise-editor',panel==='noise');
     if(panel==='noise')window.FeimoNoise.refresh();
-    $('editor-title').textContent = panel === 'schedule' ? '记下新日程' : panel === 'note' ? '留住一个想法' : panel==='noise'?'春日声景':'陪你专注一会儿';
+    $('editor-title').textContent = panel === 'schedule' ? '记下新日程' : panel === 'note' ? '留住一个想法' : panel==='noise'?'白噪音':'陪你专注一会儿';
     api.panel(panel);
     layout();
   }

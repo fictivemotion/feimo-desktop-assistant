@@ -115,11 +115,10 @@ button:focus-visible, input:focus-visible { outline: 2px solid #242e3b; outline-
 
 /* Same 21px sheet corner as every quick editor; the outer window stays clear. */
 #editor.noise-editor { padding:0;background:#fff;overflow:hidden; }
-.noise-editor .editor-head { position:absolute;z-index:2;top:13px;left:14px;right:12px;margin:0;color:#17271e; }
-.noise-editor .editor-head button { background:#fffffff0; }
-.noise-hero { height:108px;position:relative;background:url('../../assets/soundscape/spring-halftone.png') center 45%/cover; }
-.noise-hero::after { content:"";position:absolute;left:-15px;right:-15px;bottom:-13px;height:44px;background:linear-gradient(transparent,#fff 76%);filter:blur(8px); }
-.noise-controls { position:relative;padding:7px 14px 11px;background:#fff; }
+.noise-editor .editor-head { position:relative;margin:0;padding:14px 14px 10px;color:#17271e; }
+.noise-editor .editor-head button { background:#f1f4f2; }
+.noise-controls { padding:0 14px 11px;background:#fff; }
+.label { max-width:100%;overflow:hidden;text-overflow:ellipsis; }
 .noise-play-row { display:flex;align-items:center;gap:10px;margin-bottom:8px; }
 #noise-play { width:30px;height:30px;flex:none;border:0;border-radius:50%;display:grid;place-items:center;color:#fff;background:#29372f; }
 #noise-preset { width:100%;min-width:0;border:0;border-radius:8px;background:#f3f5f3;padding:6px;color:#24302a;font-size:11px; }
