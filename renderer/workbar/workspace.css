@@ -92,6 +92,7 @@ button:active:not(:disabled){transform:scale(.98)}
 
 /* Shared by every module: painted header, frosted white veil, transparent lower edge. */
 #workspace-header { flex:none;display:flex;flex-direction:column; }
+#content { z-index:1; }
 #workspace-header #tabs { background:rgba(239,243,246,.84); }
 #workspace-header #page-title { color:#19232c; }
 #workspace-header #page-subtitle,#workspace-header #brand small { color:#63707b; }

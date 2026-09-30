@@ -6,7 +6,11 @@
 
   // ---------- 页签 ----------
   const views = {};
-  for (const v of document.querySelectorAll('.view')) views[v.id.replace('view-', '')] = v;
+  for (const v of document.querySelectorAll('.view')) {
+    views[v.id.replace('view-', '')] = v;
+    v.classList.add('feimo-scroll-fade');
+    v.addEventListener('scroll', () => v.classList.toggle('is-scrolled', v.scrollTop > 2), { passive:true });
+  }
   let active = 'chat';
   const pageInfo = {
     chat: ['问答', '把眼前的问题，交给斐墨。', '回到最新'],

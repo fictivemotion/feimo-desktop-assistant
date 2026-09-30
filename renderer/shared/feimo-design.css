@@ -18,7 +18,7 @@
   --feimo-header-bleed: 72px;
 }
 .feimo-progressive-header { position:relative;isolation:isolate;overflow:visible;z-index:0; }
-.feimo-header-art { position:absolute;inset:0 0 calc(-1 * var(--feimo-header-bleed));z-index:-1;pointer-events:none; }
+.feimo-header-art { position:absolute;inset:0 0 calc(-1 * var(--feimo-header-bleed));z-index:-1;pointer-events:none;mask-image:linear-gradient(to bottom,#000 0%,#000 66%,rgba(0,0,0,.55) 80%,transparent 96%,transparent 100%); }
 .feimo-header-art::before { content:"";position:absolute;inset:0;background:var(--feimo-header-image) center 40%/cover no-repeat;opacity:.72;mask-image:linear-gradient(to bottom,#000 0%,rgba(0,0,0,.7) 42%,rgba(0,0,0,.35) 67%,transparent 100%); }
 .feimo-header-art::after { content:"";position:absolute;inset:0;background:linear-gradient(to bottom,rgba(255,255,255,.66),rgba(255,255,255,.5) 55%,transparent);mask-image:linear-gradient(#000,rgba(0,0,0,.6) 65%,transparent);backdrop-filter:blur(1.2px) saturate(.85);-webkit-backdrop-filter:blur(1.2px) saturate(.85); }
 .feimo-blur-layer { position:absolute;inset:0; }
@@ -27,3 +27,5 @@
 .feimo-blur-layer.blur-deep { backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);mask-image:linear-gradient(transparent 68%,#000 88%,transparent); }
 @supports not (backdrop-filter:blur(2px)) { .feimo-header-art::before { mask-image:linear-gradient(#000,rgba(0,0,0,.25) 60%,transparent); } }
 @media(prefers-reduced-transparency:reduce),(prefers-contrast:more) { .feimo-header-art { display:none; } }
+.feimo-scroll-fade.is-scrolled { mask-image:linear-gradient(to bottom,transparent 0%,rgba(0,0,0,.25) 10px,rgba(0,0,0,.75) 28px,#000 44px); }
+@media(prefers-contrast:more) { .feimo-scroll-fade.is-scrolled { mask-image:none; } }
