@@ -2,6 +2,13 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { placeSpeech, intersects } = require('../lib/overlay-layout');
+const {placeVoice}=require('../lib/overlay-layout');
+test('voice capsule is centered above the taskbar on positive and negative monitor coordinates',()=>{
+ for(const area of [{x:0,y:0,width:1920,height:1040},{x:-1440,y:-200,width:1440,height:860}]){
+  const rect=placeVoice(area);assert.equal(rect.x+rect.width/2,area.x+area.width/2);
+  assert.equal(rect.y+rect.height,area.y+area.height-16);assert.equal(rect.width,300);assert.equal(rect.height,60);
+ }
+});
 
 test('speech uses a nearby side when the toolbar blocks its usual top position', () => {
   const pet = { x: 320, y: 200, width: 90, height: 95 };

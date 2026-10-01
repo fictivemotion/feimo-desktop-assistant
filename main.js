@@ -30,7 +30,7 @@ const { FocusTimer } = require('./lib/focus-timer');
 const { NotionCalendarConnector } = require('./lib/calendar/notion');
 const { layoutSpeech } = require('./lib/speech-layout');
 const { speechShape } = require('./lib/speech-shape');
-const { placeSpeech } = require('./lib/overlay-layout');
+const { placeSpeech, placeVoice } = require('./lib/overlay-layout');
 const { nearestDockSide, dockX, peekDockX } = require('./lib/pet-dock');
 const { ReminderScheduler } = require('./lib/calendar/scheduler');
 const { pickLine, noticeLine } = require('./lib/companion');
@@ -187,27 +187,23 @@ function bootstrap() {
 
   // ---------- 窗口 ----------
   let petWin = null, workbarWin = null, speechWin = null, quickWin = null, tray = null, soundscapeWin = null, voiceWin = null;
-  let voice=null,voiceDismissTimer=null,voicePhase='idle',voiceReady=false,pendingVoiceCapture=null,voiceStateSentAt=0;
+  let voice=null,voiceDismissTimer=null,voicePhase='idle',voiceReady=false,pendingVoiceCapture=null,voiceStateSentAt=0,voiceDisplayId=null;
   const voiceModels=new VoiceModels(path.join(paths.dataDir(),'voice-models','paraformer-bilingual'),{fetcher:(url,options)=>net.fetch(url,options),onChange:()=>workbarWin?.webContents.send('voice:changed',voice?.state())});
   const voiceInput=new InputTarget(path.join(paths.dataDir(),'voice-input'));
   const voiceStats=new VoiceStats(path.join(paths.dataDir(),'voice-stats.json'));
   const modifierShortcut=new ModifierShortcut(path.join(paths.dataDir(),'voice-input'),()=>{void voice?.toggle().catch(()=>{});});
   const voiceShortcutRegistered=()=>isModifierShortcut(voice?.config().shortcut)?modifierShortcut.ready:globalShortcut.isRegistered(voice?.config().shortcut||VOICE_DEFAULTS.shortcut);
   function positionVoice(){
-    if(!voiceWin||!petWin)return;
-    const p=petWin.getBounds(),area=screen.getDisplayMatching(p).workArea;
-    const obstacles=[];
-    if(workbarWin?.isVisible())obstacles.push(workbarWin.getBounds());
-    if(quickWin?.isVisible()){const b=quickWin.getBounds();obstacles.push(...quickShapeRects.map(r=>({x:b.x+r.x,y:b.y+r.y,width:r.width,height:r.height})));}
-    const placement=placeSpeech(p,{width:300,height:60},area,obstacles,10);
-    if(placement)voiceWin.setBounds(placement.bounds,false);
-    else {quickWin?.hide();const fallback=placeSpeech(p,{width:300,height:60},area,[],10);if(fallback)voiceWin.setBounds(fallback.bounds,false);}
+    if(!voiceWin)return;
+    const display=screen.getAllDisplays().find(d=>d.id===voiceDisplayId)||screen.getPrimaryDisplay();
+    voiceWin.setBounds(placeVoice(display.workArea),false);
   }
   function voiceChanged(state){
     if(!state)return;const changed=state.phase!==voicePhase;voicePhase=state.phase;
     voiceWin?.webContents.send('voice:changed',state);
     if(changed||Date.now()-voiceStateSentAt>160){workbarWin?.webContents.send('voice:changed',state);voiceStateSentAt=Date.now();}
     if(changed){
+      if(state.phase==='starting')voiceDisplayId=screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).id;
       clearTimeout(voiceDismissTimer);
       if(state.active){dismissSpeech();quickExpanded=false;quickPanel='none';quickWin?.webContents.send('quick:expanded',false);quickWin?.hide();positionVoice();voiceWin?.showInactive();}
       else if(state.phase==='completed'||state.phase==='error'){positionVoice();voiceWin?.showInactive();if(state.phase==='completed'){voiceDismissTimer=setTimeout(()=>voiceWin?.webContents.send('voice:exit'),320);}else voiceDismissTimer=setTimeout(()=>voiceWin?.hide(),10000);}
@@ -1346,6 +1342,8 @@ function bootstrap() {
 
   // ---------- 生命周期 ----------
   app.whenReady().then(() => {
+    screen.on('display-metrics-changed',()=>{if(voiceWin?.isVisible())positionVoice()});
+    screen.on('display-removed',()=>{if(voiceWin?.isVisible())positionVoice()});
     secretsCache = loadSecrets();
     voice=new VoiceService({settings,getSecret,models:voiceModels,input:voiceInput,fetcher:(url,options)=>net.fetch(url,options),connectOptions:async url=>{const resolved=await voiceWin.webContents.session.resolveProxy(url);const proxy=resolved.split(';').map(s=>s.trim()).find(s=>s.startsWith('PROXY ')||s.startsWith('HTTPS '));return proxy?{agent:new(require('https-proxy-agent').HttpsProxyAgent)('http://'+proxy.replace(/^\S+\s+/,''))}:{};},copy:text=>writeTextVerified(clipboard,text),onChange:voiceChanged,onComplete:(id,text,seconds)=>{voiceStats.record(id,text,seconds);workbarWin?.webContents.send('voice:statsChanged',voiceStats.view());},capture:command=>{if(!voiceReady)pendingVoiceCapture=command;else voiceWin?.webContents.send('voice:capture',command);}});
     try {
