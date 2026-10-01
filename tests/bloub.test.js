@@ -39,9 +39,26 @@ test('idle rests and wakes; low-priority greetings do not replace a completion o
  const p=new ScenePlayer();assert.equal(p.sample(33).state,'sleep');assert.equal(p.sample(42.2).state,'egg');assert.equal(p.sample(44).state,'idle');
  assert.equal(p.pulse('completed',45),true);assert.equal(p.pulse('greeting',45.1),false);assert.equal(p.sample(45.2).state,'burst');assert.equal(p.pulse('failed',45.3),true);assert.equal(p.sample(45.3).state,'alert');
 });
-test('most face states look left while orbit retains its original gaze revolution',()=>{
+test('every native state and transition keeps its visible eye focus upper-left',()=>{
  const scope={};vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../assets/pets/bloub/engine.js'),'utf8'),scope);
- for(const state of scope.Bloub.STATES){const pose=state.pose(scope.Bloub.POSES[state.id]),look=gazeFor(state.id,null,pose.gaze.pitch);if(state.id==='orbit'){assert.equal(look,null);continue;}assert.ok(look.yaw<0,state.id);assert.equal(look.pitch,pose.gaze.pitch);}
- for(const x of [-2,-1,0,1,2])assert.ok(gazeFor('idle',{x},10).yaw<0);
- const engine=new scope.Bloub.BotEngine(100);engine.setLook(gazeFor('idle',null,0),0);const eyes=engine.sample(1).eyes.map(e=>Number(e.matrix.match(/matrix\(([^)]+)\)/)[1].trim().split(/[ ,]+/)[4]));assert.ok((eyes[0]+eyes[1])/2<0,'actual eye placement faces left');
+ const engine=new scope.Bloub.BotEngine(100);engine.setLook(gazeFor('idle'),-1);let time=2,visible=0;
+ for(const state of scope.Bloub.STATES){
+  const look=gazeFor(state.id);assert.ok(look.yaw<0&&look.pitch>0,state.id);assert.equal(look.mix,1);
+  engine.setState(state.id,time);engine.setLook(look,time,.18);
+  for(const offset of [0,.03,.1,.25,.5,.8,1.2,1.8,2.4,3]){
+   const frame=engine.sample(time+offset),eyes=frame.eyes.filter(e=>e.alpha>.05);if(frame.bodyAlpha<.05||eyes.length!==2)continue;
+   const centers=eyes.map(e=>e.matrix.match(/matrix\(([^)]+)\)/)[1].split(/[ ,]+/).map(Number));
+   assert.ok(centers.reduce((sum,m)=>sum+m[4],0)/2<0,`${state.id} at ${offset}: left`);
+   assert.ok(centers.reduce((sum,m)=>sum+m[5],0)/2<0,`${state.id} at ${offset}: up`);visible++;
+  }time+=4;
+ }assert.ok(visible>70,'checks actual projected eyes through animation and transition frames');
+});
+test('pointer following cannot turn any Bloub state to the right or down',()=>{
+ const scope={};vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../assets/pets/bloub/engine.js'),'utf8'),scope);
+ for(const state of scope.Bloub.STATES)for(const x of [-2,-1,0,1,2,NaN])for(const y of [-2,-1,0,1,2,NaN]){
+  const look=gazeFor(state.id,{x,y});assert.ok(look.yaw<0&&look.pitch>0,`${state.id}: ${x},${y}`);
+  const engine=new scope.Bloub.BotEngine(100,state.id);engine.setLook(look,-1);const frame=engine.sample(.7);if(frame.eyes.length!==2)continue;
+  const centers=frame.eyes.map(e=>e.matrix.match(/matrix\(([^)]+)\)/)[1].split(/[ ,]+/).map(Number));
+  assert.ok(centers.reduce((sum,m)=>sum+m[4],0)<0&&centers.reduce((sum,m)=>sum+m[5],0)<0,`${state.id}: projected upper-left`);
+ }
 });

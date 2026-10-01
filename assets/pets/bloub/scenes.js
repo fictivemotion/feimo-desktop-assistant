@@ -20,12 +20,12 @@
   'dragging-right':{...scene('comet',100),cycle:[['comet',2.5],['idle',.5]]},
  };
  const MINIMUM={alert:2,burst:2.4,comet:2.4,orbit:2.5,swirl:1.3};
- function gazeFor(animation,pointer,pitch){
+ function gazeFor(animation,pointer){
   // The companion usually lives on the right edge, facing the workspace.
-  // Orbit keeps its original full eye revolution; its motion is the animation.
-  if(animation==='orbit')return null;
-  const follow=['idle','swirl'].includes(animation)&&Number.isFinite(pointer?.x);
-  return {yaw:follow?-28+Math.max(-1,Math.min(1,pointer.x))*18:-28,pitch:Number.isFinite(pitch)?pitch:0,mix:.92,spin:0,wander:follow?0:.25};
+  // Override every native pose, including orbit, without mirroring its artwork.
+  // Bounded tracking keeps both coordinates in the upper-left quadrant.
+  const follow=['idle','swirl'].includes(animation),bounded=value=>Number.isFinite(value)?Math.max(-1,Math.min(1,value)):0;
+  return {yaw:-32+(follow?bounded(pointer?.x)*8:0),pitch:28-(follow?bounded(pointer?.y)*6:0),mix:1,spin:0,wander:0};
  }
  class ScenePlayer{
   constructor(now=0){this.base='idle';this.baseAt=now;this.pulseScene=null;this.pulseUntil=0;this.current=null;this.holdUntil=0;}
