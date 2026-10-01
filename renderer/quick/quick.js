@@ -75,7 +75,7 @@
         continue;
       }
       const inset = Math.ceil(corner - Math.sqrt(Math.max(0, corner * corner - (corner - depth) ** 2)));
-      const band = Math.min(2, r.height - row);
+      const band = 1;
       strips.push({ x: r.x + inset, y: r.y + row, width: r.width - inset * 2, height: band });
       row += band;
     }
@@ -89,6 +89,10 @@
         if (panel === 'none') for (const button of tools.querySelectorAll('button')) {
           const target = bounds(button);
           rects.push(...roundedShape(target, 17, 3));
+          // The page badge protrudes beyond the tool circle. Give it its own
+          // transparent antialiasing halo instead of clipping it to that circle.
+          const badge=button.querySelector('.tool-page');
+          if(badge){const r=badge.getBoundingClientRect();rects.push(...roundedShape({x:r.x,y:r.y,width:r.width,height:r.height},r.width/2,4));}
           // Include the travel path in Electron's shaped window while each tool flies out.
           if (toolsAnimating) {
             const left = Math.min(anchor.x - 8, target.x), top = Math.min(anchor.y - 8, target.y);

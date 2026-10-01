@@ -146,6 +146,13 @@
       </div>
 
       <div class="settings-section"><h4><span data-icon="DocumentText" data-size="16"></span> 闪念上岸学习互联</h4><div class="card"><p class="muted">同步网站计时、学习任务、刷题统计与知识卡片。</p><button class="btn" id="st-study">连接学习空间</button></div></div>
+      <div class="settings-section support-section">
+        <h4><span data-icon="Heart" data-size="16"></span> 支持开发者</h4>
+        <div class="card support-card"><span class="support-kicker">THANK YOU FOR BEING HERE</span><h2>朕心甚悦，赏！</h2><p class="muted">如果斐墨帮你省下了一点时间，欢迎请开发者喝杯茶。自愿赞赏，金额随心。</p>
+          <div class="support-codes"><figure><a href="../../assets/support/alipay.jpg" data-support-code="支付宝"><img src="../../assets/support/alipay.jpg" alt="开发者支付宝收款码" loading="lazy"></a><figcaption>支付宝</figcaption></figure><figure><a href="../../assets/support/wechat.png" data-support-code="微信支付"><img src="../../assets/support/wechat.png" alt="开发者微信收款码" loading="lazy"></a><figcaption>微信支付</figcaption></figure></div>
+          <p class="support-note">点击收款码查看大图 · 感谢每一份支持</p>
+        </div>
+      </div>
       <div class="settings-section">
         <h4><span data-icon="InfoCircle" data-size="16"></span> 关于</h4>
         <div class="card muted">
@@ -156,12 +163,19 @@
       </div>`;
 
     // ---------- 事件 ----------
-    const categories = [['general','常规'],['model','模型'],['shortcuts','快捷键'],['connections','连接'],['privacy','隐私']];
+    view.querySelectorAll('[data-support-code]').forEach(link=>link.addEventListener('click',event=>{
+      event.preventDefault();document.querySelector('.support-preview')?.remove();
+      const preview=document.createElement('dialog');preview.className='support-preview';preview.setAttribute('aria-label',link.dataset.supportCode+'收款码');
+      const image=document.createElement('img');image.src=link.href;image.alt=link.dataset.supportCode+'收款码';
+      const close=document.createElement('button');close.type='button';close.className='btn';close.textContent='关闭大图';close.onclick=()=>preview.close();
+      preview.append(image,close);document.body.append(preview);preview.addEventListener('close',()=>preview.remove());preview.addEventListener('click',e=>{if(e.target===preview)preview.close()});preview.showModal();
+    }));
+    const categories = [['general','常规'],['model','模型'],['shortcuts','快捷键'],['connections','连接'],['privacy','隐私'],['support','赞赏']];
     const nav = document.createElement('nav'); nav.className = 'settings-nav'; nav.setAttribute('aria-label', '设置分类');
     const sections = [...view.querySelectorAll('.settings-section')];
     sections.forEach(section => {
       const title = section.querySelector('h4').textContent;
-      section.dataset.group = /模型/.test(title) ? 'model' : /全局热键/.test(title) ? 'shortcuts' : /Agent|Notion|日程同步|闪念上岸/.test(title) ? 'connections' : /隐私/.test(title) ? 'privacy' : 'general';
+      section.dataset.group = /支持开发者/.test(title) ? 'support' : /模型/.test(title) ? 'model' : /全局热键/.test(title) ? 'shortcuts' : /Agent|Notion|日程同步|闪念上岸/.test(title) ? 'connections' : /隐私/.test(title) ? 'privacy' : 'general';
     });
     function showGroup(group) {
       sections.forEach(section => { section.hidden = section.dataset.group !== group; });

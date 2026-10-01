@@ -251,6 +251,7 @@ function bootstrap() {
   let speechPriority = -1;
   let speechFromHover = false;
   let speechLayout = { width: 140, height: 62 };
+  let messageState = null;
   let lastHoverSpeech = 0;
   let lastAmbientSpeech = Date.now();
   let lastBreakSpeech = Date.now();
@@ -327,7 +328,7 @@ function bootstrap() {
       if (cardState) speechWin.webContents.send('speech:card', cardState);
       if (pendingSpeech) {
         speechWin?.webContents.send('speech:placement', pendingSpeech.placement);
-        if (!replyState) speechWin?.webContents.send('speech:message', pendingSpeech.text);
+        if (!replyState && !cardState) speechWin?.webContents.send('speech:message', pendingSpeech.message);
         pendingSpeech = null;
       }
     });
@@ -442,6 +443,7 @@ function bootstrap() {
     const message = String(text || '').trim();
     if (!message) return;
     const layout = layoutSpeech(message);
+    messageState = { id: `message-${Date.now()}-${Math.random().toString(36).slice(2,7)}`, text: layout.text };
     if (speechTimer) clearTimeout(speechTimer);
     speechPriority = priority;
     speechFromHover = priority === -1;
@@ -451,9 +453,9 @@ function bootstrap() {
     if (!placement) { speechWin.hide(); speechUntil = 0; speechPriority = -1; speechFromHover = false; return; }
     const send = () => {
       speechWin?.webContents.send('speech:placement', placement);
-      speechWin?.webContents.send('speech:message', layout.text);
+      speechWin?.webContents.send('speech:message', messageState);
     };
-    if (speechWin.webContents.isLoading()) pendingSpeech = { placement, text: layout.text };
+    if (speechWin.webContents.isLoading()) pendingSpeech = { placement, message: messageState };
     else send();
     speechWin.showInactive();
     speechTimer = setTimeout(() => dismissSpeech(), duration);
@@ -462,6 +464,7 @@ function bootstrap() {
   function dismissSpeech() {
     if (speechTimer) clearTimeout(speechTimer);
     cardState = null;
+    messageState = null;
     speechWin?.webContents.send('speech:dismiss');
     speechUntil = 0; speechPriority = -1; speechFromHover = false;
     speechTimer = setTimeout(() => { if (!replyState && speechUntil === 0) speechWin?.hide(); }, 200);
@@ -471,6 +474,7 @@ function bootstrap() {
     if (chatAbort.controller !== controller || controller.replyDismissed) return;
     if (speechTimer) clearTimeout(speechTimer);
     cardState = null;
+    messageState = null;
     if (!replyState || replyState.id !== controller.replyId) speechLayout = { width: 180, height: 112 };
     replyState = { id: controller.replyId, phase, full, pages: splitReply(full) };
     speechFromHover = false; speechPriority = 5; speechUntil = Infinity;
@@ -486,7 +490,7 @@ function bootstrap() {
     playBloub(value.kind==='schedule'?'reminder':'notification');
     if (replyState) { speechWin.webContents.send('speech:card', { ...card, inline: true }); return; }
     if (Date.now() < speechUntil && priority < speechPriority) return;
-    clearTimeout(speechTimer); cardState = card; speechLayout = { width: 252, height: 210 };
+    clearTimeout(speechTimer); messageState = null; cardState = card; speechLayout = { width: 252, height: 210 };
     speechFromHover = false; speechPriority = priority; speechUntil = Date.now() + 15000;
     speechWin.setIgnoreMouseEvents(false); speechWin.setFocusable(true);
     if (!speechWin.webContents.isLoading()) speechWin.webContents.send('speech:card', card);
@@ -939,6 +943,15 @@ function bootstrap() {
   ipc.handle('system:state', () => ({ openAtLogin: windowsIntegration.startupState(app), version: app.getVersion() }));
   ipc.handle('system:shortcut', () => windowsIntegration.createDesktopShortcut(app, shell));
   ipc.on('speech:layout', (_e, data) => {
+    if (_e.sender !== speechWin?.webContents) return;
+    if (data?.mode === 'message') {
+      if (!messageState || data.id !== messageState.id || cardState || replyState || speechUntil <= Date.now()) return;
+      const height = Math.round(data.height);
+      if (!Number.isFinite(height) || height < 42 || height > 240 || speechLayout.height === height) return;
+      speechLayout = { ...speechLayout, height };
+      positionSpeech(); return;
+    }
+    if (!data?.id) return;
     if (data?.id !== (cardState?.id || replyState?.id) || !Array.isArray(data.rects)) return;
     const width = Math.max(100, Math.min(320, Math.round(data.width)));
     const height = Math.max(60, Math.min(340, Math.round(data.height)));
@@ -1137,7 +1150,7 @@ function bootstrap() {
   ipc.on('quick:draft', (_e, hasDraft) => { quickDraft = hasDraft === true; });
   ipc.on('quick:shape', (_e, rects) => {
     if (!quickWin || !Array.isArray(rects)) return;
-    const safe = rects.slice(0, 240).map((r) => {
+    const safe = rects.slice(0, 1200).filter(r=>[r.x,r.y,r.width,r.height].every(Number.isFinite)).map((r) => {
       const x = Math.max(0, Math.min(QUICK_WIDTH - 1, Math.round(r.x)));
       const y = Math.max(0, Math.min(QUICK_HEIGHT - 1, Math.round(r.y)));
       return { x, y, width: Math.max(1, Math.min(QUICK_WIDTH - x, Math.round(r.width))), height: Math.max(1, Math.min(QUICK_HEIGHT - y, Math.round(r.height))) };

@@ -26,7 +26,7 @@ test('Codex：session_meta + task 流程 → started/progress/completed', () => 
     JSON.stringify({ timestamp: '2026-09-28T10:00:20Z', ordinal: 3, type: 'event_msg', payload: { type: 'task_complete', last_agent_message: '已完成构建', duration_ms: 15000 } }),
   ], true);
   const kinds = events.map(e => e.kind);
-  assert.deepStrictEqual(kinds, ['started', 'started', 'progress', 'completed']);
+  assert.deepStrictEqual(kinds, ['metadata', 'started', 'progress', 'completed']);
   assert.strictEqual(events.at(-1).summary, '已完成构建');
   assert.strictEqual(events[0].project, 'D:\\proj');
 });
@@ -145,4 +145,25 @@ test('Registry：5 分钟无信号的 running → stale', () => {
   const s1 = snap.sessions.find(s => s.sessionId === 's1');
   assert.strictEqual(s1.status, 'stale');
   assert.ok(s1.staleNote.includes('状态未更新'));
+});
+
+test('startup log replay restores state without progress events or desktop notices',()=>{
+ const delivered=[],bus={emit:(kind,value)=>delivered.push({kind,value})},r=new AgentRegistry({bus});
+ for(const kind of ['started','progress','needs_input','completed'])r.ingest(ev('codex','replay',kind,{replay:true,phase:kind}));
+ assert.equal(r.snapshot().sessions[0].status,'completed');
+ assert.equal(delivered.filter(e=>['agent:event','notice'].includes(e.kind)).length,0);
+ r.ingest(ev('codex','replay','started',{phase:'new-turn'}));
+ r.ingest(ev('codex','replay','progress',{phase:'new-tool'}));
+ assert.ok(delivered.some(e=>e.kind==='agent:event'&&e.value.phase==='new-tool'));
+});
+test('old activity and session metadata do not mark archived Codex conversations running',()=>{
+ const delivered=[],r=new AgentRegistry({bus:{emit:(kind,value)=>delivered.push({kind,value})}});
+ r.ingest(ev('codex','archived','progress',{occurredAt:new Date(Date.now()-3*86400000).toISOString()}));
+ r.ingest(ev('codex','idle','metadata'));
+ assert.equal(r.snapshot().sessions.length,1);assert.equal(r.snapshot().sessions[0].status,'idle');
+ assert.equal(delivered.some(e=>['agent:event','notice'].includes(e.kind)),false);
+ r.ingest(ev('codex','idle','started',{phase:'turn'}));r.ingest(ev('codex','idle','completed',{phase:'turn'}));r.ingest(ev('codex','idle','heartbeat'));
+ assert.equal(r.snapshot().sessions[0].status,'completed');
+ r.ingest(ev('codex','idle','progress',{occurredAt:new Date(Date.now()-60000).toISOString()}));
+ assert.equal(r.snapshot().sessions[0].status,'completed');
 });

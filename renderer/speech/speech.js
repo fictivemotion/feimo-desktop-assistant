@@ -3,7 +3,7 @@
   const api = window.speechApi;
   const greeting = document.getElementById('speech'), stack = document.getElementById('reply-stack');
   let state = null, selected = 0, follow = true, lastLayout = '', frame = null, cards = [], noticeTimer;
-  let promptState = null, inlinePrompt = null;
+  let promptState = null, inlinePrompt = null, messageState = null;
   const prompt = document.getElementById('prompt-card');
   function button(name, title, action) {
     const b = document.createElement('button'); b.type = 'button'; b.title = title;
@@ -20,6 +20,11 @@
   }
   function measure() {
     frame = null;
+    if (messageState && !greeting.hidden) {
+      const css=getComputedStyle(document.body),height=Math.ceil(greeting.offsetHeight+parseFloat(css.paddingTop)+parseFloat(css.paddingBottom));
+      const signature=JSON.stringify({mode:'message',id:messageState.id,height});
+      if(signature!==lastLayout){lastLayout=signature;api.layout(JSON.parse(signature));}return;
+    }
     if (promptState && !prompt.hidden) {
       const side=document.body.dataset.placement||'top', bottom=prompt.offsetTop+prompt.offsetHeight, width=252, height=Math.min(340,bottom+20);
       let dot=document.getElementById('reply-dot');if(!dot){dot=document.createElement('i');dot.id='reply-dot';document.body.append(dot);}else if(dot.parentElement!==document.body)document.body.append(dot);
@@ -101,6 +106,7 @@
     stack.appendChild(card); return card;
   }
   function update(value) {
+    messageState=null;
     const fresh = state?.id !== value.id, oldCount = state?.pages.length || 0;
     state = value;
     promptState=null;prompt.hidden=true;
@@ -152,7 +158,7 @@
   }
   api.onCard?.(value=>{
     if(value.inline && state){inlinePrompt?.remove();inlinePrompt=document.createElement('aside');inlinePrompt.className='prompt-inline';fillPrompt(inlinePrompt,value,true);arrange(true);return;}
-    promptState=value;state=null;cards=[];lastLayout='';stack.hidden=true;greeting.hidden=true;prompt.hidden=false;
+    messageState=null;promptState=value;state=null;cards=[];lastLayout='';stack.hidden=true;greeting.hidden=true;prompt.hidden=false;
     document.body.classList.remove('leaving','reply-mode');document.body.classList.add('prompt-mode');fillPrompt(prompt,value);
     if(!matchMedia('(prefers-reduced-motion: reduce)').matches)prompt.animate([{opacity:0,transform:'translateY(8px)'},{opacity:1,transform:'none'}],{duration:220,easing:'ease-out'});
     scheduleMeasure();
@@ -165,18 +171,23 @@
     body.prepend(notice); scheduleMeasure(); clearTimeout(noticeTimer);
     noticeTimer = setTimeout(() => { notice.remove(); scheduleMeasure(); }, 6500);
   });
-  api.onMessage(text => {
+  api.onMessage(value => {
+    const text=typeof value==='string'?value:value.text;messageState=typeof value==='string'?null:value;
     state = null; promptState=null;prompt.hidden=true;document.getElementById('reply-dot')?.remove();cards = []; lastLayout = ''; document.body.classList.remove('reply-mode', 'leaving','prompt-mode');
     stack.hidden = true; greeting.hidden = false;
     greeting.getAnimations().forEach(a => a.cancel()); document.getElementById('message').textContent = text;
     if (!matchMedia('(prefers-reduced-motion: reduce)').matches) greeting.animate([{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }], { duration: 220, easing: 'ease-out' });
+    scheduleMeasure();
   });
-  api.onDismiss(() => { state = null;promptState=null; document.body.classList.add('leaving'); });
+  api.onDismiss(() => { state = null;promptState=null;messageState=null; document.body.classList.add('leaving'); });
   api.onPlacement(placement => {
     document.body.dataset.placement = placement.side; document.body.style.setProperty('--dot-anchor', `${placement.anchor}px`);
     if (state) arrange();
     if(promptState){prompt.style.top=placement.side==='bottom'?'22px':'12px';scheduleMeasure();}
+    if(messageState)scheduleMeasure();
   });
+  new ResizeObserver(scheduleMeasure).observe(greeting);
+  document.fonts.ready.then(scheduleMeasure);
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {if(promptState)api.cardClose();else api.close();}
     if (state && e.key === 'ArrowLeft') select(selected - 1, true);
