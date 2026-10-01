@@ -38,3 +38,12 @@ test('screenshot image payload is read from ClipboardItem and exposed as PNG', a
   assert.match(snap.dataUrl, /^data:image\/png;base64,/);
   assert.ok(snap.size.width > 0 && snap.size.height > 0);
 });
+
+test('empty stale image format after dictation falls back to the actual clipboard text', async () => {
+  const clipboard = {
+    read: async () => [{types:['image/png'],getType:async()=>new Blob([], {type:'image/png'})}],
+    readText: async () => '已校对的听写正文',
+  };
+  assert.equal(await readImageBuffer(clipboard),null);
+  assert.deepEqual(await snapshotClipboard(clipboard),{kind:'text',text:'已校对的听写正文'});
+});

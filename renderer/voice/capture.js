@@ -30,7 +30,7 @@ api.onState(state=>{
   phase=state.phase;level=state.level||0;$('capsule').dataset.phase=phase;$('message').textContent=state.message;
   if(state.active)$('capsule').classList.remove('exiting');
   if(state.targetOk===false&&['listening','paused'].includes(phase))$('message').textContent=phase==='paused'?'听写已暂停':'继续听写中';
-  $('time').textContent=state.targetOk===false?'写入暂停 · 结束后复制全文':state.warning?'已保留听写原文':`${String(Math.floor((state.elapsed||0)/60)).padStart(2,'0')}:${String((state.elapsed||0)%60).padStart(2,'0')}`;
+  $('time').textContent=state.targetOk===false?(state.targetRetryable?'正在确认输入框写入…':'写入已停止 · 仍在听写'):state.warning?'已保留听写原文':`${String(Math.floor((state.elapsed||0)/60)).padStart(2,'0')}:${String((state.elapsed||0)%60).padStart(2,'0')}`;
   $('capsule').title=state.warning||state.message;$('pause').hidden=!['listening','paused'].includes(phase);$('finish').hidden=!['listening','paused'].includes(phase);
   const pauseIcon=phase==='paused'?'Play':'Pause';
   $('pause').setAttribute('aria-label',phase==='paused'?'继续听写':'暂停听写');
@@ -39,12 +39,16 @@ api.onState(state=>{
   const bars=[...$('wave').children];bars.forEach((bar,i)=>{const weight=[.35,.7,1,.85,.65,.9,.45][i];bar.style.height=`${phase==='listening'?4+Math.round(level*24*weight):4}px`;});
 });
 function commandButton(id,action){
-  const button=$(id);let pending=false;
+  const button=$(id);let pending=false,pressed=null;
   async function run(){if(pending||!['listening','paused'].includes(phase))return;pending=true;try{await action();}catch{ $('time').textContent='操作未完成，请再试一次'; }finally{pending=false;}}
   // Nonactivating floating windows keep the editor focused. Dispatch on press,
   // before state updates or a moved pointer can interrupt the click sequence.
-  button.addEventListener('pointerdown',e=>{if(e.button!==0)return;e.preventDefault();void run();});
-  button.addEventListener('click',e=>{if(e.detail===0)void run();});
+  button.addEventListener('pointerdown',e=>{if(e.button!==0)return;pressed=e.pointerId;e.preventDefault();void run();});
+  // Some nonactivating Windows surfaces deliver the release/click without the
+  // initial pointerdown. Keep both fallbacks, while consuming an already handled press.
+  button.addEventListener('pointerup',e=>{if(e.button!==0||pressed!==null)return;pressed=e.pointerId;void run();});
+  button.addEventListener('pointercancel',()=>{pressed=null;});
+  button.addEventListener('click',e=>{if(e.detail!==0&&pressed!==null){pressed=null;return;}pressed=null;void run();});
 }
 commandButton('pause',()=>api.pause());commandButton('finish',()=>api.finish());
 api.onExit(()=>{if(phase!=='completed')return;$('capsule').classList.add('exiting');setTimeout(()=>{if(phase==='completed')api.dismiss();},180);});

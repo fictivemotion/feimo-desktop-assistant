@@ -20,19 +20,47 @@ class FeimoInput {
   static AutomationElement target;
   static TextPattern pattern;
   static IntPtr foreground;
-  static string prefix, suffix, owned, identity;
+  static string prefix, suffix, owned, identity, framework, automationId;
+  static uint ownerPid;
+  static System.Windows.Rect editorBounds;
+  static string awaitingOwned, awaitingTail;
   static bool emptyParagraph;
   static bool blocked=true;
   static JavaScriptSerializer json=new JavaScriptSerializer();
   static string Id(AutomationElement e) { return String.Join(".", Array.ConvertAll(e.GetRuntimeId(), v=>v.ToString())); }
   static string Canonical(string s){return s.Replace("\r\n","\n").Replace("\r","\n");}
-  static string Read(){object fresh;if(!target.TryGetCurrentPattern(TextPattern.Pattern,out fresh))throw new Exception("输入框不再支持文本定位");pattern=(TextPattern)fresh;object value;string text=Canonical(target.TryGetCurrentPattern(ValuePattern.Pattern,out value)?((ValuePattern)value).Current.Value:pattern.DocumentRange.GetText(-1));return emptyParagraph&&text=="\n"?"":text;}
+  static string Read(){object fresh;if(!target.TryGetCurrentPattern(TextPattern.Pattern,out fresh))throw new Exception("输入框不再支持文本定位");pattern=(TextPattern)fresh;object value;return Canonical(target.TryGetCurrentPattern(ValuePattern.Pattern,out value)?((ValuePattern)value).Current.Value:pattern.DocumentRange.GetText(-1));}
+  internal static bool TextMatches(string actual,string expected,bool virtualParagraph){return actual==expected||(virtualParagraph&&actual==expected+"\n");}
+  static bool Matches(string expected){return TextMatches(Read(),expected,emptyParagraph);}
+  static AutomationElement Editor(AutomationElement focused){
+    for(int i=0;i<4&&focused!=null;i++){
+      object p,v;bool writableValue=focused.TryGetCurrentPattern(ValuePattern.Pattern,out v)&&!((ValuePattern)v).Current.IsReadOnly;
+      if((focused.Current.ControlType==ControlType.Edit||focused.Current.ControlType==ControlType.Document||writableValue)&&focused.TryGetCurrentPattern(TextPattern.Pattern,out p))return focused;
+      focused=TreeWalker.RawViewWalker.GetParent(focused);
+    }
+    return null;
+  }
+  static void RefreshFocus(){
+    if(GetForegroundWindow()!=foreground)throw new Exception("前台程序已切换，已停止自动写入");
+    var focused=Editor(AutomationElement.FocusedElement);
+    if(focused==null||focused.Current.ProcessId!=ownerPid||focused.Current.IsPassword||!focused.Current.IsEnabled)throw new Exception("输入框已切换，已停止自动写入");
+    var nextId=Id(focused);
+    if(nextId!=identity){
+      // Chromium/Flutter may recreate the accessibility node when an empty composer
+      // gains content or grows. Require the same editor geometry and descriptor;
+      // full document and caret ownership are checked separately before every write.
+      var b=focused.Current.BoundingRectangle;
+      bool sameBox=!b.IsEmpty&&!editorBounds.IsEmpty&&Math.Abs(b.Left-editorBounds.Left)<8&&Math.Abs(b.Width-editorBounds.Width)<8&&(Math.Abs(b.Top-editorBounds.Top)<8||Math.Abs(b.Bottom-editorBounds.Bottom)<8);
+      if(!sameBox||focused.Current.FrameworkId!=framework||focused.Current.AutomationId!=automationId)throw new Exception("输入框已切换，已停止自动写入");
+    }
+    target=focused;identity=nextId;editorBounds=focused.Current.BoundingRectangle;
+  }
   static bool ModifiersDown(){return (GetAsyncKeyState(0x11)&0x8000)!=0||(GetAsyncKeyState(0x12)&0x8000)!=0||(GetAsyncKeyState(0x10)&0x8000)!=0;}
   static object Capture(){
     for(int i=0;i<75&&ModifiersDown();i++)Thread.Sleep(20);
     if(ModifiersDown())throw new Exception("请松开快捷键后开始听写");
     Thread.Sleep(60);
-    blocked=true;emptyParagraph=false; foreground=GetForegroundWindow(); target=AutomationElement.FocusedElement;
+    blocked=true;emptyParagraph=false;awaitingOwned=awaitingTail=null; foreground=GetForegroundWindow(); target=Editor(AutomationElement.FocusedElement);
     uint foregroundPid;GetWindowThreadProcessId(foreground,out foregroundPid);
     if(target==null || target.Current.IsPassword || !target.Current.IsEnabled || target.Current.ProcessId!=foregroundPid)throw new Exception("请先点击前台程序中的可编辑输入框，再按语音快捷键");
     object value; if(!target.TryGetCurrentPattern(TextPattern.Pattern,out value))throw new Exception("这个输入框不支持安全听写定位，请尝试记事本、浏览器或其他文本编辑器");
@@ -42,19 +70,20 @@ class FeimoInput {
     var before=pattern.DocumentRange.Clone(); before.MoveEndpointByRange(TextPatternRangeEndpoint.End,selected[0],TextPatternRangeEndpoint.Start);
     var after=pattern.DocumentRange.Clone(); after.MoveEndpointByRange(TextPatternRangeEndpoint.Start,selected[0],TextPatternRangeEndpoint.End);
     prefix=Canonical(before.GetText(-1));suffix=Canonical(after.GetText(-1));owned=Canonical(selected[0].GetText(-1));
-    // Chromium's empty <p><br></p> exposes a virtual newline that disappears on the first real keystroke.
+    // Some Chromium providers retain the virtual paragraph newline after the first
+    // keystroke. Match it against the expected owned text for the whole session.
     emptyParagraph=target.Current.FrameworkId=="Chrome"&&prefix==""&&owned==""&&suffix=="\n"&&(Read()=="\n"||Read()=="");
     if(emptyParagraph)suffix="";
     if((prefix+owned+suffix).Length>200000)throw new Exception("当前文档过长，请在较短的输入框中听写");
-    if(Read()!=prefix+owned+suffix)throw new Exception("无法精确定位输入位置，请重新点击输入框");
+    if(!Matches(prefix+owned+suffix))throw new Exception("无法精确定位输入位置，请重新点击输入框");
     if(target.Current.FrameworkId=="Chrome"&&(prefix+owned+suffix).IndexOf('\uFFFC')>=0)throw new Exception("当前输入框包含嵌入对象，请使用纯文本输入框听写");
-    identity=Id(target);blocked=false;return new {ok=true};
+    identity=Id(target);framework=target.Current.FrameworkId;automationId=target.Current.AutomationId;ownerPid=foregroundPid;editorBounds=target.Current.BoundingRectangle;blocked=false;return new {ok=true};
   }
   static object Probe(){var e=AutomationElement.FocusedElement;object p;uint fp;GetWindowThreadProcessId(GetForegroundWindow(),out fp);return new {type=e.Current.ControlType.ProgrammaticName,framework=e.Current.FrameworkId,cls=e.Current.ClassName,pid=e.Current.ProcessId,foregroundPid=fp,textPattern=e.TryGetCurrentPattern(TextPattern.Pattern,out p),valuePattern=e.TryGetCurrentPattern(ValuePattern.Pattern,out p),length=target==null?-1:Read().Length,trailingLine=target!=null&&Read().EndsWith("\n"),prefixLength=prefix==null?-1:prefix.Length,suffixLength=suffix==null?-1:suffix.Length,ownedLength=owned==null?-1:owned.Length};}
   static void Verify(){
     if(blocked)throw new Exception("输入位置已失效，结果会保留并复制到剪贴板");
-    var focused=AutomationElement.FocusedElement;
-    if(GetForegroundWindow()!=foreground||focused==null||Id(focused)!=identity||Read()!=prefix+owned+suffix)throw new Exception("输入框已切换或被编辑，已停止自动写入");
+    RefreshFocus();
+    if(!Matches(prefix+owned+suffix))throw new Exception("输入框已被编辑，已停止自动写入");
     var selected=pattern.GetSelection();if(selected.Length!=1)throw new Exception("输入位置发生变化");
     var before=pattern.DocumentRange.Clone();before.MoveEndpointByRange(TextPatternRangeEndpoint.End,selected[0],TextPatternRangeEndpoint.Start);
     var current=Canonical(before.GetText(-1));var selection=Canonical(selected[0].GetText(-1));
@@ -64,8 +93,33 @@ class FeimoInput {
   static INPUT Virtual(ushort vk,uint flags){return new INPUT{type=1,data=new UNION{key=new KEYBDINPUT{vk=vk,flags=flags}}};}
   static bool Boundary(string value,int index){return index==0||index==value.Length||Array.IndexOf(System.Globalization.StringInfo.ParseCombiningCharacters(value),index)>=0;}
   static int Units(string text){return new System.Globalization.StringInfo(text).LengthInTextElements;}
+  static bool ConfirmPending(){
+    if(awaitingOwned==null)return true;
+    for(int i=0;i<60;i++){
+      RefreshFocus();
+      try{if(Matches(prefix+awaitingOwned+suffix)){
+        if(awaitingTail.Length>0){var caret=pattern.GetSelection()[0].Clone();caret.MoveEndpointByUnit(TextPatternRangeEndpoint.Start,TextUnit.Character,Units(awaitingTail));caret.MoveEndpointByRange(TextPatternRangeEndpoint.End,caret,TextPatternRangeEndpoint.Start);caret.Select();}
+        owned=awaitingOwned;awaitingOwned=awaitingTail=null;return true;
+      }}catch(ElementNotAvailableException){}
+      Thread.Sleep(20);
+    }
+    return false;
+  }
+  static void SendKeys(System.Collections.Generic.List<INPUT> list){
+    // Small batches let editors consume long additions without dropping a flood of
+    // Unicode events. Unchanged text is never selected or retyped on normal growth.
+    for(int start=0;start<list.Count;){
+      int count=Math.Min(64,list.Count-start);
+      // Never leave Shift held across a batch boundary for a rich-editor line break.
+      while(count<list.Count-start&&list[start+count-1].data.key.vk==13)count++;
+      var keys=list.GetRange(start,count).ToArray();
+      if(SendInput((uint)keys.Length,keys,Marshal.SizeOf(typeof(INPUT)))!=(uint)keys.Length)throw new Exception("系统阻止了写入，请检查目标程序是否以管理员身份运行");
+      start+=count;if(start<list.Count)Thread.Sleep(4);
+    }
+  }
   static object Update(string text){
     try{
+      if(!ConfirmPending())return new {ok=false,retryable=true,message="等待输入框确认写入，仍在听写"};
       Verify();if(text==owned)return new {ok=true};
       for(int i=0;i<25 && ((GetAsyncKeyState(0x11)&0x8000)!=0||(GetAsyncKeyState(0x12)&0x8000)!=0||(GetAsyncKeyState(0x10)&0x8000)!=0);i++)Thread.Sleep(20);
       if((GetAsyncKeyState(0x11)&0x8000)!=0||(GetAsyncKeyState(0x12)&0x8000)!=0||(GetAsyncKeyState(0x10)&0x8000)!=0)throw new Exception("请松开快捷键后继续说话");
@@ -84,7 +138,7 @@ class FeimoInput {
       if(Canonical(range.GetText(-1))!=previous)throw new Exception("输入范围校验失败，已停止替换");
       if(selection||previous.Length>0||tail>0)range.Select();
       // Recheck focus and full text after selection; this operation never touches the clipboard.
-      if(GetForegroundWindow()!=foreground||Read()!=prefix+owned+suffix||Id(AutomationElement.FocusedElement)!=identity)throw new Exception("输入框已变化");
+      RefreshFocus();if(!Matches(prefix+owned+suffix))throw new Exception("输入框已变化");
       var list=new System.Collections.Generic.List<INPUT>();
       if(replacement.Length==0&&previous.Length>0){list.Add(Virtual(8,0));list.Add(Virtual(8,2));}
       else foreach(char c in replacement){
@@ -93,17 +147,11 @@ class FeimoInput {
           list.Add(Virtual(16,0));list.Add(Virtual(13,0));list.Add(Virtual(13,2));list.Add(Virtual(16,2));
         }else{list.Add(Key(c,4));list.Add(Key(c,6));}
       }
-      var keys=list.ToArray();
-      if(SendInput((uint)keys.Length,keys,Marshal.SizeOf(typeof(INPUT)))!=(uint)keys.Length)throw new Exception("系统阻止了写入，请检查目标程序是否以管理员身份运行");
-      string expected=prefix+text+suffix;bool matched=false;
-      for(int i=0;i<35;i++){Thread.Sleep(10);if(Read()==expected){matched=true;break;}}
-      if(!matched)throw new Exception("目标程序未确认写入，已停止后续替换");
-      if(tail>0){
-        var caret=pattern.GetSelection()[0].Clone();caret.MoveEndpointByUnit(TextPatternRangeEndpoint.Start,TextUnit.Character,Units(retained));
-        caret.MoveEndpointByRange(TextPatternRangeEndpoint.End,caret,TextPatternRangeEndpoint.Start);caret.Select();
-      }
-      owned=text;return new {ok=true};
-    }catch(Exception e){blocked=true;return new {ok=false,message=e.Message};}
+      SendKeys(list);awaitingOwned=text;awaitingTail=retained;
+      if(!ConfirmPending())return new {ok=false,retryable=true,message="等待输入框确认写入，仍在听写"};
+      return new {ok=true};
+    }catch(ElementNotAvailableException){return new {ok=false,retryable=true,message="输入框正在更新，正在重新确认写入"};}
+    catch(Exception e){blocked=true;return new {ok=false,retryable=false,message=e.Message};}
   }
   [STAThread] static void Main(){
     Console.InputEncoding=Encoding.UTF8;Console.OutputEncoding=new UTF8Encoding(false);json.MaxJsonLength=1000000;

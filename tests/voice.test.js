@@ -23,6 +23,33 @@ test('WAV conversion clamps PCM, has correct header; transcript merge avoids ove
 function fixture({targetOk=true,polish=false}={}){const copied=[],writes=[],commands=[];let voice;const settings={get:()=>({...DEFAULTS,polish})};let asr;const service=new VoiceService({settings,getSecret:async()=>null,models:{dir:'.',state:()=>({ready:true}),cancel(){}},input:{async capture(){return {ok:true}},async update(t){writes.push(t);return {ok:targetOk,message:'target moved'}},async release(){return {ok:true}},close(){}},capture:c=>commands.push(c),copy:async t=>copied.push(t),onChange(){},asrFactory:(_c,{onText})=>(asr={async start(){},accept(){},async finish(){return '今天用翡墨记录灵感'},close(){},emit:onText})});return {service,copied,writes,commands,get asr(){return asr}};}
 test('dictation is opt-in, streams into owned target, pauses and copies corrected final text',async()=>{const f=fixture(),v=f.service;v.audio('wrong',new Float32Array(10),1);assert.deepEqual(f.writes,[]);await v.start();v.micReady(v.state().id);f.asr.emit('今天用翡墨');await v.settle(v.session);assert.equal(f.writes[0],'今天用斐墨');v.pause();assert.equal(v.state().phase,'paused');v.pause();assert.equal(v.state().phase,'listening');await v.finish();assert.equal(v.state().phase,'completed');assert.deepEqual(f.copied,['今天用斐墨记录灵感']);assert.ok(f.commands.some(c=>c.type==='stop'));assert.equal(v.session,null);});
 test('target change disables future injection but retains final clipboard result',async()=>{const f=fixture({targetOk:false});await f.service.start();f.service.micReady(f.service.state().id);f.asr.emit('测试');await f.service.settle(f.service.session);await f.service.finish();assert.deepEqual(f.writes,['测试']);assert.equal(f.service.state().targetOk,false);assert.equal(f.copied.length,1);});
+test('provider confirmation delay recovers and the final AI correction replaces the owned input',async()=>{
+ const f=fixture({polish:true}),v=f.service;let attempts=0;
+ v.settings={get:name=>name==='llm'?{baseUrl:'https://fixture.invalid',model:'fixture'}:{...DEFAULTS,polish:true,useGlobalLlm:true}};
+ v.fetcher=async()=>new Response(JSON.stringify({choices:[{message:{content:'今天用斐墨记录灵感。'}}]}),{headers:{'content-type':'application/json'}});
+ v.input.update=async text=>{f.writes.push(text);return ++attempts<=2?{ok:false,retryable:true,message:'provider is refreshing'}:{ok:true}};
+ await v.start();v.micReady(v.state().id);f.asr.emit('今天');await v.settle(v.session);
+ assert.equal(v.state().phase,'listening');assert.equal(v.state().targetRetryable,true);
+ f.asr.emit('今天用翡墨');await v.settle(v.session);assert.equal(v.state().targetOk,true);assert.equal(v.state().warning,'');
+ await v.finish();assert.equal(v.state().phase,'completed');assert.equal(v.state().targetOk,true);
+ assert.equal(f.writes.at(-1),'今天用斐墨记录灵感。');assert.deepEqual(f.copied,['今天用斐墨记录灵感。']);
+});
+test('stop releases microphone immediately while the target is still confirming a write',async()=>{
+ const f=fixture(),v=f.service;let releaseWrite;
+ v.input.update=async text=>{f.writes.push(text);if(text==='等待确认')await new Promise(r=>releaseWrite=r);return {ok:true}};
+ await v.start();v.micReady(v.state().id);f.asr.emit('等待确认');
+ const finish=v.finish();assert.equal(v.state().phase,'finishing');assert.equal(f.commands.at(-1).type,'stop');
+ releaseWrite();await finish;assert.equal(v.state().phase,'completed');assert.equal(v.state().targetOk,true);
+});
+test('late recognition events during AI polishing cannot overwrite the polished target',async()=>{
+ const f=fixture({polish:true}),v=f.service;let completePolish;
+ v.settings={get:name=>name==='llm'?{baseUrl:'https://fixture.invalid',model:'fixture'}:{...DEFAULTS,polish:true,useGlobalLlm:true}};
+ v.fetcher=async()=>{await new Promise(r=>completePolish=r);return new Response(JSON.stringify({choices:[{message:{content:'校对后的正文。'}}]}),{headers:{'content-type':'application/json'}})};
+ await v.start();v.micReady(v.state().id);const finish=v.finish();
+ while(v.state().phase!=='polishing')await new Promise(r=>setImmediate(r));
+ const before=f.writes.length;f.asr.emit('迟到的原文');assert.equal(f.writes.length,before);
+ completePolish();await finish;assert.equal(f.writes.at(-1),'校对后的正文。');assert.equal(f.copied[0],'校对后的正文。');
+});
 test('cancel stops capture and ignores stale recognizer events without clipboard writes',async()=>{const f=fixture();await f.service.start();f.service.micReady(f.service.state().id);await f.service.cancel();f.asr.emit('stale');assert.equal(f.service.state().phase,'idle');assert.deepEqual(f.copied,[]);assert.deepEqual(f.writes,[]);});
 test('missing AI configuration preserves dictation and reports fallback',async()=>{const f=fixture({polish:true});await f.service.start();f.service.micReady(f.service.state().id);await f.service.finish();assert.equal(f.copied[0],'今天用斐墨记录灵感');assert.match(f.service.state().warning,/未配置 AI/);});
 test('no speech does not erase a selected input or replace the clipboard',async()=>{const f=fixture();await f.service.start();f.service.micReady(f.service.state().id);f.asr.finish=async()=>'';await f.service.finish();assert.equal(f.copied.length,0);assert.equal(f.writes.length,0);});

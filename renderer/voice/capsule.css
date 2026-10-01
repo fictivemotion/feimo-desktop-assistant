@@ -2,7 +2,7 @@
 :root{--voice-aura-angle:0deg}
 @property --voice-aura-angle{syntax:'<angle>';initial-value:0deg;inherits:false}
 #capsule{position:relative;border:1px solid #ced7df;background:#f5f8fb;isolation:isolate}
-#capsule::before{content:'';position:absolute;inset:-1px;border-radius:inherit;padding:1.5px;pointer-events:none;background:conic-gradient(from var(--voice-aura-angle),transparent 10%,#80b9ae 23%,#91a7cb 33%,transparent 46%,transparent 60%,#b6a8ce 73%,#93c4bd 83%,transparent 96%);mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask-composite:exclude;opacity:0}
+#capsule::before{content:'';position:absolute;inset:-1px;border-radius:inherit;padding:1.5px;pointer-events:none;background:conic-gradient(from var(--voice-aura-angle),transparent 10%,#3984ed 23%,#8cc9ff 33%,transparent 46%,transparent 60%,#4774e5 73%,#79b8fa 83%,transparent 96%);mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask-composite:exclude;opacity:0}
 #capsule[data-phase=listening]::before{opacity:1;animation:voice-aura 3.6s linear infinite}
 #capsule[data-phase=polishing] #message{background:linear-gradient(100deg,#354451 20%,#a2b3bd 45%,#354451 70%);background-size:220% 100%;background-clip:text;color:transparent;animation:voice-shimmer 1.6s linear infinite}
 .caption strong{font-size:12px}.caption span{font-size:10px;color:#788695;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
