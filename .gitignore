@@ -31,3 +31,5 @@ lib/pets.local.js
 Thumbs.db
 .idea/
 .vscode/
+
+.qa-gallery/

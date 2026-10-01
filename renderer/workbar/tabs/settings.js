@@ -145,7 +145,6 @@
         </div>
       </div>
 
-      <div class="settings-section"><h4><span data-icon="DocumentText" data-size="16"></span> 闪念上岸学习互联</h4><div class="card"><p class="muted">同步网站计时、学习任务、刷题统计与知识卡片。</p><button class="btn" id="st-study">连接学习空间</button></div></div>
       <div class="settings-section support-section">
         <h4><span data-icon="Heart" data-size="16"></span> 支持开发者</h4>
         <div class="card support-card"><span class="support-kicker">THANK YOU FOR BEING HERE</span><h2>朕心甚悦，赏！</h2><p class="muted">如果斐墨帮你省下了一点时间，欢迎请开发者喝杯茶。自愿赞赏，金额随心。</p>
@@ -175,7 +174,7 @@
     const sections = [...view.querySelectorAll('.settings-section')];
     sections.forEach(section => {
       const title = section.querySelector('h4').textContent;
-      section.dataset.group = /支持开发者/.test(title) ? 'support' : /模型/.test(title) ? 'model' : /全局热键/.test(title) ? 'shortcuts' : /Agent|Notion|日程同步|闪念上岸/.test(title) ? 'connections' : /隐私/.test(title) ? 'privacy' : 'general';
+      section.dataset.group = /支持开发者/.test(title) ? 'support' : /模型/.test(title) ? 'model' : /全局热键/.test(title) ? 'shortcuts' : /Agent|Notion|日程同步/.test(title) ? 'connections' : /隐私/.test(title) ? 'privacy' : 'general';
     });
     function showGroup(group) {
       sections.forEach(section => { section.hidden = section.dataset.group !== group; });
@@ -188,7 +187,6 @@
     }
     view.prepend(nav); showGroup('general');
     view.querySelector('#st-back').addEventListener('click', () => window.switchTab('chat'));
-    view.querySelector('#st-study').onclick=()=>window.switchTab('study');
 
     // 宠物选择
     const petGrid = view.querySelector('#st-pets');

@@ -19,7 +19,6 @@ const { LlmGateway } = require('./lib/llm');
 const { splitReply } = require('./lib/reply-pages');
 const windowsIntegration = require('./lib/windows-integration');
 const { Toolbox } = require('./lib/toolbox');
-const {StudyBridge,BASE:STUDY_BASE}=require('./lib/study-bridge');
 const {Soundscape,catalog:soundscapeCatalog}=require('./lib/soundscape');
 const { quotaCard, QuotaAlerts, noticeCard } = require('./lib/prompt-cards');
 const { AgentRegistry } = require('./lib/connectors/registry');
@@ -42,8 +41,8 @@ const {ModifierShortcut,isModifierShortcut}=require('./lib/voice/modifier-shortc
 const { DEFAULTS:VOICE_DEFAULTS, validateConfig:validateVoiceConfig } = require('./lib/voice/config');
 const { correct:correctVoice, parseRules:parseVoiceRules } = require('./lib/voice/hotwords');
 
-// Keep the existing Windows data folder stable across the product-name change to 斐墨.
-app.setPath('userData', process.env.FEIMO_USER_DATA_DIR || path.join(app.getPath('appData'), '桌面宠物助手'));
+// Public edition has its own local data folder.
+app.setPath('userData', process.env.FEIMO_USER_DATA_DIR || path.join(app.getPath('appData'), '斐墨助手'));
 
 // ---------- 单实例 ----------
 const gotLock = app.requestSingleInstanceLock();
@@ -69,7 +68,6 @@ function bootstrap() {
     ui: { theme: 'glass', companionSpeech: true, ambientSpeech: true },
     system: { openAtLogin: false },
     toolbox: { autoCapture: false },
-    study:{proactive:true,cardIntervalMin:30},
     voice:{...VOICE_DEFAULTS},
   });
   const savedPet = settings.get('pet', {});
@@ -124,14 +122,6 @@ function bootstrap() {
   const registry = new AgentRegistry({ bus, enabledSources: settings.get('agents', {}).sources });
   let toolbox = null, toolboxError = '', clipboardPoll = null, clipboardPolling = false;
   const quotaAlerts = new QuotaAlerts();
-  let study=null,studyError='',studyAuthWin=null,studyAuthPoll=null,lastStudyPrompt=Date.now(),lastPracticeCount=null;
-  const requireStudy=()=>{if(!study)throw new Error(studyError||'学习互联尚未准备好');return study};
-  function studyChanged(value){
-    workbarWin?.webContents.send('study:changed',value);
-    const count=value.snapshot?.practice?.today?.total;
-    if(lastPracticeCount!==null&&count>lastPracticeCount&&settings.get('study',{}).proactive!==false&&!workbarWin?.isVisible()&&!replyState){const card=study.prompt();if(card)showPromptCard(card,2)}
-    if(Number.isFinite(count))lastPracticeCount=count;
-  }
   const codexLimits = new CodexLimitsClient();
   let limitsTimer=null,usageNotifyTimer=null;
   let limitsStatus={refreshing:false,lastAttemptAt:null,lastSuccessAt:null,error:null};
@@ -616,7 +606,6 @@ function bootstrap() {
   }
 
   focus.onChange = (view) => {
-    study?.observe(view);
     workbarWin?.webContents.send('focus:changed', view);
     quickWin?.webContents.send('focus:changed', view);
     broadcastPetState();
@@ -640,14 +629,6 @@ function bootstrap() {
     }
   }, 1000);
   focusTicker.unref?.();
-  const studyPromptTimer=setInterval(async()=>{
-    if(!study?.data.identity||settings.get('study',{}).proactive===false||settings.get('ui',{}).ambientSpeech===false||scheduler.isPaused()||workbarWin?.isVisible()||focus.active||replyState||powerMonitor.getSystemIdleTime()>600)return;
-    const hour=new Date().getHours();if(hour<8||hour>=23)return;
-    if(Date.now()-lastStudyPrompt<Math.max(10,Number(settings.get('study',{}).cardIntervalMin)||30)*60000)return;
-    lastStudyPrompt=Date.now();try{await study.randomCard();if(!workbarWin?.isVisible()&&!replyState){const card=study.prompt('knowledge');if(card)showPromptCard(card,2)}}catch{}
-  },60000);studyPromptTimer.unref?.();
-
-  // ---------- 通知 ----------
   function pushNotice(n) {
     if(n.kind==='reminder'||!settings.get('agents',{}).muteNotifications)playBloub(({reminder:'reminder',needs_input:'reminder',completed:'completed',failed:'failed'})[n.kind]||'notification');
     if (n.kind === 'reminder' || !settings.get('agents', {}).muteNotifications) {
@@ -924,7 +905,7 @@ function bootstrap() {
   ipc.handle('settings:get', () => settings.get());
   ipc.handle('settings:set', (_e, patch) => {
     for (const k of Object.keys(patch)) {
-      if (!['pet', 'llm', 'hotkeys', 'agents', 'calendar', 'notion', 'privacy', 'usage', 'ui', 'system', 'toolbox','study'].includes(k)) continue;
+      if (!['pet', 'llm', 'hotkeys', 'agents', 'calendar', 'notion', 'privacy', 'usage', 'ui', 'system', 'toolbox'].includes(k)) continue;
       if (k === 'system') patch[k] = { openAtLogin: windowsIntegration.setStartup(app, !!patch[k]?.openAtLogin) };
       settings.set(k, patch[k]);
     }
@@ -971,44 +952,11 @@ function bootstrap() {
   ipc.handle('speech:copy', () => { if (replyState?.full) return writeTextVerified(clipboard, replyState.full); });
   ipc.on('speech:stop', () => chatAbort.controller?.abort());
   ipc.on('speech:cardClose', () => { if (cardState) { dismissSpeech(); speechWin?.setIgnoreMouseEvents(true, { forward: true }); speechWin?.setFocusable(false); } });
-  ipc.on('speech:cardOpen', (_e, tab) => { if (['agents', 'schedule', 'focus', 'usage','study'].includes(String(tab).split(':')[0])) { if (cardState) dismissSpeech(); showWorkbar(tab); } });
+  ipc.on('speech:cardOpen', (_e, tab) => { if (['agents', 'schedule', 'focus', 'usage'].includes(String(tab).split(':')[0])) { if (cardState) dismissSpeech(); showWorkbar(tab); } });
   ipc.handle('soundscape:state',()=>soundscape.view());
   ipc.handle('soundscape:command',(_e,data)=>soundscape.command(data||{}));
   ipcMain.on('soundscape:ready',e=>{if(e.sender===soundscapeWin?.webContents)soundscapeWin.webContents.send('soundscape:player',{...soundscape.state,sounds:soundscapeCatalog.sounds})});
   ipcMain.on('soundscape:report',(e,data)=>{if(e.sender===soundscapeWin?.webContents)soundscape.report(data||{})});
-  const studyConnectionView=()=>study?{...study.view(),authWindow:!!studyAuthWin&&!studyAuthWin.isDestroyed(),authVisible:!!studyAuthWin&&!studyAuthWin.isDestroyed()&&studyAuthWin.isVisible()}: {connected:false,error:studyError};
-  ipc.handle('study:state',studyConnectionView);
-  ipc.handle('study:sync',async()=>{await requireStudy().sync(true);return study.view()});
-  ipc.handle('study:resolve',(_e,choice)=>requireStudy().resolve(choice==='local'?'local':'cloud'));
-  ipc.handle('study:task',(_e,data)=>requireStudy().task(data||{}));
-  ipc.handle('study:card',async(_e,id)=>requireStudy().randomCard(id));
-  ipc.handle('study:prompt',async(_e,kind)=>{const s=requireStudy();if(!s.data.identity){showWorkbar('study');return false}if(kind==='knowledge')await s.randomCard();else if(kind==='current'&&!s.currentCard)await s.randomCard();else await s.sync(true);const card=s.prompt(kind==='current'?'knowledge':kind);if(card)showPromptCard(card,3);else speak('暂时没有可展示的知识卡片喔',{force:true});return true});
-  ipc.handle('study:website',()=>shell.openExternal(STUDY_BASE));
-  ipc.handle('study:disconnect',async()=>{requireStudy().disconnect();await setSecret('studyToken','');lastPracticeCount=null;return study.view()});
-  ipc.handle('study:connect',()=>{
-    requireStudy();studyError='';
-    const showLogin=win=>{workbarWin?.hide();quickWin?.hide();speechWin?.hide();win.show();if(win.isMinimized())win.restore();win.moveTop();win.focus();workbarWin?.webContents.send('study:changed',studyConnectionView())};
-    if(studyAuthWin&&!studyAuthWin.isDestroyed()){showLogin(studyAuthWin);return true}
-    const area=screen.getDisplayMatching(workbarWin?.getBounds()||petWin.getBounds()).workArea;
-    const width=Math.min(920,area.width-32),height=Math.min(760,area.height-32);
-    const win=new BrowserWindow({show:false,width,height,x:Math.round(area.x+(area.width-width)/2),y:Math.round(area.y+(area.height-height)/2),title:'登录闪念上岸 · 连接斐墨',webPreferences:{partition:`study-auth-${Date.now()}`,contextIsolation:true,sandbox:true,nodeIntegration:false}});studyAuthWin=win;win.setAlwaysOnTop(true,'screen-saver');showLogin(win);
-    win.webContents.on('did-fail-load',(_e,code)=>{if(code===-3)return;studyError='登录页面加载失败，请检查网络后重新打开';workbarWin?.webContents.send('study:changed',{...studyConnectionView(),error:studyError})});
-    win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
-    win.webContents.on('will-navigate',(e,url)=>{if(new URL(url).origin!==STUDY_BASE)e.preventDefault()});
-    let checking=false;
-    studyAuthPoll=setInterval(async()=>{
-      if(checking||win.isDestroyed())return;checking=true;
-      try{
-        const cookies=await win.webContents.session.cookies.get({url:STUDY_BASE,name:'anshang_session'});if(!cookies[0]?.value)return;
-        const response=await net.fetch(STUDY_BASE+'/api/v1/auth/me',{headers:{Authorization:'Bearer '+cookies[0].value}});if(!response.ok)return;
-        const account=await response.json(),workspace=account.workspaces?.find(w=>w.role!=='viewer');if(!workspace)throw new Error('没有可同步的学习工作区');
-        if(study.data.identity&&study.data.identity.userId!==account.user.id)throw new Error('请先断开当前学习账号，再连接另一个账号');
-        await setSecret('studyToken',cookies[0].value);await study.connect({userId:account.user.id,workspaceId:workspace.id,displayName:account.user.displayName});win.close();
-      }catch(e){studyError=e.message;workbarWin?.webContents.send('study:changed',{...study.view(),error:studyError})}
-      finally{checking=false}
-    },2000);
-    win.on('closed',()=>{clearInterval(studyAuthPoll);studyAuthPoll=null;studyAuthWin=null;showWorkbar('study');workbarWin?.webContents.send('study:changed',studyConnectionView())});win.loadURL(STUDY_BASE).catch(()=>{studyError='登录页面无法加载，请检查网络后重试'});return true;
-  });
   ipc.handle('quick:quota', async () => {
     await refreshLimits();
     const card = quotaCard(registry.snapshot().limits?.codex);
@@ -1054,9 +1002,9 @@ function bootstrap() {
   ipc.handle('pets:list', () => PETS);
   ipc.handle('workbar:show', (_e, tab) => showWorkbar(tab));
   ipc.on('workbar:scene',(e,tab)=>{
-    if(e.sender!==workbarWin?.webContents||!['voice','chat','process','agents','schedule','focus','settings','tools','study'].includes(tab)||tab===workbarTab)return;
+    if(e.sender!==workbarWin?.webContents||!['voice','chat','process','agents','schedule','focus','settings','tools','soundscape'].includes(tab)||tab===workbarTab)return;
     workbarTab=tab;broadcastPetState();
-    if(workbarWin?.isVisible())playBloub(tab==='settings'?'settingsOpen':['tools','study'].includes(tab)?'toolsOpen':'workbenchOpen');
+    if(workbarWin?.isVisible())playBloub(tab==='settings'?'settingsOpen':['tools'].includes(tab)?'toolsOpen':'workbenchOpen');
   });
   ipc.handle('workbar:hide', () => { hideWorkbar(); return true; });
 
@@ -1161,7 +1109,7 @@ function bootstrap() {
 
   ipc.handle('focus:state', () => focus.view());
   ipc.handle('focus:stats', () => focus.stats());
-  ipc.handle('focus:addLabel', async(_e, data) => {if(!study?.data.identity)return focus.addLabel(data?.name,data?.color);if(!String(data?.name||'').trim())throw new Error('请填写任务标签');const result=await study.task({title:String(data.name).trim(),estimateMinutes:25});return focus.labels.find(l=>l.remoteId===result.taskId)});
+  ipc.handle('focus:addLabel',(_e,data)=>focus.addLabel(data?.name,data?.color));
   ipc.handle('focus:start', (_e, data) => { const r = focus.start(data || {}); speak('开始啦，我会安静陪着你。', { force: true, priority: 2 }); return r; });
   ipc.handle('focus:pause', () => focus.pause());
   ipc.handle('focus:resume', () => focus.resume());
@@ -1351,7 +1299,6 @@ function bootstrap() {
       toolbox = new Toolbox(path.join(paths.dataDir(), 'toolbox.bin'), { encrypt: v => safeStorage.encryptString(v), decrypt: v => safeStorage.decryptString(v) });
       restartClipboardPoll();
     } catch (e) { toolboxError = e.message; }
-    try{study=new StudyBridge({file:path.join(paths.dataDir(),'study-bridge.bin'),encrypt:v=>safeStorage.encryptString(v),decrypt:v=>safeStorage.decryptString(v),getToken:()=>getSecret('studyToken'),fetcher:(url,options)=>net.fetch(url,options),focus,onChange:studyChanged});if(study.data.identity)study.start()}catch(e){studyError=e.message}
     if (settings.get('system', {}).openAtLogin) windowsIntegration.setStartup(app, true);
     createPetWindow();
     createWorkbarWindow();
@@ -1421,7 +1368,6 @@ function bootstrap() {
     globalShortcut.unregisterAll();
     registry.stop();
     codexLimits.stop();clearInterval(limitsTimer);clearTimeout(usageNotifyTimer);usage.flushModelRepairs();
-    study?.stop();clearInterval(studyAuthPoll);clearInterval(studyPromptTimer);studyAuthWin?.close();
     scheduler.stop();
     if (notionTimer) clearInterval(notionTimer);
     if (stateTimer) clearInterval(stateTimer);

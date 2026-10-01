@@ -1,0 +1,3 @@
+.prompt-metrics{display:flex;gap:16px;margin:12px 0}.prompt-metrics>div{display:flex;flex-direction:column;gap:5px}.prompt-metrics strong{font-size:18px;color:#293442}.prompt-metrics small{font-size:10px;color:#8895a1}
+
+#prompt-card header strong,.prompt-inline header strong{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}

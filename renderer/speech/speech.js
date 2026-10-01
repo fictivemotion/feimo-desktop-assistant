@@ -146,7 +146,6 @@
     const subtitle=document.createElement('p');subtitle.textContent=value.subtitle;root.append(subtitle);
     if(value.text){const body=document.createElement('div');body.className='prompt-text';body.textContent=value.text;root.append(body);}
     if(value.summary){const summary=document.createElement('div');summary.className='prompt-text';summary.textContent=value.summary;root.append(summary)}
-    if(value.html){const body=window.StudyRich.render(value.html);body.classList.add('prompt-knowledge');root.append(body)}
     if(value.metrics){const metrics=document.createElement('div');metrics.className='prompt-metrics';for(const item of value.metrics){const cell=document.createElement('div'),valueNode=document.createElement('strong'),label=document.createElement('small');valueNode.textContent=item.value;label.textContent=item.label;cell.append(valueNode,label);metrics.append(cell)}root.append(metrics)}
     for(const w of value.windows||[]){
       const row=document.createElement('div');row.className='quota-window';const label=document.createElement('span');label.textContent=w.label;const remaining=document.createElement('b');remaining.textContent=`剩余 ${Math.round(100-w.usedPercent)}%`;

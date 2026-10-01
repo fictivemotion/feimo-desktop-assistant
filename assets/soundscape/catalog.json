@@ -10,7 +10,7 @@
       "groupId": "river",
       "groupName": "河流",
       "variantId": "river",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/nature/river.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/nature/river.mp3",
       "quality": "原始高保真"
     },
     {
@@ -23,7 +23,7 @@
       "groupId": "waves",
       "groupName": "海浪",
       "variantId": "waves",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/nature/waves.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/nature/waves.mp3",
       "quality": "原始高保真"
     },
     {
@@ -36,7 +36,7 @@
       "groupId": "campfire",
       "groupName": "篝火",
       "variantId": "campfire",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/nature/campfire.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/nature/campfire.mp3",
       "quality": "原始高保真"
     },
     {
@@ -49,7 +49,7 @@
       "groupId": "wind",
       "groupName": "风声",
       "variantId": "wind",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/nature/wind.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/nature/wind.mp3",
       "quality": "原始高保真"
     },
     {
@@ -62,7 +62,7 @@
       "groupId": "howling-wind",
       "groupName": "狂风",
       "variantId": "howling-wind",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/nature/howling-wind.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/nature/howling-wind.mp3",
       "quality": "原始高保真"
     },
     {
@@ -75,7 +75,7 @@
       "groupId": "wind-in-trees",
       "groupName": "林间风",
       "variantId": "wind-in-trees",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/nature/wind-in-trees.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/nature/wind-in-trees.mp3",
       "quality": "原始高保真"
     },
     {
@@ -88,7 +88,7 @@
       "groupId": "waterfall",
       "groupName": "瀑布",
       "variantId": "waterfall",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/nature/waterfall.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/nature/waterfall.mp3",
       "quality": "原始高保真"
     },
     {
@@ -101,7 +101,7 @@
       "groupId": "walk-in-snow",
       "groupName": "雪地脚步",
       "variantId": "walk-in-snow",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/nature/walk-in-snow.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/nature/walk-in-snow.mp3",
       "quality": "原始高保真"
     },
     {
@@ -114,7 +114,7 @@
       "groupId": "walk-on-leaves",
       "groupName": "落叶脚步",
       "variantId": "walk-on-leaves",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/nature/walk-on-leaves.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/nature/walk-on-leaves.mp3",
       "quality": "原始高保真"
     },
     {
@@ -127,7 +127,7 @@
       "groupId": "walk-on-gravel",
       "groupName": "碎石脚步",
       "variantId": "walk-on-gravel",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/nature/walk-on-gravel.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/nature/walk-on-gravel.mp3",
       "quality": "原始高保真"
     },
     {
@@ -140,7 +140,7 @@
       "groupId": "droplets",
       "groupName": "水滴",
       "variantId": "droplets",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/nature/droplets.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/nature/droplets.mp3",
       "quality": "原始高保真"
     },
     {
@@ -153,7 +153,7 @@
       "groupId": "jungle",
       "groupName": "丛林",
       "variantId": "jungle",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/nature/jungle.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/nature/jungle.mp3",
       "quality": "原始高保真"
     },
     {
@@ -166,7 +166,7 @@
       "groupId": "light-rain",
       "groupName": "小雨",
       "variantId": "light-rain",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/rain/light-rain.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/rain/light-rain.mp3",
       "quality": "原始高保真"
     },
     {
@@ -179,7 +179,7 @@
       "groupId": "heavy-rain",
       "groupName": "大雨",
       "variantId": "heavy-rain",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/rain/heavy-rain.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/rain/heavy-rain.mp3",
       "quality": "原始高保真"
     },
     {
@@ -192,7 +192,7 @@
       "groupId": "thunder",
       "groupName": "雷声",
       "variantId": "thunder",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/rain/thunder.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/rain/thunder.mp3",
       "quality": "原始高保真"
     },
     {
@@ -205,7 +205,7 @@
       "groupId": "rain-on-window",
       "groupName": "窗上雨",
       "variantId": "rain-on-window",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/rain/rain-on-window.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/rain/rain-on-window.mp3",
       "quality": "原始高保真"
     },
     {
@@ -218,7 +218,7 @@
       "groupId": "rain-on-car-roof",
       "groupName": "车顶雨",
       "variantId": "rain-on-car-roof",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/rain/rain-on-car-roof.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/rain/rain-on-car-roof.mp3",
       "quality": "原始高保真"
     },
     {
@@ -231,7 +231,7 @@
       "groupId": "rain-on-umbrella",
       "groupName": "雨伞雨",
       "variantId": "rain-on-umbrella",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/rain/rain-on-umbrella.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/rain/rain-on-umbrella.mp3",
       "quality": "原始高保真"
     },
     {
@@ -244,7 +244,7 @@
       "groupId": "rain-on-tent",
       "groupName": "帐篷雨",
       "variantId": "rain-on-tent",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/rain/rain-on-tent.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/rain/rain-on-tent.mp3",
       "quality": "原始高保真"
     },
     {
@@ -257,7 +257,7 @@
       "groupId": "rain-on-leaves",
       "groupName": "叶上雨",
       "variantId": "rain-on-leaves",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/rain/rain-on-leaves.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/rain/rain-on-leaves.mp3",
       "quality": "原始高保真"
     },
     {
@@ -270,7 +270,7 @@
       "groupId": "birds",
       "groupName": "鸟鸣",
       "variantId": "birds",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/animals/birds.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/animals/birds.mp3",
       "quality": "原始高保真"
     },
     {
@@ -283,7 +283,7 @@
       "groupId": "seagulls",
       "groupName": "海鸥",
       "variantId": "seagulls",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/animals/seagulls.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/animals/seagulls.mp3",
       "quality": "原始高保真"
     },
     {
@@ -296,7 +296,7 @@
       "groupId": "crickets",
       "groupName": "蟋蟀",
       "variantId": "crickets",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/animals/crickets.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/animals/crickets.mp3",
       "quality": "原始高保真"
     },
     {
@@ -309,7 +309,7 @@
       "groupId": "wolf",
       "groupName": "狼嚎",
       "variantId": "wolf",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/animals/wolf.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/animals/wolf.mp3",
       "quality": "原始高保真"
     },
     {
@@ -322,7 +322,7 @@
       "groupId": "owl",
       "groupName": "猫头鹰",
       "variantId": "owl",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/animals/owl.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/animals/owl.mp3",
       "quality": "原始高保真"
     },
     {
@@ -335,7 +335,7 @@
       "groupId": "frog",
       "groupName": "蛙鸣",
       "variantId": "frog",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/animals/frog.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/animals/frog.mp3",
       "quality": "原始高保真"
     },
     {
@@ -348,7 +348,7 @@
       "groupId": "dog-barking",
       "groupName": "狗叫",
       "variantId": "dog-barking",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/animals/dog-barking.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/animals/dog-barking.mp3",
       "quality": "原始高保真"
     },
     {
@@ -361,7 +361,7 @@
       "groupId": "horse-gallop",
       "groupName": "马蹄",
       "variantId": "horse-gallop",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/animals/horse-gallop.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/animals/horse-gallop.mp3",
       "quality": "原始高保真"
     },
     {
@@ -374,7 +374,7 @@
       "groupId": "cat-purring",
       "groupName": "猫咪呼噜",
       "variantId": "cat-purring",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/animals/cat-purring.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/animals/cat-purring.mp3",
       "quality": "原始高保真"
     },
     {
@@ -387,7 +387,7 @@
       "groupId": "crows",
       "groupName": "乌鸦",
       "variantId": "crows",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/animals/crows.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/animals/crows.mp3",
       "quality": "原始高保真"
     },
     {
@@ -400,7 +400,7 @@
       "groupId": "whale",
       "groupName": "鲸鸣",
       "variantId": "whale",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/animals/whale.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/animals/whale.mp3",
       "quality": "原始高保真"
     },
     {
@@ -413,7 +413,7 @@
       "groupId": "beehive",
       "groupName": "蜂巢",
       "variantId": "beehive",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/animals/beehive.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/animals/beehive.mp3",
       "quality": "原始高保真"
     },
     {
@@ -426,7 +426,7 @@
       "groupId": "woodpecker",
       "groupName": "啄木鸟",
       "variantId": "woodpecker",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/animals/woodpecker.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/animals/woodpecker.mp3",
       "quality": "原始高保真"
     },
     {
@@ -439,7 +439,7 @@
       "groupId": "chickens",
       "groupName": "鸡鸣",
       "variantId": "chickens",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/animals/chickens.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/animals/chickens.mp3",
       "quality": "原始高保真"
     },
     {
@@ -452,7 +452,7 @@
       "groupId": "cows",
       "groupName": "牛鸣",
       "variantId": "cows",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/animals/cows.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/animals/cows.mp3",
       "quality": "原始高保真"
     },
     {
@@ -465,7 +465,7 @@
       "groupId": "sheep",
       "groupName": "羊鸣",
       "variantId": "sheep",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/animals/sheep.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/animals/sheep.mp3",
       "quality": "原始高保真"
     },
     {
@@ -478,7 +478,7 @@
       "groupId": "highway",
       "groupName": "高速公路",
       "variantId": "highway",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/urban/highway.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/urban/highway.mp3",
       "quality": "原始高保真"
     },
     {
@@ -491,7 +491,7 @@
       "groupId": "road",
       "groupName": "道路",
       "variantId": "road",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/urban/road.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/urban/road.mp3",
       "quality": "原始高保真"
     },
     {
@@ -504,7 +504,7 @@
       "groupId": "ambulance-siren",
       "groupName": "救护车警笛",
       "variantId": "ambulance-siren",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/urban/ambulance-siren.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/urban/ambulance-siren.mp3",
       "quality": "原始高保真"
     },
     {
@@ -517,7 +517,7 @@
       "groupId": "busy-street",
       "groupName": "繁华街道",
       "variantId": "busy-street",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/urban/busy-street.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/urban/busy-street.mp3",
       "quality": "原始高保真"
     },
     {
@@ -530,7 +530,7 @@
       "groupId": "crowd",
       "groupName": "人群",
       "variantId": "crowd",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/urban/crowd.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/urban/crowd.mp3",
       "quality": "原始高保真"
     },
     {
@@ -543,7 +543,7 @@
       "groupId": "traffic",
       "groupName": "车流",
       "variantId": "traffic",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/urban/traffic.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/urban/traffic.mp3",
       "quality": "原始高保真"
     },
     {
@@ -556,7 +556,7 @@
       "groupId": "fireworks",
       "groupName": "烟花",
       "variantId": "fireworks",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/urban/fireworks.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/urban/fireworks.mp3",
       "quality": "原始高保真"
     },
     {
@@ -569,7 +569,7 @@
       "groupId": "cafe",
       "groupName": "咖啡馆",
       "variantId": "cafe",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/places/cafe.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/places/cafe.mp3",
       "quality": "原始高保真"
     },
     {
@@ -582,7 +582,7 @@
       "groupId": "airport",
       "groupName": "机场",
       "variantId": "airport",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/places/airport.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/places/airport.mp3",
       "quality": "原始高保真"
     },
     {
@@ -595,7 +595,7 @@
       "groupId": "church",
       "groupName": "教堂",
       "variantId": "church",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/places/church.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/places/church.mp3",
       "quality": "原始高保真"
     },
     {
@@ -608,7 +608,7 @@
       "groupId": "temple",
       "groupName": "寺庙",
       "variantId": "temple",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/places/temple.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/places/temple.mp3",
       "quality": "原始高保真"
     },
     {
@@ -621,7 +621,7 @@
       "groupId": "construction-site",
       "groupName": "工地",
       "variantId": "construction-site",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/places/construction-site.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/places/construction-site.mp3",
       "quality": "原始高保真"
     },
     {
@@ -634,7 +634,7 @@
       "groupId": "underwater",
       "groupName": "水下",
       "variantId": "underwater",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/places/underwater.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/places/underwater.mp3",
       "quality": "原始高保真"
     },
     {
@@ -647,7 +647,7 @@
       "groupId": "crowded-bar",
       "groupName": "酒吧",
       "variantId": "crowded-bar",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/places/crowded-bar.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/places/crowded-bar.mp3",
       "quality": "原始高保真"
     },
     {
@@ -660,7 +660,7 @@
       "groupId": "night-village",
       "groupName": "夜间村庄",
       "variantId": "night-village",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/places/night-village.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/places/night-village.mp3",
       "quality": "原始高保真"
     },
     {
@@ -673,7 +673,7 @@
       "groupId": "subway-station",
       "groupName": "地铁站",
       "variantId": "subway-station",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/places/subway-station.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/places/subway-station.mp3",
       "quality": "原始高保真"
     },
     {
@@ -686,7 +686,7 @@
       "groupId": "office",
       "groupName": "办公室",
       "variantId": "office",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/places/office.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/places/office.mp3",
       "quality": "原始高保真"
     },
     {
@@ -699,7 +699,7 @@
       "groupId": "supermarket",
       "groupName": "超市",
       "variantId": "supermarket",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/places/supermarket.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/places/supermarket.mp3",
       "quality": "原始高保真"
     },
     {
@@ -712,7 +712,7 @@
       "groupId": "carousel",
       "groupName": "旋转木马",
       "variantId": "carousel",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/places/carousel.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/places/carousel.mp3",
       "quality": "原始高保真"
     },
     {
@@ -725,7 +725,7 @@
       "groupId": "laboratory",
       "groupName": "实验室",
       "variantId": "laboratory",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/places/laboratory.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/places/laboratory.mp3",
       "quality": "原始高保真"
     },
     {
@@ -738,7 +738,7 @@
       "groupId": "laundry-room",
       "groupName": "洗衣房",
       "variantId": "laundry-room",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/places/laundry-room.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/places/laundry-room.mp3",
       "quality": "原始高保真"
     },
     {
@@ -751,7 +751,7 @@
       "groupId": "restaurant",
       "groupName": "餐厅",
       "variantId": "restaurant",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/places/restaurant.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/places/restaurant.mp3",
       "quality": "原始高保真"
     },
     {
@@ -764,7 +764,7 @@
       "groupId": "library",
       "groupName": "图书馆",
       "variantId": "library",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/places/library.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/places/library.mp3",
       "quality": "原始高保真"
     },
     {
@@ -777,7 +777,7 @@
       "groupId": "train",
       "groupName": "火车",
       "variantId": "train",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/transport/train.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/transport/train.mp3",
       "quality": "原始高保真"
     },
     {
@@ -790,7 +790,7 @@
       "groupId": "inside-a-train",
       "groupName": "火车车厢",
       "variantId": "inside-a-train",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/transport/inside-a-train.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/transport/inside-a-train.mp3",
       "quality": "原始高保真"
     },
     {
@@ -803,7 +803,7 @@
       "groupId": "airplane",
       "groupName": "飞机",
       "variantId": "airplane",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/transport/airplane.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/transport/airplane.mp3",
       "quality": "原始高保真"
     },
     {
@@ -816,7 +816,7 @@
       "groupId": "submarine",
       "groupName": "潜艇",
       "variantId": "submarine",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/transport/submarine.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/transport/submarine.mp3",
       "quality": "原始高保真"
     },
     {
@@ -829,7 +829,7 @@
       "groupId": "sailboat",
       "groupName": "帆船",
       "variantId": "sailboat",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/transport/sailboat.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/transport/sailboat.mp3",
       "quality": "原始高保真"
     },
     {
@@ -842,7 +842,7 @@
       "groupId": "rowing-boat",
       "groupName": "划船",
       "variantId": "rowing-boat",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/transport/rowing-boat.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/transport/rowing-boat.mp3",
       "quality": "原始高保真"
     },
     {
@@ -855,7 +855,7 @@
       "groupId": "keyboard",
       "groupName": "键盘",
       "variantId": "keyboard",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/things/keyboard.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/things/keyboard.mp3",
       "quality": "原始高保真"
     },
     {
@@ -868,7 +868,7 @@
       "groupId": "typewriter",
       "groupName": "打字机",
       "variantId": "typewriter",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/things/typewriter.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/things/typewriter.mp3",
       "quality": "原始高保真"
     },
     {
@@ -881,7 +881,7 @@
       "groupId": "paper",
       "groupName": "纸张",
       "variantId": "paper",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/things/paper.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/things/paper.mp3",
       "quality": "原始高保真"
     },
     {
@@ -894,7 +894,7 @@
       "groupId": "clock",
       "groupName": "时钟",
       "variantId": "clock",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/things/clock.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/things/clock.mp3",
       "quality": "原始高保真"
     },
     {
@@ -907,7 +907,7 @@
       "groupId": "wind-chimes",
       "groupName": "风铃",
       "variantId": "wind-chimes",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/things/wind-chimes.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/things/wind-chimes.mp3",
       "quality": "原始高保真"
     },
     {
@@ -920,7 +920,7 @@
       "groupId": "singing-bowl",
       "groupName": "颂钵",
       "variantId": "singing-bowl",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/things/singing-bowl.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/things/singing-bowl.mp3",
       "quality": "原始高保真"
     },
     {
@@ -933,7 +933,7 @@
       "groupId": "ceiling-fan",
       "groupName": "吊扇",
       "variantId": "ceiling-fan",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/things/ceiling-fan.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/things/ceiling-fan.mp3",
       "quality": "原始高保真"
     },
     {
@@ -946,7 +946,7 @@
       "groupId": "dryer",
       "groupName": "烘干机",
       "variantId": "dryer",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/things/dryer.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/things/dryer.mp3",
       "quality": "原始高保真"
     },
     {
@@ -959,7 +959,7 @@
       "groupId": "slide-projector",
       "groupName": "幻灯机",
       "variantId": "slide-projector",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/things/slide-projector.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/things/slide-projector.mp3",
       "quality": "原始高保真"
     },
     {
@@ -972,7 +972,7 @@
       "groupId": "boiling-water",
       "groupName": "沸水",
       "variantId": "boiling-water",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/things/boiling-water.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/things/boiling-water.mp3",
       "quality": "原始高保真"
     },
     {
@@ -985,7 +985,7 @@
       "groupId": "bubbles",
       "groupName": "气泡",
       "variantId": "bubbles",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/things/bubbles.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/things/bubbles.mp3",
       "quality": "原始高保真"
     },
     {
@@ -998,7 +998,7 @@
       "groupId": "tuning-radio",
       "groupName": "收音机调频",
       "variantId": "tuning-radio",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/things/tuning-radio.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/things/tuning-radio.mp3",
       "quality": "原始高保真"
     },
     {
@@ -1011,7 +1011,7 @@
       "groupId": "morse-code",
       "groupName": "摩斯电码",
       "variantId": "morse-code",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/things/morse-code.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/things/morse-code.mp3",
       "quality": "原始高保真"
     },
     {
@@ -1024,7 +1024,7 @@
       "groupId": "washing-machine",
       "groupName": "洗衣机",
       "variantId": "washing-machine",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/things/washing-machine.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/things/washing-machine.mp3",
       "quality": "原始高保真"
     },
     {
@@ -1037,7 +1037,7 @@
       "groupId": "vinyl-effect",
       "groupName": "黑胶唱片",
       "variantId": "vinyl-effect",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/things/vinyl-effect.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/things/vinyl-effect.mp3",
       "quality": "原始高保真"
     },
     {
@@ -1050,7 +1050,7 @@
       "groupId": "windshield-wipers",
       "groupName": "雨刷",
       "variantId": "windshield-wipers",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/things/windshield-wipers.mp3",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/things/windshield-wipers.mp3",
       "quality": "原始高保真"
     },
     {
@@ -1063,7 +1063,7 @@
       "groupId": "white-noise",
       "groupName": "白噪音",
       "variantId": "white-noise",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/noise/white-noise.wav",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/noise/white-noise.wav",
       "quality": "原始高保真"
     },
     {
@@ -1076,7 +1076,7 @@
       "groupId": "pink-noise",
       "groupName": "粉红噪音",
       "variantId": "pink-noise",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/noise/pink-noise.wav",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/noise/pink-noise.wav",
       "quality": "原始高保真"
     },
     {
@@ -1089,7 +1089,7 @@
       "groupId": "brown-noise",
       "groupName": "棕噪音",
       "variantId": "brown-noise",
-      "audioUrl": "https://shangancard.me/media/moodist/sounds/noise/brown-noise.wav",
+      "audioUrl": "https://raw.githubusercontent.com/remvze/moodist/285ecdbfc67fb082833eee8cef9cd34bbdb1d755/public/sounds/noise/brown-noise.wav",
       "quality": "原始高保真"
     }
   ],

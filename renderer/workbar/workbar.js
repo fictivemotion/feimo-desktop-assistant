@@ -26,7 +26,7 @@
     focus: ['专注与计时', '一次只做一件事。', ''],
     settings: ['设置', '让斐墨更符合你的习惯。', '返回问答'],
     tools: ['快捷工具箱', '收好复制的内容，留住灵感，找到配色。', '返回问答'],
-    study:['闪念上岸','学习进度、任务和知识卡片，随手掌握。','同步'],
+    soundscape:['白噪音','把世界调低一点，留一段安静给自己。',''],
     voice:['斐墨语音','说出想法，让文字准确落下。',''],
   };
 
@@ -47,13 +47,12 @@
     window.TABS[name]?.onShown?.();
     if(name==='agents'){window.TABS.usage?.onShown?.();if(route==='usage')usageHeading.scrollIntoView({block:'start',behavior:'smooth'});}
     if (name === 'tools' && sub) window.TABS.tools?.show(sub);
-    if (name === 'study' && sub) window.TABS.study?.show(sub);
     if (name === 'voice' && sub) window.TABS.voice?.show(sub);
   }
   document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => switchTab(t.dataset.tab)));
   $('#btn-settings').addEventListener('click', () => switchTab('settings'));
   $('#btn-tools').addEventListener('click', () => switchTab('tools:clipboard'));
-  $('#btn-study').addEventListener('click',()=>switchTab('study'));
+  $('#btn-soundscape').addEventListener('click',()=>switchTab('soundscape'));
   $('#btn-voice').addEventListener('click',()=>switchTab('voice'));
   window.switchTab = switchTab;
   $('#page-new-chat').addEventListener('click',()=>window.TABS.chat.newConversation());
@@ -62,7 +61,6 @@
     else if (active === 'process') $('#pt-paste').click();
     else if (active === 'agents') {$('#ag-refresh').click();window.TABS.usage?.onShown?.();}
     else if (active === 'usage') $('#u-export').click();
-    else if(active==='study')window.TABS.study?.sync();
     else if (active === 'schedule') window.TABS.schedule.toggleEditor();
     else if (active === 'settings' || active === 'tools') switchTab('chat');
   });
