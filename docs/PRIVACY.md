@@ -4,7 +4,7 @@
 
 ## 本地数据
 
-应用设置、日程、问答历史、倒计时记录和 Token 用量存放于 Windows 用户数据目录 `%APPDATA%\桌面宠物助手\`。模型 API 密钥与 Notion Token 通过 Electron `safeStorage` 加密后保存在本机。工具箱中的剪贴板、速记与收藏色卡同样通过 Windows DPAPI 加密保存在 `toolbox.bin` 中；不会自动同步到外部服务。此目录名保持稳定，应用更名为斐墨后也会继续读取原有设置。
+1.5.0 起的公开版将应用设置、日程、问答历史、倒计时记录和 Token 用量存放于 `%APPDATA%\斐墨助手\`，不读取私人版的原用户数据目录。模型 API 密钥与 Notion Token 通过 Electron `safeStorage` 加密后保存在本机。工具箱中的剪贴板、速记与收藏色卡同样通过 Windows DPAPI 加密保存在 `toolbox.bin` 中；不会自动同步到外部服务。首次使用此公开版需要自行配置可选服务。
 
 ## 外部连接
 
