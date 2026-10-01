@@ -7,6 +7,6 @@
   SoundscapeUI.tracks($('noise-tracks'),state,command);$('noise-status').textContent=state.error||(state.loading?'正在加载在线音源…':state.playing?'正在播放 · 关闭卡片后继续':'轻声陪你，把注意力留给此刻');
  }
  async function command(value){try{render(await api.soundscapeCommand(value))}catch(e){$('noise-status').textContent=e.message}}
- $('noise-play').onclick=()=>command({playing:!state?.playing});$('noise-preset').onchange=()=>{if($('noise-preset').value!=='custom')command({preset:$('noise-preset').value})};$('noise-library').onclick=()=>api.openWorkbar('soundscape');
+ $('noise-play').onclick=()=>command({playing:!state?.playing});$('noise-preset').onchange=()=>{if($('noise-preset').value!=='custom')command({preset:$('noise-preset').value})};$('noise-library').onclick=()=>api.openWorkbar('focus:soundscape');
  api.onSoundscapeChanged?.(render);window.FeimoNoise={refresh:()=>api.soundscapeState().then(render)};window.FeimoNoise.refresh();
 })();

@@ -3,7 +3,8 @@
   const api = window.api;
   const view = document.getElementById('view-focus');
   view.innerHTML = `
-    <div class="focus-view-tabs" role="group" aria-label="计时页面"><button class="active" data-focus-view="editor">开始计时</button><button data-focus-view="stats">统计与记录</button></div>
+    <div class="focus-view-tabs" role="group" aria-label="计时页面"><button class="active" data-focus-view="editor">开始计时</button><button data-focus-view="stats">统计记录</button><button data-focus-view="soundscape">白噪音</button></div>
+    <section id="focus-soundscape" hidden></section>
     <div id="focus-editor">
     <div class="focus-hero card"><div><span class="focus-eyebrow">FOCUS WITH FEIMO</span><h2>专注一会儿</h2><p>选择任务，斐墨会在桌面陪你计时。</p></div><div class="focus-ring"><span id="f-clock">25:00</span></div></div>
     <div class="card focus-control">
@@ -23,12 +24,14 @@
   let stats = { byDay: [], byLabel: [], yesterdayMinutes: 0, monthMinutes: 0, yearMinutes: 0 };
   let mode = 'pomodoro', selected = 'focus', range = 'month';
   const $ = (s) => view.querySelector(s);
-  view.querySelectorAll('[data-focus-view]').forEach(button => button.addEventListener('click', () => {
-    const showStats = button.dataset.focusView === 'stats';
-    $('#focus-editor').hidden = showStats; $('#focus-stats').hidden = !showStats;
-    view.querySelectorAll('[data-focus-view]').forEach(b => { b.classList.toggle('active', b === button); b.setAttribute('aria-pressed', b === button); });
+  function show(section = 'editor') {
+    if (!['editor', 'stats', 'soundscape'].includes(section)) section = 'editor';
+    for (const key of ['editor', 'stats', 'soundscape']) $('#focus-' + key).hidden = key !== section;
+    view.querySelectorAll('[data-focus-view]').forEach(b => { const selected = b.dataset.focusView === section; b.classList.toggle('active', selected); b.setAttribute('aria-pressed', String(selected)); });
     view.scrollTop = 0;
-  }));
+    if (section === 'soundscape') window.TABS.soundscape?.onShown?.();
+  }
+  view.querySelectorAll('[data-focus-view]').forEach(button => button.addEventListener('click', () => show(button.dataset.focusView)));
   const esc = UI.esc;
   const pad = (n) => String(n).padStart(2, '0');
   const dayKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -125,6 +128,6 @@
   $('#f-start').addEventListener('click', async () => { try { await api.focusStart({ minutes: +$('#f-minutes').value, labelId: selected, mode }); refresh(); } catch (e) { UI.toast(e.message, true); } });
   $('#f-pause').addEventListener('click', async () => { if (state.active?.status === 'paused') await api.focusResume(); else await api.focusPause(); refresh(); });
   $('#f-stop').addEventListener('click', async () => { await api.focusStop(); refresh(); });
-  window.TABS.focus = { onShown: refresh };
+  window.TABS.focus = { onShown: refresh, show };
   refresh();
 })();

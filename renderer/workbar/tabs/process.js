@@ -59,7 +59,7 @@
           <button class="btn primary" id="ocr-copy">复制合并文本</button>
           <button class="btn" id="ocr-copy-lines">仅复制勾选行</button>
         </div>
-        <div class="pane"><div class="pane-head"><span class="t">合并结果 · 已自动清理空行与中文字间空格</span></div><div class="out" id="ocr-merged" style="min-height:80px"></div></div>
+        <div class="pane"><div class="pane-head"><span class="t">合并结果 · 已自动合并错误换行、清理空行与字间空格</span></div><div class="out" id="ocr-merged" style="min-height:80px"></div></div>
       </div>
     </div>`;
 
@@ -103,7 +103,7 @@
         if (e.target.checked) enabled.add(r.id); else enabled.delete(r.id);
         scheduleApply();
       });
-      if (r.id === 'removeAllBlankLines' || r.id === 'removeCjkSpaces') quickRulesBox.appendChild(item);
+      if (r.id === 'removeAllBlankLines' || r.id === 'removeCjkSpaces' || r.id === 'reflowParagraphs') quickRulesBox.appendChild(item);
       else rulesBox.appendChild(item);
     }
     scheduleApply();
@@ -213,7 +213,7 @@
   let ocrBusy = false;
   let lineOrder = 'raw';
   let currentDataUrl = null;
-  const OCR_AUTO_RULES = ['removeZeroWidth', 'stripControlChars', 'trimTrailingSpaces', 'removeAllBlankLines', 'removeCjkSpaces', 'dedupeSpaces'];
+  const OCR_AUTO_RULES = ['removeZeroWidth', 'stripControlChars', 'trimTrailingSpaces', 'removeAllBlankLines', 'removeCjkSpaces', 'dedupeSpaces', 'reflowParagraphs'];
   let mergedRevision = 0;
   let mergedPending = Promise.resolve();
 

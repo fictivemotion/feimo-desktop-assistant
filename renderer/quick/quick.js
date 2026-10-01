@@ -13,7 +13,7 @@
     [{icon:'CalendarAdd',title:'新建日程',run:()=>showPanel('schedule')},{icon:'Timer',title:'倒计时 / 番茄钟',run:()=>showPanel('timer')},{icon:'Widget',title:'打开工作台',run:()=>api.openWorkbar('chat')}],
     [{icon:'ClipboardText',title:'剪贴板管理',run:()=>api.openWorkbar('tools:clipboard')},{icon:'NoteText',title:'随手速记',run:()=>showPanel('note')},{icon:'Palette',title:'配色与色卡',run:()=>api.openWorkbar('tools:palette')}],
     [{icon:'Image',title:'截图提取并清洗文字',run:()=>api.clipboardRunQuick('image')},{icon:'Broom',title:'清洗剪贴板文字',run:()=>api.clipboardRunQuick('text')},{icon:'ChartBar',title:'Codex 额度卡片',run:()=>api.quota()}],
-    [{icon:'Music',title:'白噪音声景',run:()=>showPanel('noise')},{icon:'ChartBar',title:'专注统计',run:()=>api.openWorkbar('focus')},{icon:'Music',title:'完整白噪音音库',run:()=>api.openWorkbar('soundscape')}],
+    [{icon:'Music',title:'白噪音声景',run:()=>showPanel('noise')},{icon:'ChartBar',title:'专注统计',run:()=>api.openWorkbar('focus:stats')},{icon:'Music',title:'完整白噪音音库',run:()=>api.openWorkbar('focus:soundscape')}],
   ];
   let group = 0, paging = false, pointer = null, suppressClickUntil = 0, wheelAt = 0;
   const toolButtons = [...tools.querySelectorAll('button')];

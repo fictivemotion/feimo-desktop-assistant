@@ -26,12 +26,12 @@
     focus: ['专注与计时', '一次只做一件事。', ''],
     settings: ['设置', '让斐墨更符合你的习惯。', '返回问答'],
     tools: ['快捷工具箱', '收好复制的内容，留住灵感，找到配色。', '返回问答'],
-    soundscape:['白噪音','把世界调低一点，留一段安静给自己。',''],
     voice:['斐墨语音','说出想法，让文字准确落下。',''],
   };
 
   function switchTab(name) {
-    const [route, sub] = String(name || 'voice').split(':'); name = route==='usage'?'agents':route;
+    let [route, sub] = String(name || 'voice').split(':');
+    if (route === 'soundscape') { route = 'focus'; sub = 'soundscape'; } name = route==='usage'?'agents':route;
     if (!views[name]) name = 'chat';
     if (name === 'settings' && !views.settings._built) { window.TABS.settings?.build(); views.settings._built = true; }
     active = name;
@@ -47,12 +47,13 @@
     window.TABS[name]?.onShown?.();
     if(name==='agents'){window.TABS.usage?.onShown?.();if(route==='usage')usageHeading.scrollIntoView({block:'start',behavior:'smooth'});}
     if (name === 'tools' && sub) window.TABS.tools?.show(sub);
+    if (name === 'focus' && sub) window.TABS.focus?.show(sub);
     if (name === 'voice' && sub) window.TABS.voice?.show(sub);
   }
   document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => switchTab(t.dataset.tab)));
   $('#btn-settings').addEventListener('click', () => switchTab('settings'));
   $('#btn-tools').addEventListener('click', () => switchTab('tools:clipboard'));
-  $('#btn-soundscape').addEventListener('click',()=>switchTab('soundscape'));
+  $('#btn-soundscape').addEventListener('click',()=>switchTab('focus:soundscape'));
   $('#btn-voice').addEventListener('click',()=>switchTab('voice'));
   window.switchTab = switchTab;
   $('#page-new-chat').addEventListener('click',()=>window.TABS.chat.newConversation());

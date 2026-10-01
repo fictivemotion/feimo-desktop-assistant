@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert');
-const { applyRules, splitBlocks, RULES } = require('../lib/textRules');
+const { applyRules, splitBlocks, RULES, AUTO_CLEAN_RULES } = require('../lib/textRules');
 
 const R = (text, rules) => applyRules(text, rules);
 
@@ -54,6 +54,23 @@ test('段落重排换行：合并硬换行（空行分段）', () => {
   assert.strictEqual(R('english hard\nwrapped line\nhere', ['reflowParagraphs']), 'english hard wrapped line here');
   // 无空行时整段合并为一段
   assert.strictEqual(R('第一句。\n第二句。', ['reflowParagraphs']), '第一句。第二句。');
+});
+
+test('快捷清洗修复用户提供的箍桶匠文字断行，重复操作保持稳定', () => {
+  const text = '随着社会与科技的发展进步，各种新材料、新工艺层出不穷，以前家家必备的笨重木\n桶逐渐被人们用塑料桶或不锈钢桶取代，从事箍桶匠这个职业的人也逐渐减少。谈及箍桶技\n艺的传承，周师傅遗憾他的儿子并没有继承他的手艺，“现在的年轻人不喜欢这个，也定不\n下心。';
+  const expected = text.replace(/\n/g, '');
+  assert.strictEqual(R(text, AUTO_CLEAN_RULES), expected);
+  assert.strictEqual(R(text.replaceAll('\n', '\r\n   '), AUTO_CLEAN_RULES), expected);
+  assert.strictEqual(R(expected, AUTO_CLEAN_RULES), expected);
+  assert.strictEqual(R(text, RULES.filter(r => r.defaultOn).map(r => r.id)), expected);
+});
+
+test('自动清洗保留真实段落、标题、列表、表格与代码，仅连接正文断行', () => {
+  const text = '# 标题\n中文被拆\n到下一行。\n\n第二段。\n- 第一项\n- 第二项\n| 列 |\n| -- |\n```\n原样\n\n  代码\n```';
+  const expected = '# 标题\n中文被拆到下一行。\n第二段。\n- 第一项\n- 第二项\n| 列 |\n| -- |\n```\n原样\n\n  代码\n```';
+  assert.strictEqual(R(text, AUTO_CLEAN_RULES), expected);
+  assert.strictEqual(R(' english hard  \n  wrapped line  \n\n next paragraph', AUTO_CLEAN_RULES), 'english hard wrapped line\nnext paragraph');
+  assert.strictEqual(R('中文\u2028断行\u2029下一段', AUTO_CLEAN_RULES), '中文断行\n下一段');
 });
 
 test('全半角标点规范化：CJK 语境', () => {

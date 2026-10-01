@@ -12,7 +12,7 @@ const { EventBus } = require('./lib/events');
 const { JsonStore } = require('./lib/store');
 const { PETS } = require('./lib/pets');
 const { petScene } = require('./lib/pet-scenes');
-const { applyRules, RULES } = require('./lib/textRules');
+const { applyRules, RULES, AUTO_CLEAN_RULES } = require('./lib/textRules');
 const { readImageBuffer, snapshotClipboard, writeTextVerified, writeImageVerified } = require('./lib/clipboard');
 const { OcrService } = require('./lib/ocr');
 const { LlmGateway } = require('./lib/llm');
@@ -820,7 +820,7 @@ function bootstrap() {
         if (result.empty) { clipboardJobStatus.state = 'no-ocr-text'; speak('这张图片里没有识别到文字哦', { force: true, priority: 4 }); return; }
         raw = result.lines.map((line) => line.text).join('\n');
       }
-      const cleaned = applyRules(raw, ['removeZeroWidth', 'stripControlChars', 'trimTrailingSpaces', 'removeAllBlankLines', 'removeCjkSpaces', 'dedupeSpaces']).trim();
+      const cleaned = applyRules(raw, AUTO_CLEAN_RULES).trim();
       if (!cleaned) { clipboardJobStatus.state = 'empty-output'; speak('没有找到可以复制的文字哦', { force: true, priority: 4 }); return; }
       // Keep the progress bubble visible long enough to register for short text.
       if (Date.now() - startedAt < 400) await new Promise((resolve) => setTimeout(resolve, 400 - (Date.now() - startedAt)));
