@@ -1,409 +1,95 @@
 'use strict';
-/** 快捷处理页：两个子页 —— 文本规则清洗（双栏） / 图片转文字（OCR）。
- *  文本：勾选规则实时预览、撤销、复制、替换剪贴板；代码块/表格/引用结构保护。
- *  OCR：拖入/粘贴/选择图片 → 本地识别 → 逐行编辑、阅读顺序重排、AI 校对（显式触发）。
+/** AI 清洗：文本显式触发；新图片本地 OCR 后自动调用 DeepSeek。
+ * 原文始终保留，流式结果只在成功完成后允许复制，修改或取消会丢弃迟到的结果。
  */
-(() => {
-  const api = window.api;
-  const view = document.getElementById('view-process');
+(()=>{
+ const api=window.api,view=document.getElementById('view-process'),$=id=>view.querySelector('#'+id);
+ view.innerHTML=`
+ <div class="subtabs"><button class="subtab active" data-sub="text"><span data-icon="Broom" data-size="16"></span> 文本清洗</button><button class="subtab" data-sub="ocr"><span data-icon="Image" data-size="16"></span> 图片转文字</button></div>
+ <p class="muted">DeepSeek V4.1 Flash · 非思考模式 · 原文保留，AI 修复格式与明显错字。</p>
+ <div id="proc-text">
+  <div class="quick-rules" id="pt-quick-rules"></div>
+  <div class="dual"><div class="pane"><div class="pane-head"><span class="t">原文</span><button class="btn small" id="pt-paste">粘贴剪贴板</button></div><textarea id="pt-src" placeholder="粘贴或输入文本，点击 AI 快速清洗…" spellcheck="false"></textarea></div>
+   <div class="pane"><div class="pane-head"><span class="t">结果 <span id="pt-stats" class="muted"></span></span><button class="btn small" id="pt-diff">对比模式</button></div><div class="out" id="pt-out"><span class="muted">清洗后在这里显示结果</span></div></div></div>
+  <div class="actionbar proc-actions"><button class="btn primary" id="pt-ai"><span data-icon="MagicWand" data-size="16"></span> AI 快速清洗</button><button class="btn" id="pt-copy" disabled>复制结果</button><button class="btn" id="pt-replace" disabled>替换剪贴板</button><button class="btn" id="pt-undo">恢复原文</button></div>
+  <p class="muted" id="pt-note" role="status">只在点击清洗时发送正文，不会在打字时自动调用模型。</p>
+  <details class="advanced-rules"><summary>校对与排版选项</summary><div class="rules-grid" id="pt-rules"></div></details>
+ </div>
+ <div id="proc-ocr" style="display:none">
+  <div id="ocr-drop">拖入图片，或点击选择文件<br><span class="muted">也可 Ctrl+V 粘贴截图 · 图片本地识别，识别正文发送到 DeepSeek 清洗</span></div>
+  <input type="file" id="ocr-file" accept="image/*" style="display:none">
+  <div id="ocr-work" style="display:none"><div id="ocr-preview"><img id="ocr-img" alt="识别图片"><div class="boxes" id="ocr-boxes"></div></div>
+   <div class="actionbar" style="margin:6px 0 8px"><select id="ocr-lang" class="btn"><option value="auto">语言：自动</option><option value="zh-Hans">简体中文</option><option value="en">English</option></select><button class="btn" id="ocr-rerun">重新识别</button><button class="btn small" id="ocr-order"><span data-icon="SortDownUp" data-size="16"></span> 按阅读顺序重排</button></div>
+   <div class="ocr-lines" id="ocr-lines"></div>
+   <div class="pane"><div class="pane-head"><span class="t">AI 清洗合并结果</span></div><div class="out" id="ocr-merged" style="min-height:80px"></div></div>
+   <div class="actionbar proc-actions"><button class="btn primary" id="ocr-copy" disabled>复制清洗结果</button><button class="btn" id="ocr-proofread">重新 AI 清洗</button><button class="btn" id="ocr-cancel" hidden>停止清洗</button></div>
+   <p class="muted" id="ocr-note" role="status">识别后自动修复断行、字间空格和明显错字。</p>
+  </div>
+ </div>`;
+ let sub='text';
+ view.querySelectorAll('.subtab').forEach(b=>b.onclick=()=>{sub=b.dataset.sub;view.querySelectorAll('.subtab').forEach(x=>x.classList.toggle('active',x===b));$('proc-text').style.display=sub==='text'?'':'none';$('proc-ocr').style.display=sub==='ocr'?'':'none';});
+ const showSub=name=>view.querySelector(`[data-sub="${name}"]`).click();
+ const requestId=prefix=>`${prefix}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+ let enabled=new Set(),optionsReady=false,textJob=null,lastResult='',lastSource='',original='',originalSet=false,diffMode=false;
+ const src=$('pt-src'),out=$('pt-out');
+ function copyState(){const ready=!!lastResult&&!textJob;$('pt-copy').disabled=!ready;$('pt-replace').disabled=!ready;}
+ function textButton(){ $('pt-ai').innerHTML=textJob?'停止清洗':'<span data-icon="MagicWand" data-size="16"></span> AI 快速清洗'; }
+ function invalidateText(note='原文已更新，点击 AI 快速清洗'){if(textJob)void api.textCancel(textJob.id);textJob=null;lastResult='';$('pt-stats').textContent='';out.textContent=src.value.trim()?'等待 AI 清洗…':'清洗后在这里显示结果';$('pt-note').textContent=note;copyState();textButton();}
+ function renderOut(result,ms,streaming=false){if(diffMode&&lastResult){const d=UI.diffLines(lastSource,result);if(d)out.innerHTML=d.map(l=>l.t==='+'?`<ins>${UI.esc(l.s)}</ins>`:l.t==='-'?`<del>${UI.esc(l.s)}</del>`:UI.esc(l.s)).join('\n');else out.textContent=result;}else out.textContent=result;$('pt-stats').textContent=`${result.length} 字符${streaming?' · 输出中…':ms===undefined?'':` · ${(ms/1000).toFixed(1)}s`}`;}
+ async function cleanText(){
+  if(textJob){invalidateText('已停止清洗，原文保留');return;}
+  const text=src.value;if(!text.trim())return UI.toast('先输入或粘贴文本',true);if(!optionsReady)return UI.toast('清洗选项正在加载',true);
+  if(!originalSet){original=text;originalSet=true;}
+  const job={id:requestId('text'),text};textJob=job;lastResult='';lastSource=text;out.textContent='正在 AI 清洗…';$('pt-note').textContent='正在修复格式与校对，结果流式显示…';copyState();textButton();
+  try{const r=await api.textApply(text,[...enabled],{id:job.id});if(textJob!==job)return;lastResult=r.output;renderOut(r.output,r.ms);$('pt-note').textContent='清洗完成 · 请核对数字、专名和引用后使用。';}
+  catch(e){if(textJob!==job)return;lastResult='';out.textContent='清洗失败，原文保留';$('pt-note').textContent=e.message;UI.toast(e.message,true);}
+  finally{if(textJob===job){textJob=null;copyState();textButton();}}
+ }
+ api.onTextDelta(data=>{if(textJob?.id===data.id)renderOut(data.output,undefined,true);else if(mergedJob?.id===data.id)$('ocr-merged').textContent=data.output;});
+ (async()=>{try{for(const r of await api.textRules()){if(r.defaultOn)enabled.add(r.id);const item=document.createElement('label');item.className='rule-item';item.innerHTML=`<input type="checkbox" ${r.defaultOn?'checked':''}><div><div class="rn">${UI.esc(r.name)}</div><div class="rd">${UI.esc(r.desc)}</div></div>`;item.querySelector('input').onchange=e=>{if(e.target.checked)enabled.add(r.id);else enabled.delete(r.id);invalidateText('选项已更新，点击 AI 快速清洗');};(['removeAllBlankLines','removeCjkSpaces','reflowParagraphs'].includes(r.id)?$('pt-quick-rules'):$('pt-rules')).append(item);}optionsReady=true;}catch(e){$('pt-note').textContent=e.message;}})();
+ src.addEventListener('input',()=>invalidateText());
+ $('pt-ai').onclick=cleanText;
+ $('pt-paste').onclick=async()=>{const snap=await api.clipboardSnapshot();if(snap.kind==='text')loadText(snap.text);else UI.toast('剪贴板中没有文本',true);};
+ $('pt-copy').onclick=()=>{if(lastResult&&!textJob)UI.copyText(lastResult);};
+ $('pt-replace').onclick=async()=>{if(!lastResult||textJob)return;await api.clipboardWriteText(lastResult);UI.toast('清洗结果已复制到剪贴板');};
+ $('pt-undo').onclick=()=>{if(originalSet){src.value=original;invalidateText('已恢复原文');}else UI.toast('没有可恢复的原文',true);};
+ $('pt-diff').onclick=e=>{diffMode=!diffMode;e.target.textContent=diffMode?'纯文本模式':'对比模式';if(lastResult)renderOut(lastResult);};
+ function loadText(text){showSub('text');src.value=text;original=text;originalSet=true;invalidateText('原文已载入，点击 AI 快速清洗');}
 
-  view.innerHTML = `
-    <div class="subtabs">
-      <button class="subtab active" data-sub="text"><span data-icon="Broom" data-size="16"></span> 文本清洗</button>
-      <button class="subtab" data-sub="ocr"><span data-icon="Image" data-size="16"></span> 图片转文字</button>
-    </div>
-    <div id="proc-text">
-      <div class="quick-rules" id="pt-quick-rules"></div>
-      <div class="dual">
-        <div class="pane">
-          <div class="pane-head"><span class="t">原文</span>
-            <div><button class="btn small" id="pt-paste">粘贴剪贴板</button></div>
-          </div>
-          <textarea id="pt-src" placeholder="粘贴或输入文本…（代码块、表格、引用会被保护）" spellcheck="false"></textarea>
-        </div>
-        <div class="pane">
-          <div class="pane-head"><span class="t">结果 <span id="pt-stats" class="muted"></span></span>
-            <button class="btn small" id="pt-diff">对比模式</button>
-          </div>
-          <div class="out" id="pt-out"><span class="muted">结果预览…</span></div>
-        </div>
-      </div>
-      <div class="actionbar proc-actions">
-        <button class="btn primary" id="pt-copy">复制结果</button>
-        <button class="btn" id="pt-replace">替换剪贴板</button>
-        <button class="btn" id="pt-undo">撤销全部修改</button>
-        <button class="btn" id="pt-ai"><span data-icon="MagicWand" data-size="16"></span> AI 润色（可选）</button>
-      </div>
-      <details class="advanced-rules"><summary>更多格式清理选项</summary><div class="rules-grid" id="pt-rules"></div></details>
-    </div>
-    <div id="proc-ocr" style="display:none">
-      <div id="ocr-drop">
-        拖入图片，或点击选择文件<br/>
-        <span class="muted">也可以直接 Ctrl+V 粘贴截图 · 全程本地识别，不上传</span>
-      </div>
-      <input type="file" id="ocr-file" accept="image/*" style="display:none" />
-      <div id="ocr-work" style="display:none">
-        <div id="ocr-preview"><img id="ocr-img" alt=""/><div class="boxes" id="ocr-boxes"></div></div>
-        <div class="actionbar" style="margin:6px 0 8px">
-          <select id="ocr-lang" class="btn" style="padding:5px 8px">
-            <option value="auto">语言：自动</option>
-            <option value="zh-Hans">简体中文</option>
-            <option value="en">English</option>
-          </select>
-          <button class="btn" id="ocr-rerun">重新识别</button>
-          <button class="btn small" id="ocr-order"><span data-icon="SortDownUp" data-size="16"></span> 按阅读顺序重排</button>
-          <button class="btn small" id="ocr-proofread"><span data-icon="MagicWand" data-size="16"></span> AI 校对</button>
-        </div>
-        <div class="ocr-lines" id="ocr-lines"></div>
-        <div class="actionbar">
-          <button class="btn primary" id="ocr-copy">复制合并文本</button>
-          <button class="btn" id="ocr-copy-lines">仅复制勾选行</button>
-        </div>
-        <div class="pane"><div class="pane-head"><span class="t">合并结果 · 已自动合并错误换行、清理空行与字间空格</span></div><div class="out" id="ocr-merged" style="min-height:80px"></div></div>
-      </div>
-    </div>`;
-
-  // ---------- 子页切换 ----------
-  const subBtns = view.querySelectorAll('.subtab');
-  const textPane = view.querySelector('#proc-text');
-  const ocrPane = view.querySelector('#proc-ocr');
-  let sub = 'text';
-  subBtns.forEach((b) => b.addEventListener('click', () => {
-    sub = b.dataset.sub;
-    subBtns.forEach((x) => x.classList.toggle('active', x === b));
-    textPane.style.display = sub === 'text' ? '' : 'none';
-    ocrPane.style.display = sub === 'ocr' ? '' : 'none';
-  }));
-  function showSub(s) { subBtns.forEach((x) => { if (x.dataset.sub === s) x.click(); }); }
-
-  // ================= 文本清洗 =================
-  const src = view.querySelector('#pt-src');
-  const out = view.querySelector('#pt-out');
-  const statsEl = view.querySelector('#pt-stats');
-  const rulesBox = view.querySelector('#pt-rules');
-  const quickRulesBox = view.querySelector('#pt-quick-rules');
-  let rules = [];
-  let enabled = new Set();
-  let original = '';
-  let originalSet = false;
-  let diffMode = false;
-  let lastResult = '';
-  let aiBusy = false;
-  let applyRevision = 0;
-
-  (async () => {
-    rules = await api.textRules();
-    for (const r of rules) {
-      if (r.defaultOn) enabled.add(r.id);
-      const item = document.createElement('label');
-      item.className = 'rule-item';
-      item.title = r.desc;
-      item.innerHTML = `<input type="checkbox" ${r.defaultOn ? 'checked' : ''}/><div><div class="rn">${UI.esc(r.name)}</div><div class="rd">${UI.esc(r.desc)}</div></div>`;
-      item.querySelector('input').addEventListener('change', (e) => {
-        if (e.target.checked) enabled.add(r.id); else enabled.delete(r.id);
-        scheduleApply();
-      });
-      if (r.id === 'removeAllBlankLines' || r.id === 'removeCjkSpaces' || r.id === 'reflowParagraphs') quickRulesBox.appendChild(item);
-      else rulesBox.appendChild(item);
-    }
-    scheduleApply();
-  })();
-
-  let applyTimer = null;
-  function scheduleApply() {
-    clearTimeout(applyTimer);
-    applyTimer = setTimeout(applyNow, 180);
-  }
-  async function applyNow() {
-    const revision = ++applyRevision;
-    const text = src.value;
-    if (!text.trim()) { out.innerHTML = '<span class="muted">结果预览…</span>'; lastResult = ''; return; }
-    const { output, ms } = await api.textApply(text, [...enabled]);
-    if (revision !== applyRevision) return;
-    lastResult = output;
-    renderOut(text, output, ms);
-  }
-  function renderOut(source, result, ms) {
-    if (diffMode) {
-      const d = UI.diffLines(source, result);
-      if (d) {
-        out.innerHTML = d.map((l) => l.t === '+' ? `<ins>${UI.esc(l.s)}</ins>` : l.t === '-' ? `<del>${UI.esc(l.s)}</del>` : UI.esc(l.s)).join('\n');
-      } else {
-        out.textContent = result;
-      }
-    } else {
-      out.textContent = result;
-    }
-    const chars = result.length;
-    statsEl.textContent = `${ms}ms · ${chars} 字符`;
-  }
-
-  src.addEventListener('beforeinput', () => {
-    if (!originalSet) { original = src.value; originalSet = true; }
-  });
-  src.addEventListener('input', scheduleApply);
-  view.querySelector('#pt-paste').addEventListener('click', async () => {
-    const snap = await api.clipboardSnapshot();
-    if (snap.kind === 'text') { loadText(snap.text); UI.toast('已读取剪贴板'); }
-    else UI.toast('剪贴板中没有文本', true);
-  });
-  view.querySelector('#pt-copy').addEventListener('click', () => {
-    if (!lastResult) return UI.toast('没有可复制的结果', true);
-    UI.copyText(lastResult);
-  });
-  view.querySelector('#pt-replace').addEventListener('click', async () => {
-    if (!lastResult) return UI.toast('没有结果可替换', true);
-    await api.clipboardWriteText(lastResult);
-    UI.toast('剪贴板已替换为结果');
-  });
-  view.querySelector('#pt-undo').addEventListener('click', () => {
-    if (originalSet) { src.value = original; scheduleApply(); UI.toast('已恢复原文'); }
-    else UI.toast('没有可撤销的修改', true);
-  });
-  view.querySelector('#pt-diff').addEventListener('click', (e) => {
-    diffMode = !diffMode;
-    e.target.textContent = diffMode ? '纯文本模式' : '对比模式';
-    scheduleApply();
-  });
-  view.querySelector('#pt-ai').addEventListener('click', async (e) => {
-    const text = lastResult || src.value;
-    if (!text.trim()) return UI.toast('先输入或粘贴文本', true);
-    if (aiBusy) return;
-    if (!(await api.llmConfigured())) {
-      UI.toast('请先配置模型服务，再使用 AI 润色', true);
-      window.switchTab('settings');
-      return;
-    }
-    aiBusy = true;
-    e_busy(e.target, '润色中…');
-    try {
-      const r = await api.llmProofread('请润色优化以下文本的表达与排版，保持原意与格式（Markdown 结构不变），直接输出结果：\n\n' + text);
-      src.value = r.text;
-      if (!originalSet) { original = text; originalSet = true; }
-      scheduleApply();
-      UI.toast('AI 润色完成');
-    } catch (err) {
-      UI.toast('AI 润色失败：' + err.message, true);
-    } finally {
-      aiBusy = false;
-      e.target.innerHTML = '<span data-icon="MagicWand" data-size="16"></span> AI 润色（可选）';
-      e.target.disabled = false;
-    }
-  });
-  function e_busy(btn, label) { btn.disabled = true; btn.textContent = label; }
-
-  function loadText(text) {
-    showSub('text');
-    original = text;
-    originalSet = true;
-    src.value = text;
-    scheduleApply();
-  }
-
-  // ================= OCR =================
-  const drop = view.querySelector('#ocr-drop');
-  const fileInput = view.querySelector('#ocr-file');
-  const work = view.querySelector('#ocr-work');
-  const imgEl = view.querySelector('#ocr-img');
-  const boxesEl = view.querySelector('#ocr-boxes');
-  const linesEl = view.querySelector('#ocr-lines');
-  const mergedEl = view.querySelector('#ocr-merged');
-  const langSel = view.querySelector('#ocr-lang');
-  let ocrResult = null;
-  let ocrBusy = false;
-  let lineOrder = 'raw';
-  let currentDataUrl = null;
-  const OCR_AUTO_RULES = ['removeZeroWidth', 'stripControlChars', 'trimTrailingSpaces', 'removeAllBlankLines', 'removeCjkSpaces', 'dedupeSpaces', 'reflowParagraphs'];
-  let mergedRevision = 0;
-  let mergedPending = Promise.resolve();
-
-  drop.addEventListener('click', () => fileInput.click());
-  fileInput.addEventListener('change', () => {
-    if (fileInput.files?.[0]) readFile(fileInput.files[0]);
-    fileInput.value = '';
-  });
-  ['dragover', 'dragenter'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('over'); }));
-  ['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
-  drop.addEventListener('drop', (e) => {
-    const f = e.dataTransfer?.files?.[0];
-    if (f && f.type.startsWith('image/')) readFile(f);
-  });
-  view.addEventListener('paste', (e) => {
-    if (sub !== 'ocr') return;
-    for (const it of e.clipboardData?.items || []) {
-      if (it.type.startsWith('image/')) {
-        e.preventDefault();
-        readFile(it.getAsFile());
-        return;
-      }
-    }
-  });
-
-  function readFile(file) {
-    const r = new FileReader();
-    r.onload = () => loadOcrImage(r.result);
-    r.readAsDataURL(file);
-  }
-
-  async function loadOcrImage(dataUrl) {
-    showSub('ocr');
-    mergedRevision++;
-    mergedPending = Promise.resolve();
-    currentDataUrl = dataUrl;
-    work.style.display = '';
-    imgEl.src = dataUrl;
-    boxesEl.innerHTML = '';
-    linesEl.innerHTML = '<div class="muted" style="padding:12px 0;text-align:center">本地识别中…（不联网）</div>';
-    mergedEl.innerHTML = '';
-    await runOcr();
-  }
-
-  async function runOcr() {
-    if (!currentDataUrl || ocrBusy) return;
-    ocrBusy = true;
-    try {
-      ocrResult = await api.ocrRecognize(currentDataUrl, langSel.value);
-      renderOcrResult();
-    } catch (e) {
-      linesEl.innerHTML = `<div class="empty"><span class="big" data-icon="Warning" data-size="24"></span>${UI.esc(e.message)}</div>`;
-    } finally {
-      ocrBusy = false;
-    }
-  }
-
-  function renderOcrResult() {
-    if (ocrResult.empty) {
-      mergedRevision++;
-      mergedPending = Promise.resolve();
-      linesEl.innerHTML = `<div class="empty"><span class="big" data-icon="InfoCircle" data-size="24"></span>未检测到文字<br/><span class="muted">换一张更清晰的图片，或检查语言选择</span></div>`;
-      mergedEl.textContent = '';
-      return;
-    }
-    // 识别区域框
-    boxesEl.innerHTML = '';
-    const list = orderedLines();
-    imgEl.onload = null;
-    const scale = () => imgEl.clientWidth / (ocrResult.width || imgEl.naturalWidth);
-    const drawBoxes = () => {
-      boxesEl.innerHTML = '';
-      const s = scale();
-      for (const l of ocrResult.lines) {
-        const b = document.createElement('div');
-        b.className = 'bx';
-        b.style.left = l.x * s + 'px'; b.style.top = l.y * s + 'px';
-        b.style.width = l.w * s + 'px'; b.style.height = l.h * s + 'px';
-        boxesEl.appendChild(b);
-      }
-    };
-    drawBoxes();
-    window.addEventListener('resize', drawBoxes);
-
-    // 逐行编辑
-    linesEl.innerHTML = '';
-    for (const l of list) {
-      const row = document.createElement('div');
-      row.className = 'ocr-line';
-      row.innerHTML = `<input type="checkbox" checked/><input type="text" value="${UI.esc(l.text)}"/>`;
-      const cb = row.querySelector('input[type=checkbox]');
-      const tx = row.querySelector('input[type=text]');
-      cb.addEventListener('change', updateMerged);
-      tx.addEventListener('input', () => { l.text = tx.value; updateMerged(); });
-      linesEl.appendChild(row);
-    }
-    updateMerged();
-  }
-
-  function orderedLines() {
-    if (!ocrResult) return [];
-    if (lineOrder === 'reading') {
-      // 按阅读顺序：先按 y 分组再按 x
-      const sorted = ocrResult.lines.slice().sort((a, b) => a.y - b.y || a.x - b.x);
-      const groups = [];
-      for (const l of sorted) {
-        const g = groups.at(-1);
-        if (g && Math.abs(l.y - g.baseY) <= Math.max(12, l.h * 0.6)) g.items.push(l);
-        else groups.push({ baseY: l.y, items: [l] });
-      }
-      return groups.flatMap((g) => g.items.sort((a, b) => a.x - b.x));
-    }
-    return ocrResult.lines;
-  }
-
-  async function updateMerged() {
-    const revision = ++mergedRevision;
-    const checks = linesEl.querySelectorAll('input[type=checkbox]');
-    const texts = linesEl.querySelectorAll('input[type=text]');
-    const parts = [];
-    for (let i = 0; i < checks.length; i++) {
-      if (checks[i].checked) parts.push(texts[i].value);
-    }
-    const raw = parts.join('\n');
-    if (!raw.trim()) { mergedEl.textContent = ''; mergedPending = Promise.resolve(); return; }
-    mergedEl.textContent = '正在整理识别文字…';
-    mergedPending = api.textApply(raw, OCR_AUTO_RULES);
-    try {
-      const { output } = await mergedPending;
-      if (revision === mergedRevision) mergedEl.textContent = output.trim();
-    } catch (err) {
-      if (revision === mergedRevision) {
-        mergedEl.textContent = raw;
-        UI.toast('文字清理失败：' + err.message, true);
-      }
-    }
-  }
-
-  view.querySelector('#ocr-rerun').addEventListener('click', runOcr);
-  langSel.addEventListener('change', runOcr);
-  view.querySelector('#ocr-order').addEventListener('click', (e) => {
-    lineOrder = lineOrder === 'raw' ? 'reading' : 'raw';
-    e.target.innerHTML = `<span data-icon="SortDownUp" data-size="16"></span> ${lineOrder === 'reading' ? '阅读顺序（点击还原）' : '按阅读顺序重排'}`;
-    renderOcrResult();
-  });
-  view.querySelector('#ocr-copy').addEventListener('click', async () => {
-    try { await mergedPending; } catch { /* updateMerged 已处理并显示原文 */ }
-    UI.copyText(mergedEl.textContent, '识别文本已复制');
-  });
-  view.querySelector('#ocr-copy-lines').addEventListener('click', async () => {
-    const checks = linesEl.querySelectorAll('input[type=checkbox]');
-    const texts = linesEl.querySelectorAll('input[type=text]');
-    const parts = [];
-    for (let i = 0; i < checks.length; i++) if (checks[i].checked) parts.push(texts[i].value);
-    try {
-      const { output } = await api.textApply(parts.join('\n'), OCR_AUTO_RULES);
-      UI.copyText(output.trim(), '已复制勾选行');
-    } catch (err) { UI.toast('文字清理失败：' + err.message, true); }
-  });
-  view.querySelector('#ocr-proofread').addEventListener('click', async (e) => {
-    try { await mergedPending; } catch { /* updateMerged 已处理并显示原文 */ }
-    const text = mergedEl.textContent?.trim();
-    if (!text) return UI.toast('没有可校对的文本', true);
-    if (!(await api.llmConfigured())) return UI.toast('AI 校对需先配置模型服务（会发送识别文本）', true);
-    if (!confirm2(e.target)) return;
-    e_busy(e.target, '校对中…');
-    try {
-      const r = await api.llmProofread('请校对以下 OCR 识别文本，修正错别字与断句，直接输出修正后的文本，不要解释：\n\n' + text);
-      mergedEl.textContent = r.text;
-      UI.toast('AI 校对完成');
-    } catch (err) {
-      UI.toast('校对失败：' + err.message, true);
-    } finally {
-      e.target.disabled = false;
-      e.target.innerHTML = '<span data-icon="MagicWand" data-size="16"></span> AI 校对';
-    }
-  });
-  let lastConfirm = 0;
-  function confirm2(btn) {
-    // 显式触发：第一次点击提示将发送内容，2.5 秒内再点确认
-    const now = Date.now();
-    if (now - lastConfirm > 2500) {
-      lastConfirm = now;
-      UI.toast('将把识别文本发送给已配置的模型服务，再次点击确认');
-      return false;
-    }
-    return true;
-  }
-
-  function pickImageFile() { showSub('ocr'); fileInput.click(); }
-
-  window.TABS.process = { loadText, loadOcrImage, pickImageFile, onShown: () => {} };
+ const drop=$('ocr-drop'),file=$('ocr-file'),img=$('ocr-img'),lines=$('ocr-lines'),merged=$('ocr-merged');
+ let imageUrl=null,ocrResult=null,ocrBusy=false,imageRevision=0,lineOrder='raw',mergedJob=null,mergedReady=false;
+ function ocrControls(){ $('ocr-copy').disabled=!mergedReady||!!mergedJob;$('ocr-proofread').disabled=ocrBusy||!!mergedJob||!ocrResult||ocrResult.empty;$('ocr-cancel').hidden=!mergedJob;$('ocr-rerun').disabled=ocrBusy; }
+ function invalidateMerged(note='识别正文已调整，点击重新 AI 清洗'){if(mergedJob)void api.textCancel(mergedJob.id);mergedJob=null;mergedReady=false;merged.textContent='等待 AI 清洗…';$('ocr-note').textContent=note;ocrControls();}
+ const readFile=f=>{const reader=new FileReader();reader.onload=()=>loadOcrImage(reader.result);reader.readAsDataURL(f);};
+ drop.onclick=()=>file.click();file.onchange=()=>{if(file.files?.[0])readFile(file.files[0]);file.value='';};
+ for(const event of ['dragover','dragenter'])drop.addEventListener(event,e=>{e.preventDefault();drop.classList.add('over');});
+ for(const event of ['dragleave','drop'])drop.addEventListener(event,e=>{e.preventDefault();drop.classList.remove('over');});
+ drop.addEventListener('drop',e=>{const f=e.dataTransfer?.files?.[0];if(f?.type.startsWith('image/'))readFile(f);});
+ view.addEventListener('paste',e=>{if(sub!=='ocr')return;for(const item of e.clipboardData?.items||[])if(item.type.startsWith('image/')){e.preventDefault();readFile(item.getAsFile());break;}});
+ async function loadOcrImage(url){showSub('ocr');imageRevision++;imageUrl=url;ocrResult=null;invalidateMerged('正在本地识别图片…');$('ocr-work').style.display='';img.src=url;$('ocr-boxes').replaceChildren();await runOcr();}
+ async function runOcr(){
+  if(!imageUrl)return;
+  const revision=++imageRevision;ocrBusy=true;ocrResult=null;invalidateMerged('正在本地识别图片…');lines.textContent='正在本地识别…';ocrControls();
+  try{const result=await api.ocrRecognize(imageUrl,$('ocr-lang').value);if(revision!==imageRevision)return;ocrResult=result;renderLines();if(!result.empty)await cleanMerged();}
+  catch(e){if(revision!==imageRevision)return;lines.textContent=e.message;$('ocr-note').textContent='识别失败，可重新识别或更换图片';}
+  finally{if(revision===imageRevision){ocrBusy=false;ocrControls();}}
+ }
+ function orderedLines(){if(!ocrResult)return [];if(lineOrder==='raw')return ocrResult.lines;const sorted=ocrResult.lines.slice().sort((a,b)=>a.y-b.y||a.x-b.x),groups=[];for(const l of sorted){const group=groups.at(-1);if(group&&Math.abs(l.y-group.y)<=Math.max(12,l.h*.6))group.items.push(l);else groups.push({y:l.y,items:[l]});}return groups.flatMap(g=>g.items.sort((a,b)=>a.x-b.x));}
+ function drawBoxes(){const box=$('ocr-boxes');box.replaceChildren();if(!ocrResult||ocrResult.empty)return;const scale=img.clientWidth/(ocrResult.width||img.naturalWidth);for(const l of ocrResult.lines){const b=document.createElement('div');b.className='bx';Object.assign(b.style,{left:l.x*scale+'px',top:l.y*scale+'px',width:l.w*scale+'px',height:l.h*scale+'px'});box.append(b);}}
+ img.onload=drawBoxes;window.addEventListener('resize',drawBoxes);
+ function renderLines(){lines.replaceChildren();drawBoxes();if(ocrResult.empty){merged.textContent='';$('ocr-note').textContent='未识别到文字，请换一张更清晰的图片';lines.textContent='未检测到文字';return;}for(const l of orderedLines()){const row=document.createElement('div');row.className='ocr-line';row.innerHTML=`<input type="checkbox" checked><input type="text" value="${UI.esc(l.text)}">`;row.querySelector('input[type=checkbox]').onchange=()=>invalidateMerged();row.querySelector('input[type=text]').oninput=e=>{l.text=e.target.value;invalidateMerged();};lines.append(row);}}
+ async function cleanMerged(){
+  if(!ocrResult||ocrResult.empty||mergedJob)return;
+  const parts=[...lines.querySelectorAll('.ocr-line')].filter(row=>row.querySelector('input[type=checkbox]').checked).map(row=>row.querySelector('input[type=text]').value),raw=parts.join('\n');
+  if(!raw.trim()){invalidateMerged('没有选中的文字');return;}
+  const job={id:requestId('ocr')};mergedJob=job;mergedReady=false;merged.textContent='正在 AI 清洗识别文字…';$('ocr-note').textContent='正在连接错误断行、清除空格并纠正明显识别错误…';ocrControls();
+  try{const r=await api.textApply(raw,undefined,{id:job.id,source:'ocr'});if(mergedJob!==job)return;merged.textContent=r.output;mergedReady=!!r.output;$('ocr-note').textContent=`清洗完成 · ${r.output.length} 字符 · ${(r.ms/1000).toFixed(1)}s`;}
+  catch(e){if(mergedJob!==job)return;merged.textContent='AI 清洗失败，逐行原文保留';$('ocr-note').textContent=e.message;UI.toast(e.message,true);}
+  finally{if(mergedJob===job){mergedJob=null;ocrControls();}}
+ }
+ $('ocr-rerun').onclick=runOcr;$('ocr-lang').onchange=runOcr;
+ $('ocr-order').onclick=()=>{lineOrder=lineOrder==='raw'?'reading':'raw';invalidateMerged('阅读顺序已更新，点击重新 AI 清洗');$('ocr-order').textContent=lineOrder==='reading'?'阅读顺序（点击还原）':'按阅读顺序重排';if(ocrResult)renderLines();};
+ $('ocr-copy').onclick=()=>{if(mergedReady&&!mergedJob)UI.copyText(merged.textContent,'图片文字清洗结果已复制');};
+ $('ocr-proofread').onclick=cleanMerged;$('ocr-cancel').onclick=()=>invalidateMerged('已停止 AI 清洗，识别原文保留');
+ window.TABS.process={loadText,loadOcrImage,pickImageFile:()=>{showSub('ocr');file.click();},onShown:()=>{}};
 })();

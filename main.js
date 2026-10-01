@@ -12,7 +12,7 @@ const { EventBus } = require('./lib/events');
 const { JsonStore } = require('./lib/store');
 const { PETS } = require('./lib/pets');
 const { petScene } = require('./lib/pet-scenes');
-const { applyRules, RULES, AUTO_CLEAN_RULES } = require('./lib/textRules');
+const { TextCleaner, OPTIONS: CLEAN_OPTIONS } = require('./lib/text-cleaner');
 const { readImageBuffer, snapshotClipboard, writeTextVerified, writeImageVerified } = require('./lib/clipboard');
 const { OcrService } = require('./lib/ocr');
 const { LlmGateway } = require('./lib/llm');
@@ -115,6 +115,8 @@ function bootstrap() {
   // ---------- 服务层 ----------
   const ocr = new OcrService({ workDir: paths.ocrWorkDir() });
   const llm = new LlmGateway({ getSecret, settings });
+  const textCleaner = new TextCleaner({getSecret,settings,fetcher:(url,options)=>net.fetch(url,options)});
+  const textJobs = new Map();
   const usage = new UsageStore(paths.usageFactsFile());
   const calendar = new CalendarStore(paths.remindersFile());
   const focus = new FocusTimer(paths.focusFile());
@@ -791,6 +793,7 @@ function bootstrap() {
     broadcastPetState();
     speak(kind === 'image' ? '正在提取图片文字' : '正在提取清洗文字', { force: true, priority: 3, duration: 60000 });
     const startedAt = Date.now();
+    let stage = 'read';
     try {
       let image = null;
       let sourceText = '';
@@ -816,11 +819,14 @@ function bootstrap() {
       }
       let raw = sourceText;
       if (kind === 'image') {
+        stage = 'ocr';
         const result = await ocr.recognize(image, 'auto');
         if (result.empty) { clipboardJobStatus.state = 'no-ocr-text'; speak('这张图片里没有识别到文字哦', { force: true, priority: 4 }); return; }
         raw = result.lines.map((line) => line.text).join('\n');
       }
-      const cleaned = applyRules(raw, AUTO_CLEAN_RULES).trim();
+      stage = 'clean';
+      speak(kind==='image'?'图片文字已识别，正在 AI 清洗':'正在 AI 清洗文字', { force:true,priority:3,duration:90000 });
+      const {output:cleaned} = await textCleaner.clean(raw,{source:kind==='image'?'ocr':'clipboard'});
       if (!cleaned) { clipboardJobStatus.state = 'empty-output'; speak('没有找到可以复制的文字哦', { force: true, priority: 4 }); return; }
       // Keep the progress bubble visible long enough to register for short text.
       if (Date.now() - startedAt < 400) await new Promise((resolve) => setTimeout(resolve, 400 - (Date.now() - startedAt)));
@@ -838,10 +844,11 @@ function bootstrap() {
         : err.code === 'OCR_TIMEOUT' ? '图片识别超时，换张小一点的图片试试'
         : err.code === 'OCR_BRIDGE' ? '本地图片识别进程未能启动，请重试'
         : '图片文字提取失败，可以到工作台查看原因并重试';
-      speak(kind === 'image' ? imageFailure : '文字清理失败，请再试一次', { force: true, priority: 4, duration: 6500 });
+      const cleanFailure=err.code==='CLEAN_NOT_CONFIGURED'?'请在设置中填写 DeepSeek 清洗密钥':'AI 文字清洗失败，剪贴板原内容已保留';
+      speak(stage==='clean'?cleanFailure:kind === 'image' ? imageFailure : '文字清理失败，请再试一次', { force: true, priority: 4, duration: 6500 });
     } finally {
       clipboardJobBusy = false;
-      userProcessing = false;
+      userProcessing = textJobs.size>0;
       broadcastPetState();
     }
   }
@@ -986,7 +993,7 @@ function bootstrap() {
     fs.writeFileSync(choice.filePath, notes.map(n => `# ${n.title}\n\n${n.text}\n`).join('\n---\n\n'), 'utf8'); return true;
   });
   ipc.handle('secrets:set', async (_e, { name, value }) => {
-    if (!['llmApiKey', 'notionToken','voiceAsrApiKey','voiceCapsApiKey','voiceLlmApiKey'].includes(name)) throw new Error('未知密钥');
+    if (!['llmApiKey', 'notionToken','voiceAsrApiKey','voiceCapsApiKey','voiceLlmApiKey','textCleanApiKey'].includes(name)) throw new Error('未知密钥');
     await setSecret(name, value || null);
     return true;
   });
@@ -1200,19 +1207,30 @@ function bootstrap() {
   });
 
   // 文本处理
-  ipc.handle('text:rules', () => RULES);
-  ipc.handle('text:apply', (_e, payload) => {
+  ipc.handle('text:rules', () => CLEAN_OPTIONS);
+  ipc.handle('text:status', () => textCleaner.status());
+  ipc.handle('text:cancel', (event,id) => {
+    for(const job of textJobs.values())if(job.owner===event.sender.id&&job.id===id)job.controller.abort();
+    return true;
+  });
+  ipc.handle('text:apply', async (event, payload) => {
+    const source=payload?.source==='ocr'?'ocr':'text',key=`${event.sender.id}:${source}`;
+    const id=String(payload?.id||'').slice(0,100),controller=new AbortController();
+    textJobs.get(key)?.controller.abort();
+    const job={owner:event.sender.id,id,controller};textJobs.set(key,job);
+    userProcessing=true;processingMode='thinking';broadcastPetState();
     try {
       const text = payload?.text;
       const rules = payload?.rules;
-      if (typeof text !== 'string' || text.length > 2000000) throw new Error('文本过长');
-      const t0 = Date.now();
-      const output = applyRules(text, Array.isArray(rules) ? rules : []);
-      console.log('[text:apply] ok', 'length:', text.length, 'ms:', Date.now() - t0);
-      return { output, ms: Date.now() - t0 };
+      return await textCleaner.clean(text,{rules,source,signal:controller.signal,onDelta:output=>{
+        if(!controller.signal.aborted&&!event.sender.isDestroyed())event.sender.send('text:delta',{id,source,output});
+      }});
     } catch (e) {
-      console.error('[text:apply] ERROR:', e.message, e.stack?.slice(0, 300));
+      if(e.name!=='AbortError')console.error('[text:apply] failed:', e.message);
       throw e;
+    } finally {
+      if(textJobs.get(key)===job)textJobs.delete(key);
+      userProcessing=clipboardJobBusy||textJobs.size>0;broadcastPetState();
     }
   });
   ipc.handle('clipboard:snapshot', () => clipboardSnapshot());

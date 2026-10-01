@@ -48,7 +48,10 @@ contextBridge.exposeInMainWorld('api', {
   onChatDelta: (cb) => ipcRenderer.on('chat:delta', (_e, d) => cb(d)),
   // 文本处理
   textRules: () => ipcRenderer.invoke('text:rules'),
-  textApply: (text, rules) => ipcRenderer.invoke('text:apply', { text, rules }),
+  textApply: (text, rules, options = {}) => ipcRenderer.invoke('text:apply', { text, rules, id:options.id, source:options.source }),
+  textCleanStatus: () => ipcRenderer.invoke('text:status'),
+  textCancel: (id) => ipcRenderer.invoke('text:cancel', id),
+  onTextDelta: (cb) => ipcRenderer.on('text:delta', (_e, data) => cb(data)),
   clipboardSnapshot: () => ipcRenderer.invoke('clipboard:snapshot'),
   clipboardWriteText: (t) => ipcRenderer.invoke('clipboard:writeText', t),
   onProcessLoad: (cb) => ipcRenderer.on('process:load', (_e, t) => cb(t)),

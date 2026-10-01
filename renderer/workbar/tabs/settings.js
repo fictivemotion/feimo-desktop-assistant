@@ -10,6 +10,7 @@
     settings = await api.getSettings();
     pets = await api.getPets();
     const hasKey = await api.hasSecret('llmApiKey');
+    const clean = await api.textCleanStatus();
     const hasNotion = await api.hasSecret('notionToken');
     const hk = settings.hotkeys || {};
     const ag = settings.agents || {};
@@ -35,7 +36,7 @@
       </div>
 
       <div class="settings-section">
-        <h4><span data-icon="Cpu" data-size="16"></span> 模型服务（问答 / AI 润色）</h4>
+        <h4><span data-icon="Cpu" data-size="16"></span> 模型服务（问答）</h4>
         <div class="card">
           <div class="field"><label>接口地址（OpenAI 兼容 /chat/completions）</label>
             <input type="text" id="st-baseurl" placeholder="https://api.openai.com/v1" value="${UI.esc(llm.baseUrl || '')}"/>
@@ -52,6 +53,20 @@
           </div>
           <button class="btn primary" id="st-save-llm">保存模型配置</button>
           <button class="btn" id="st-test-llm">测试连接</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h4><span data-icon="Broom" data-size="16"></span> AI 文字清洗</h4>
+        <div class="card">
+          <p>DeepSeek V4.1 Flash · 非思考模式。文字快捷清洗、OCR 后清洗与工作台共用此服务。</p>
+          <p class="muted">图片仍在本地识别；待清洗的正文发送到 DeepSeek。清洗失败保留原文，不覆盖剪贴板。</p>
+          <div class="field"><label>DeepSeek API 密钥 <span class="badge ${clean.configured?'done':''}" id="st-clean-state">${clean.configured?'可用':'未设置'}</span></label>
+            <input type="password" id="st-clean-key" autocomplete="new-password" placeholder="填写专用密钥；留空保留当前配置">
+            <div class="hint" id="st-clean-hint">${UI.esc(clean.credentialLabel)} · 密钥仅在本机加密保存，不随开源版本分发。</div>
+          </div>
+          <div class="actionbar"><button class="btn primary" id="st-save-clean">保存清洗密钥</button><button class="btn" id="st-test-clean">测试清洗</button></div>
+          <details style="margin-top:12px"><summary>查看规范化清洗提示词</summary><div class="field" style="margin-top:10px"><textarea readonly rows="8" aria-label="文字清洗提示词">${UI.esc(clean.prompt)}</textarea></div></details>
         </div>
       </div>
 
@@ -174,7 +189,7 @@
     const sections = [...view.querySelectorAll('.settings-section')];
     sections.forEach(section => {
       const title = section.querySelector('h4').textContent;
-      section.dataset.group = /支持开发者/.test(title) ? 'support' : /模型/.test(title) ? 'model' : /全局热键/.test(title) ? 'shortcuts' : /Agent|Notion|日程同步/.test(title) ? 'connections' : /隐私/.test(title) ? 'privacy' : 'general';
+      section.dataset.group = /支持开发者/.test(title) ? 'support' : /模型|AI 文字清洗/.test(title) ? 'model' : /全局热键/.test(title) ? 'shortcuts' : /Agent|Notion|日程同步/.test(title) ? 'connections' : /隐私/.test(title) ? 'privacy' : 'general';
     });
     function showGroup(group) {
       sections.forEach(section => { section.hidden = section.dataset.group !== group; });
@@ -261,6 +276,20 @@
       const r = await api.llmTest();
       e.target.disabled = false; e.target.textContent = '测试连接';
       UI.toast(r.message, !r.ok);
+    });
+    view.querySelector('#st-save-clean').addEventListener('click', async()=>{
+      try{
+        const key=view.querySelector('#st-clean-key').value.trim();if(key)await api.setSecret('textCleanApiKey',key);
+        const status=await api.textCleanStatus();view.querySelector('#st-clean-key').value='';
+        view.querySelector('#st-clean-state').textContent=status.configured?'可用':'未设置';view.querySelector('#st-clean-state').classList.toggle('done',status.configured);
+        view.querySelector('#st-clean-hint').textContent=status.credentialLabel+' · 密钥仅在本机加密保存，不随开源版本分发。';
+        UI.toast(status.configured?'清洗配置已保存':'请填写 DeepSeek 密钥',!status.configured);
+      }catch(e){UI.toast('保存失败：'+e.message,true);}
+    });
+    view.querySelector('#st-test-clean').addEventListener('click', async e=>{
+      const button=e.currentTarget;button.disabled=true;button.textContent='清洗中…';
+      try{const r=await api.textApply('斐 墨 帮 我整理错\n误换行。');UI.toast('连接成功：'+r.output);}
+      catch(error){UI.toast(error.message,true);}finally{button.disabled=false;button.textContent='测试清洗';}
     });
 
     // 热键
