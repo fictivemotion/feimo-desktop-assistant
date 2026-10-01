@@ -11,7 +11,7 @@
   const body=node('g',{opacity:frame.bodyAlpha},[node('path',{d:frame.bodyPath,fill:paper}),node('g',{mask:'url(#eyes-mask)'},[node('rect',{x:-158,y:-158,width:316,height:316,fill:ink})])]);
   svg.replaceChildren(defs,arcs('back'),...(frame.dotsBehind?[dots()]:[]),body,...(!frame.dotsBehind?[dots()]:[]),...(frame.notif?[node('circle',{cx:frame.notif.x,cy:frame.notif.y,r:frame.notif.r,fill:NOTIF_BLUE})]:[]),arcs('front'));
  }
- function look(now){engine.setLook(window.BloubScenes.gazeFor(svg.dataset.animation||'idle',pointer),now,.18);svg.dataset.gaze='upper-left';}
+ function look(now){engine.setLook(window.BloubScenes.gazeFor(svg.dataset.animation||'idle',pointer),now,.18);svg.dataset.gaze='viewer';}
  function advance(now){const next=player.sample(now);svg.dataset.state=player.base;svg.dataset.scene=next.scene;svg.dataset.animation=next.state;if(next.changed){engine.setState(next.state,now);look(now);}if(!reduced||next.changed)render(engine.sample(reduced?now+window.Bloub.POSES[next.state]:now));}
  window.addEventListener('message',e=>{
   if(e.source!==parent||preview)return;const data=e.data,now=performance.now()/1000;

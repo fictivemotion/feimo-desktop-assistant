@@ -21,11 +21,11 @@
  };
  const MINIMUM={alert:2,burst:2.4,comet:2.4,orbit:2.5,swirl:1.3};
  function gazeFor(animation,pointer){
-  // The companion usually lives on the right edge, facing the workspace.
+  // Face the person in front of the screen, with only a slight left/up bias.
   // Override every native pose, including orbit, without mirroring its artwork.
-  // Bounded tracking keeps both coordinates in the upper-left quadrant.
+  // Keep pointer tracking close to the face center instead of looking off-screen.
   const follow=['idle','swirl'].includes(animation),bounded=value=>Number.isFinite(value)?Math.max(-1,Math.min(1,value)):0;
-  return {yaw:-32+(follow?bounded(pointer?.x)*8:0),pitch:28-(follow?bounded(pointer?.y)*6:0),mix:1,spin:0,wander:0};
+  return {yaw:-10+(follow?bounded(pointer?.x)*3:0),pitch:10-(follow?bounded(pointer?.y)*2:0),mix:1,spin:0,wander:0};
  }
  class ScenePlayer{
   constructor(now=0){this.base='idle';this.baseAt=now;this.pulseScene=null;this.pulseUntil=0;this.current=null;this.holdUntil=0;}
