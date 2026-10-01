@@ -50,6 +50,16 @@ test('late recognition events during AI polishing cannot overwrite the polished 
  const before=f.writes.length;f.asr.emit('迟到的原文');assert.equal(f.writes.length,before);
  completePolish();await finish;assert.equal(f.writes.at(-1),'校对后的正文。');assert.equal(f.copied[0],'校对后的正文。');
 });
+test('AI starts while a slow target is reconciling, then replaces the transcript after the writer drains',async()=>{
+ const f=fixture({polish:true}),v=f.service;let releaseWrite,aiStarted=false;
+ v.settings={get:name=>name==='llm'?{baseUrl:'https://fixture.invalid',model:'fixture'}:{...DEFAULTS,polish:true,useGlobalLlm:true}};
+ v.input.update=async text=>{f.writes.push(text);if(!releaseWrite)await new Promise(r=>releaseWrite=r);return {ok:true}};
+ v.fetcher=async()=>{aiStarted=true;return new Response(JSON.stringify({choices:[{message:{content:'校对后的完整正文。'}}]}),{headers:{'content-type':'application/json'}})};
+ await v.start();v.micReady(v.state().id);f.asr.emit('正在确认');
+ const finish=v.finish();while(!aiStarted)await new Promise(r=>setImmediate(r));
+ assert.equal(v.state().phase,'polishing');assert.equal(f.commands.at(-1).type,'stop');
+ releaseWrite();await finish;assert.equal(v.state().phase,'completed');assert.equal(f.writes.at(-1),'校对后的完整正文。');assert.deepEqual(f.copied,['校对后的完整正文。']);
+});
 test('cancel stops capture and ignores stale recognizer events without clipboard writes',async()=>{const f=fixture();await f.service.start();f.service.micReady(f.service.state().id);await f.service.cancel();f.asr.emit('stale');assert.equal(f.service.state().phase,'idle');assert.deepEqual(f.copied,[]);assert.deepEqual(f.writes,[]);});
 test('missing AI configuration preserves dictation and reports fallback',async()=>{const f=fixture({polish:true});await f.service.start();f.service.micReady(f.service.state().id);await f.service.finish();assert.equal(f.copied[0],'今天用斐墨记录灵感');assert.match(f.service.state().warning,/未配置 AI/);});
 test('no speech does not erase a selected input or replace the clipboard',async()=>{const f=fixture();await f.service.start();f.service.micReady(f.service.state().id);f.asr.finish=async()=>'';await f.service.finish();assert.equal(f.copied.length,0);assert.equal(f.writes.length,0);});

@@ -1,5 +1,5 @@
 'use strict';
-const api=window.voiceApi,$=id=>document.getElementById(id);let session=null,generation=0,phase='idle',level=0;
+const api=window.voiceApi,$=id=>document.getElementById(id);let session=null,generation=0,phase='idle',level=0,stopRequested=false;
 for(let i=0;i<7;i++)$('wave').appendChild(document.createElement('i'));
 window.ReiconFilled.hydrate?.();
 function release(){if(!session)return;session.stream?.getTracks().forEach(t=>t.stop());session.node?.disconnect();session.source?.disconnect();session.context?.close().catch(()=>{});session=null;}
@@ -27,6 +27,8 @@ async function start(command){
 }
 api.onCommand(command=>{if(command.type==='start')void start(command);else if(session?.id===command.id){if(command.type==='pause')session.paused=true;if(command.type==='resume')session.paused=false;if(command.type==='stop'){generation++;release();}}});
 api.onState(state=>{
+  if(stopRequested&&['starting','listening','paused'].includes(state.phase))return;
+  stopRequested=false;
   phase=state.phase;level=state.level||0;$('capsule').dataset.phase=phase;$('message').textContent=state.message;
   if(state.active)$('capsule').classList.remove('exiting');
   if(state.targetOk===false&&['listening','paused'].includes(phase))$('message').textContent=phase==='paused'?'听写已暂停':'继续听写中';
@@ -39,17 +41,23 @@ api.onState(state=>{
   const bars=[...$('wave').children];bars.forEach((bar,i)=>{const weight=[.35,.7,1,.85,.65,.9,.45][i];bar.style.height=`${phase==='listening'?4+Math.round(level*24*weight):4}px`;});
 });
 function commandButton(id,action){
-  const button=$(id);let pending=false,pressed=null;
+  const button=$(id);let pending=false,pressed=null,ignoreClickUntil=0;
   async function run(){if(pending||!['listening','paused'].includes(phase))return;pending=true;try{await action();}catch{ $('time').textContent='操作未完成，请再试一次'; }finally{pending=false;}}
   // Nonactivating floating windows keep the editor focused. Dispatch on press,
   // before state updates or a moved pointer can interrupt the click sequence.
-  button.addEventListener('pointerdown',e=>{if(e.button!==0)return;pressed=e.pointerId;e.preventDefault();void run();});
+  button.addEventListener('pointerdown',e=>{if(e.button!==0)return;pressed=e.pointerId;ignoreClickUntil=performance.now()+750;e.preventDefault();void run();});
   // Some nonactivating Windows surfaces deliver the release/click without the
   // initial pointerdown. Keep both fallbacks, while consuming an already handled press.
-  button.addEventListener('pointerup',e=>{if(e.button!==0||pressed!==null)return;pressed=e.pointerId;void run();});
+  button.addEventListener('pointerup',e=>{if(e.button!==0)return;if(pressed===e.pointerId){pressed=null;ignoreClickUntil=performance.now()+750;return;}pressed=null;ignoreClickUntil=performance.now()+750;void run();});
   button.addEventListener('pointercancel',()=>{pressed=null;});
-  button.addEventListener('click',e=>{if(e.detail!==0&&pressed!==null){pressed=null;return;}pressed=null;void run();});
+  button.addEventListener('click',e=>{if(e.detail!==0&&performance.now()<ignoreClickUntil)return;pressed=null;void run();});
 }
-commandButton('pause',()=>api.pause());commandButton('finish',()=>api.finish());
+commandButton('pause',()=>api.pause());commandButton('finish',()=>{
+  // Stop the local audio source on the press, even while the main process is
+  // reconciling a target write. Final recognition and polish continue via IPC.
+  generation++;release();stopRequested=true;phase='finishing';
+  $('capsule').dataset.phase=phase;$('message').textContent='整理听写…';$('time').textContent='正在结束听写';$('pause').hidden=true;$('finish').hidden=true;
+  return api.finish().catch(error=>{stopRequested=false;throw error;});
+});
 api.onExit(()=>{if(phase!=='completed')return;$('capsule').classList.add('exiting');setTimeout(()=>{if(phase==='completed')api.dismiss();},180);});
 window.addEventListener('beforeunload',release);api.ready();

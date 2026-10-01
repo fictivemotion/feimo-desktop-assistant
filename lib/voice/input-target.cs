@@ -25,13 +25,20 @@ class FeimoInput {
   static System.Windows.Rect editorBounds;
   static string awaitingOwned, awaitingTail;
   static bool emptyParagraph;
+  static bool firstWrite, placeholderCandidate;
   static bool blocked=true;
   static JavaScriptSerializer json=new JavaScriptSerializer();
   static string Id(AutomationElement e) { return String.Join(".", Array.ConvertAll(e.GetRuntimeId(), v=>v.ToString())); }
   static string Canonical(string s){return s.Replace("\r\n","\n").Replace("\r","\n");}
   static string Read(){object fresh;if(!target.TryGetCurrentPattern(TextPattern.Pattern,out fresh))throw new Exception("输入框不再支持文本定位");pattern=(TextPattern)fresh;object value;return Canonical(target.TryGetCurrentPattern(ValuePattern.Pattern,out value)?((ValuePattern)value).Current.Value:pattern.DocumentRange.GetText(-1));}
   internal static bool TextMatches(string actual,string expected,bool virtualParagraph){return actual==expected||(virtualParagraph&&actual==expected+"\n");}
-  static bool Matches(string expected){return TextMatches(Read(),expected,emptyParagraph);}
+  internal static bool IsPlaceholder(string document,string name,string help,string selected){
+    var value=Canonical(document).TrimEnd('\n');
+    return selected==""&&value.Length>0&&(value==Canonical(name??"").TrimEnd('\n')||value==Canonical(help??"").TrimEnd('\n'));
+  }
+  internal static bool CanRebasePlaceholder(bool first,bool candidate,string actual,string pending){return first&&candidate&&pending.Length>0&&TextMatches(actual,pending,true);}
+  static bool EmptyPlaceholder(string actual){return framework=="Chrome"&&IsPlaceholder(actual,target.Current.Name,target.Current.HelpText,"");}
+  static bool Matches(string expected){var actual=Read();return TextMatches(actual,expected,emptyParagraph)||(expected==""&&EmptyPlaceholder(actual));}
   static AutomationElement Editor(AutomationElement focused){
     for(int i=0;i<4&&focused!=null;i++){
       object p,v;bool writableValue=focused.TryGetCurrentPattern(ValuePattern.Pattern,out v)&&!((ValuePattern)v).Current.IsReadOnly;
@@ -60,7 +67,7 @@ class FeimoInput {
     for(int i=0;i<75&&ModifiersDown();i++)Thread.Sleep(20);
     if(ModifiersDown())throw new Exception("请松开快捷键后开始听写");
     Thread.Sleep(60);
-    blocked=true;emptyParagraph=false;awaitingOwned=awaitingTail=null; foreground=GetForegroundWindow(); target=Editor(AutomationElement.FocusedElement);
+    blocked=true;emptyParagraph=false;firstWrite=true;placeholderCandidate=false;awaitingOwned=awaitingTail=null; foreground=GetForegroundWindow(); target=Editor(AutomationElement.FocusedElement);
     uint foregroundPid;GetWindowThreadProcessId(foreground,out foregroundPid);
     if(target==null || target.Current.IsPassword || !target.Current.IsEnabled || target.Current.ProcessId!=foregroundPid)throw new Exception("请先点击前台程序中的可编辑输入框，再按语音快捷键");
     object value; if(!target.TryGetCurrentPattern(TextPattern.Pattern,out value))throw new Exception("这个输入框不支持安全听写定位，请尝试记事本、浏览器或其他文本编辑器");
@@ -70,6 +77,11 @@ class FeimoInput {
     var before=pattern.DocumentRange.Clone(); before.MoveEndpointByRange(TextPatternRangeEndpoint.End,selected[0],TextPatternRangeEndpoint.Start);
     var after=pattern.DocumentRange.Clone(); after.MoveEndpointByRange(TextPatternRangeEndpoint.Start,selected[0],TextPatternRangeEndpoint.End);
     prefix=Canonical(before.GetText(-1));suffix=Canonical(after.GetText(-1));owned=Canonical(selected[0].GetText(-1));
+    // Chromium exposes placeholder text as a virtual document in an empty composer.
+    // Its accessible name may differ from the placeholder. A collapsed first append
+    // remains a candidate until confirmed: rebase only if the entire document becomes
+    // exactly the characters we just sent. Ordinary pre-existing text stays intact.
+    placeholderCandidate=target.Current.FrameworkId=="Chrome"&&owned==""&&(prefix.Length>0||suffix.Length>0);
     // Some Chromium providers retain the virtual paragraph newline after the first
     // keystroke. Match it against the expected owned text for the whole session.
     emptyParagraph=target.Current.FrameworkId=="Chrome"&&prefix==""&&owned==""&&suffix=="\n"&&(Read()=="\n"||Read()=="");
@@ -87,6 +99,7 @@ class FeimoInput {
     var selected=pattern.GetSelection();if(selected.Length!=1)throw new Exception("输入位置发生变化");
     var before=pattern.DocumentRange.Clone();before.MoveEndpointByRange(TextPatternRangeEndpoint.End,selected[0],TextPatternRangeEndpoint.Start);
     var current=Canonical(before.GetText(-1));var selection=Canonical(selected[0].GetText(-1));
+    if(prefix+owned+suffix==""&&selection==""&&EmptyPlaceholder(Read()))current="";
     if(!((current==prefix+owned&&selection=="")||(current==prefix&&selection==owned)))throw new Exception("光标已移动，已停止自动替换");
   }
   static INPUT Key(char c,uint flags){return new INPUT{type=1,data=new UNION{key=new KEYBDINPUT{scan=(ushort)c,flags=flags}}};}
@@ -95,11 +108,17 @@ class FeimoInput {
   static int Units(string text){return new System.Globalization.StringInfo(text).LengthInTextElements;}
   static bool ConfirmPending(){
     if(awaitingOwned==null)return true;
-    for(int i=0;i<60;i++){
+    for(int i=0;i<12;i++){
       RefreshFocus();
-      try{if(Matches(prefix+awaitingOwned+suffix)){
+      try{
+        var actual=Read();
+        if(prefix+awaitingOwned+suffix==""&&EmptyPlaceholder(actual))actual="";
+        if(CanRebasePlaceholder(firstWrite,placeholderCandidate,actual,awaitingOwned)){
+          prefix=suffix="";emptyParagraph=true;
+        }
+        if(TextMatches(actual,prefix+awaitingOwned+suffix,emptyParagraph)){
         if(awaitingTail.Length>0){var caret=pattern.GetSelection()[0].Clone();caret.MoveEndpointByUnit(TextPatternRangeEndpoint.Start,TextUnit.Character,Units(awaitingTail));caret.MoveEndpointByRange(TextPatternRangeEndpoint.End,caret,TextPatternRangeEndpoint.Start);caret.Select();}
-        owned=awaitingOwned;awaitingOwned=awaitingTail=null;return true;
+        owned=awaitingOwned;awaitingOwned=awaitingTail=null;firstWrite=false;placeholderCandidate=false;return true;
       }}catch(ElementNotAvailableException){}
       Thread.Sleep(20);
     }
