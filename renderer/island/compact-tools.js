@@ -4,7 +4,6 @@
  const dock=$('#quick-pills'),pill=$('#compact'),title=pill.querySelector('.compact-copy strong'),status=$('#compact-status');let state,hideTimer,cardType='',hover=false;
  const controls=document.createElement('span');controls.className='compact-controls';pill.insertBefore(controls,$('#compact-open'));
  const quick=[['CalendarDays','日程','schedule'],['Timer','倒计时','focus'],['Music','白噪音','noise'],['ClipboardText','剪贴板','clipboard'],['NoteText','速记','notes'],['Palette','配色','palette'],['Broom','清洗文字','clean'],['Image','截图识字','ocr'],['ChartBar','Codex额度','quota'],['Folder','存入文件','files']];
- if(api.studyPrompt)quick.push(['DocumentText','知识卡片','knowledge'],['CheckCircle','学习统计','studyStats']);
  const row=document.createElement('div');row.className='quick-pill-row';const card=document.createElement('section');card.className='quick-card';card.hidden=true;dock.append(row,card);
  for(const [glyph,name,type]of quick){const b=document.createElement('button');b.className='quick-pill';b.innerHTML=icon(glyph,16)+' '+esc(name);b.onclick=()=>safe(()=>open(type));row.append(b);}
  row.onwheel=e=>{e.preventDefault();row.scrollBy({left:e.deltaY||e.deltaX,behavior:'smooth'});};
@@ -19,7 +18,6 @@
  async function open(type){cardType=type;await api.islandReveal();
   if(type==='clean'||type==='ocr'){const r=head(type==='clean'?'正在清洗文字…':'正在提取图片文字…');await api.clipboardRunQuick(type==='clean'?'text':'image');r.textContent='已开始处理，完成后自动复制。';return;}
   if(type==='files'){await api.fileSelect();return;}
-  if(type==='knowledge'||type==='studyStats'){await api.studyPrompt(type==='knowledge'?'knowledge':'stats');return;}
   const root=head(({focus:'专注一会儿',noise:'白噪音',schedule:'新建日程',clipboard:'剪贴板',notes:'记下一个想法',palette:'精选配色',quota:'Codex 额度'})[type]);
   if(type==='focus'){const f=await api.focusState();root.innerHTML=`<label>时长（分钟）<input type="number" min="1" max="720" value="25" aria-label="快捷计时分钟"></label><label>任务<select aria-label="快捷计时任务">${f.labels.map(l=>`<option value="${esc(l.id)}">${esc(l.name)}</option>`).join('')}</select></label><label>方式<select aria-label="快捷计时方式"><option value="pomodoro">番茄钟</option><option value="countdown">倒计时</option></select></label>`;action(root,'开始计时',async()=>{await api.focusStart({minutes:+root.querySelector('input').value,labelId:root.querySelectorAll('select')[0].value,mode:root.querySelectorAll('select')[1].value});close();},true);}
   if(type==='schedule'){root.innerHTML='<input aria-label="日程标题" placeholder="要做什么？" maxlength="200"><input aria-label="日程时间" type="datetime-local">';action(root,'保存日程',async()=>{const [text,date]=root.querySelectorAll('input');if(!text.value.trim()||!date.value)throw Error('请填写标题和时间');await api.calendarAdd({title:text.value.trim(),startsAtUtc:new Date(date.value).toISOString(),reminderOffsets:[15]});root.textContent='日程已经记好啦。';},true);}

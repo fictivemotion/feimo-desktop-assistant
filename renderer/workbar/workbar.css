@@ -657,3 +657,5 @@ body.embedded #brand,body.embedded #workspace-header>.feimo-header-art{display:n
 
 /* Direct toolbox routes and a single module level in top mode. */
 #tabs{overflow-x:auto;scrollbar-width:none}#tabs .tab{flex:1 0 68px;white-space:nowrap}body[data-tool-section]:not([data-tool-section=""]) #view-tools>.tool-tabs{display:none}body.embedded #tabs [data-tab="agents"],body.embedded #tabs [data-tab="focus"],body.embedded #tabs [data-tab="files"]{display:none}body.embedded.primary-module #tabs{display:none}body.embedded #workspace-header{--feimo-header-bleed:88px}body.embedded #workspace-header>.feimo-header-art{display:block;opacity:.22}body.embedded #workspace-header>.feimo-header-art::before{background-position:center 66%;opacity:.25}body.embedded #panel{background:transparent}body.embedded #content{position:relative;z-index:1}body.embedded #page-header{padding-top:8px;padding-bottom:20px}
+
+body.embedded #titlebar{display:none}body.embedded #tabs{margin-top:4px}body.embedded.primary-module #page-header{padding-top:12px}body.embedded #view-files>.file-heading{justify-content:flex-end;margin-bottom:8px}
