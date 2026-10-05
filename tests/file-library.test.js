@@ -7,3 +7,26 @@ test('classification errors preserve staged data, manual new project/folder and 
 test('paths reject traversal and invalid category identifiers; duplicates reuse existing categories',async t=>{const {lib}=setup(t,async()=>({}));assert.equal(safeName('../unsafe'),'.._unsafe');assert.equal(safeName('CON'),'_CON');assert.throws(()=>safeName(''));const p=await lib.create({name:'Notes'});assert.equal((await lib.create({name:'Notes'})).id,p.id);assert.throws(()=>lib.location('../escape'));lib.data.files.push({id:'bad',path:'../escape'});assert.throws(()=>lib.pathFor('bad'));});
 test('LRC parses multiple timestamps and fractional seconds without displaying metadata',()=>{const result=parseLrc('[ar:Demo]\n[00:01.20][00:03.50]Hello\n[01:00]World');assert.deepEqual(result,[{time:1.2,text:'Hello'},{time:3.5,text:'Hello'},{time:60,text:'World'}]);});
 test('content search and explicit file context use stored excerpts without returning private paths',async t=>{const {dir,lib}=setup(t,async()=>({projectName:'Notes',folderName:'Research'}));const src=path.join(dir,'note.txt');fs.writeFileSync(src,'The fictional project uses progressive blur.');await lib.import([src]);const id=lib.view().pending[0].id;await lib.resolve({id,decide:true});const results=lib.search('progressive');assert.equal(results.length,1);assert.equal(results[0].id,id);assert.match(results[0].snippet,/progressive/);assert.equal(lib.context([id])[0].content,'The fictional project uses progressive blur.');assert.throws(()=>lib.context(['missing']));assert.throws(()=>lib.context(Array(7).fill(id)));assert.ok(!JSON.stringify(lib.view().files).includes('The fictional project'));assert.ok(!JSON.stringify(results).includes(dir));});
+test('multiple files prompt once, survive restart as one batch, and share a single chosen folder',async t=>{
+ let calls=0,prompts=0,saved=0;const {dir,lib}=setup(t,async d=>{calls++;assert.equal(d.files.length,3);assert.ok(d.files.reduce((n,f)=>n+f.content.length,0)<=12000);return {projectName:'Batch',folderName:'Inbox'};});lib.onPrompt=()=>prompts++;
+ const sources=['a.txt','b.txt','c.txt'].map(name=>{const f=path.join(dir,name);fs.writeFileSync(f,name.repeat(6000));return f;});await lib.import(sources);
+ assert.equal(calls,1);assert.equal(prompts,1);assert.equal(lib.view().pending.length,1);assert.equal(lib.view().pending[0].count,3);assert.equal(lib.data.files.length,0);
+ const reopened=new FileLibrary({dir,onSaved:()=>saved++});const batch=reopened.view().pending[0];assert.equal(batch.files.length,3);const results=await reopened.resolve({id:batch.id,decide:true});
+ assert.equal(results.length,3);assert.equal(new Set(results.map(f=>f.folderId)).size,1);assert.equal(saved,1);assert.equal(reopened.view().pending.length,0);assert.ok(sources.every(f=>fs.existsSync(f)));
+ assert.equal(reopened.pathsFor(results.map(f=>f.id)).length,3);assert.equal(reopened.pathsFor([results[0].id,results[0].id]).length,1);assert.throws(()=>reopened.pathsFor([]));assert.throws(()=>reopened.pathsFor(['missing']));
+});
+test('existing AI match still asks once for a multi-file batch; cancel preserves source files',async t=>{
+ const {dir,lib}=setup(t,async()=>({projectId:project.id,folderId:folder.id}));const project=await lib.create({name:'Existing'}),folder=await lib.create({projectId:project.id,name:'Inbox'});
+ const files=['first.bin','second.bin'].map(n=>{const f=path.join(dir,n);fs.writeFileSync(f,'fixture');return f;});await lib.import(files);assert.equal(lib.data.files.length,0);assert.equal(lib.view().pending[0].suggestion.projectId,project.id);
+ await lib.resolve({id:lib.view().pending[0].id,decide:true});assert.equal(lib.data.files.length,2);assert.equal(lib.data.projects.length,1);await lib.import(files);await lib.resolve({id:lib.view().pending[0].id,cancel:true});assert.equal(lib.view().pending.length,0);assert.equal(fs.readdirSync(lib.stage).length,0);assert.ok(files.every(f=>fs.existsSync(f)));
+});
+test('native drag sends all selected paths in one operation and rejects unknown files or other windows',async t=>{
+ const {EventEmitter}=require('node:events'),{IslandHost}=require('../lib/island-host');const {dir,lib}=setup(t,async()=>({projectName:'Test',folderName:'Drag'}));
+ const sources=['a.txt','b.txt'].map(n=>{const f=path.join(dir,n);fs.writeFileSync(f,n);return f;});await lib.import(sources);const records=await lib.resolve({id:lib.view().pending[0].id,decide:true});
+ const ipc=new EventEmitter();ipc.handle=()=>{};const drags=[];const sender={getURL:()=> 'file:///renderer/workbar/workbar.html?embedded=1',startDrag:item=>drags.push(item)};
+ IslandHost.prototype.register.call({electron:{ipcMain:ipc,nativeImage:{createFromPath:()=>({})}},files:lib,win:{webContents:{}}});
+ ipc.emit('files:drag',{sender},records.map(f=>f.id));assert.equal(drags.length,1);assert.equal(drags[0].files.length,2);assert.deepEqual(drags[0].files,records.map(f=>lib.pathFor(f.id)));
+ ipc.emit('files:drag',{sender},['unknown']);assert.equal(drags.length,1);
+ ipc.emit('files:drag',{sender:{...sender,getURL:()=> 'https://untrusted.example/'}},records.map(f=>f.id));assert.equal(drags.length,1);
+ ipc.emit('files:drag',{sender},records[0].id);assert.equal(drags[1].files.length,1);
+});
