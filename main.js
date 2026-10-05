@@ -61,6 +61,7 @@ function bootstrap() {
   paths.init(app);
   const bus = new EventBus();
   let island=null,quitting=false,pendingWorkbarShow=false;
+  function sendWorkbar(channel,data){for(const win of [workbarWin,island?.win])if(alive(win))win.webContents.send(channel,data);}
 
   // ---------- 设置与密钥 ----------
   const settings = new JsonStore(paths.settingsFile(), {
@@ -135,17 +136,17 @@ function bootstrap() {
   let limitsStatus={refreshing:false,lastAttemptAt:null,lastSuccessAt:null,error:null};
   async function refreshLimits() {
     limitsStatus={...limitsStatus,refreshing:true,lastAttemptAt:new Date().toISOString()};
-    workbarWin?.webContents.send('limits:status',limitsStatus);
+    sendWorkbar('limits:status',limitsStatus);
     try {
       const value=await codexLimits.read();registry.ingestLimits(value);
       limitsStatus={...limitsStatus,refreshing:false,lastSuccessAt:value.observedAt,error:null};
     } catch(e) {limitsStatus={...limitsStatus,refreshing:false,error:e.message};}
-    workbarWin?.webContents.send('limits:status',limitsStatus);
+    sendWorkbar('limits:status',limitsStatus);
     return {snapshot:registry.snapshot(),status:limitsStatus};
   }
   function requireToolbox() { if (!toolbox) throw new Error(toolboxError || '工具箱尚未准备好'); return toolbox; }
   function toolboxView() { return { ...requireToolbox().view(), autoCapture: !!settings.get('toolbox', {}).autoCapture }; }
-  function toolboxChanged() { workbarWin?.webContents.send('toolbox:changed', toolboxView()); }
+  function toolboxChanged() { sendWorkbar('toolbox:changed', toolboxView()); }
   async function captureClip(automatic = false) {
     const result = requireToolbox().capture(await snapshotClipboard(clipboard), automatic);
     if (result.status === 'saved') toolboxChanged();
@@ -186,7 +187,7 @@ function bootstrap() {
   // ---------- 窗口 ----------
   let petWin = null, workbarWin = null, speechWin = null, quickWin = null, tray = null, soundscapeWin = null, voiceWin = null;
   let voice=null,voiceDismissTimer=null,voicePhase='idle',voiceReady=false,pendingVoiceCapture=null,voiceStateSentAt=0,voiceDisplayId=null;
-  const voiceModels=new VoiceModels(path.join(paths.dataDir(),'voice-models','paraformer-bilingual'),{fetcher:(url,options)=>net.fetch(url,options),onChange:()=>workbarWin?.webContents.send('voice:changed',voice?.state())});
+  const voiceModels=new VoiceModels(path.join(paths.dataDir(),'voice-models','paraformer-bilingual'),{fetcher:(url,options)=>net.fetch(url,options),onChange:()=>sendWorkbar('voice:changed',voice?.state())});
   const voiceInput=new InputTarget(path.join(paths.dataDir(),'voice-input'));
   const voiceStats=new VoiceStats(path.join(paths.dataDir(),'voice-stats.json'));
   const modifierShortcut=new ModifierShortcut(path.join(paths.dataDir(),'voice-input'),()=>{void voice?.toggle().catch(()=>{});});
@@ -199,7 +200,7 @@ function bootstrap() {
   function voiceChanged(state){
     if(!state)return;island?.changed();const changed=state.phase!==voicePhase;voicePhase=state.phase;
     voiceWin?.webContents.send('voice:changed',state);
-    if(changed||Date.now()-voiceStateSentAt>160){workbarWin?.webContents.send('voice:changed',state);voiceStateSentAt=Date.now();}
+    if(changed||Date.now()-voiceStateSentAt>160){sendWorkbar('voice:changed',state);voiceStateSentAt=Date.now();}
     if(changed){
       if(state.phase==='starting')voiceDisplayId=screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).id;
       clearTimeout(voiceDismissTimer);
@@ -221,7 +222,7 @@ function bootstrap() {
     voiceWin.webContents.on('render-process-gone',()=>{voiceReady=false;void voice?.cancel();});
     voiceWin.on('closed',()=>{voiceReady=false;voiceWin=null;void voice?.cancel();});
   }
-  const soundscape=new Soundscape({settings,send:state=>soundscapeWin?.webContents.send('soundscape:player',{...state,sounds:soundscapeCatalog.sounds}),onChange:value=>{workbarWin?.webContents.send('soundscape:changed',value);quickWin?.webContents.send('soundscape:changed',value);broadcastPetState();if(value.error)playBloub('failed')}});
+  const soundscape=new Soundscape({settings,send:state=>soundscapeWin?.webContents.send('soundscape:player',{...state,sounds:soundscapeCatalog.sounds}),onChange:value=>{sendWorkbar('soundscape:changed',value);quickWin?.webContents.send('soundscape:changed',value);broadcastPetState();if(value.error)playBloub('failed')}});
   function createSoundscapeWindow(){
     soundscapeWin=new BrowserWindow({show:false,width:200,height:100,webPreferences:{preload:path.join(__dirname,'preload','soundscape-preload.js'),sandbox:true,nodeIntegration:false,contextIsolation:true,backgroundThrottling:false}});
     soundscapeWin.webContents.setWindowOpenHandler(()=>({action:'deny'}));soundscapeWin.webContents.on('will-navigate',e=>e.preventDefault());
@@ -618,7 +619,7 @@ function bootstrap() {
       const previousState = currentPet.state;
       currentPet = { state, detail, scene, stateSince: Date.now() };
       petWin?.webContents.send('pet:state', { state, detail, scene });
-      workbarWin?.webContents.send('pet:state', { state, detail });
+      sendWorkbar('pet:state', { state, detail });
       island?.win?.webContents.send('pet:state',{state,detail,scene});
       if (state === 'processing' && previousState !== 'processing' && !workbarWin?.isVisible()) {
         speak('收到啦，我正在认真处理。', { duration: 3200 });
@@ -634,7 +635,7 @@ function bootstrap() {
   }
 
   focus.onChange = (view) => {
-    workbarWin?.webContents.send('focus:changed', view);
+    sendWorkbar('focus:changed', view);
     island?.changed();
     quickWin?.webContents.send('focus:changed', view);
     broadcastPetState();
@@ -654,7 +655,7 @@ function bootstrap() {
     }
     if (result.active?.status === 'running') {
       quickWin?.webContents.send('focus:tick', result.active);
-      workbarWin?.webContents.send('focus:tick', result.active);
+      sendWorkbar('focus:tick', result.active);
       island?.win?.webContents.send('focus:tick', result.active);
     }
   }, 1000);
@@ -679,11 +680,11 @@ function bootstrap() {
   // ---------- 事件接线 ----------
   bus.on('usage:fact', (fact) => {
     if (usage.add(fact)) {
-      if(!usageNotifyTimer)usageNotifyTimer=setTimeout(()=>{usageNotifyTimer=null;workbarWin?.webContents.send('usage:updated',usageView());},250);
+      if(!usageNotifyTimer)usageNotifyTimer=setTimeout(()=>{usageNotifyTimer=null;sendWorkbar('usage:updated',usageView());},250);
     }
   });
   bus.on('agents:changed', (snap) => {
-    workbarWin?.webContents.send('agents:snapshot', snap);
+    sendWorkbar('agents:snapshot', snap);
     island?.changed();
     broadcastPetState();
     const card = quotaAlerts.next(snap.limits?.codex);
@@ -712,7 +713,7 @@ function bootstrap() {
         summary: `${when} · ${formatLocal(item.startsAtUtc)}`,
         at: new Date().toISOString(),
       });
-      workbarWin?.webContents.send('calendar:fired', { item, offsetMin });
+      sendWorkbar('calendar:fired', { item, offsetMin });
       flash('attention', 60000);
     },
   });
@@ -736,19 +737,19 @@ function bootstrap() {
   async function syncNotion(manual = false) {
     if (!notion.isConfigured()) {
       const s = { ok: false, error: '未配置', code: 'NOT_CONFIGURED' };
-      workbarWin?.webContents.send('calendar:syncResult', s);
+      sendWorkbar('calendar:syncResult', s);
       return s;
     }
     try {
       const items = await notion.sync();
       calendar.replaceSource('notion', items);
       const s = { ok: true, count: items.length, syncedAt: notion.lastSyncAt };
-      workbarWin?.webContents.send('calendar:syncResult', s);
-      workbarWin?.webContents.send('calendar:changed', calendarView());
+      sendWorkbar('calendar:syncResult', s);
+      sendWorkbar('calendar:changed', calendarView());
       return s;
     } catch (e) {
       const s = { ok: false, error: e.message, code: e.code || 'ERROR' };
-      workbarWin?.webContents.send('calendar:syncResult', s);
+      sendWorkbar('calendar:syncResult', s);
       return s;
     }
   }
@@ -801,7 +802,7 @@ function bootstrap() {
     if (petWin) {
       petWin.setAlwaysOnTop(!!p.alwaysOnTop, 'screen-saver');
       petWin.webContents.send('pet:config', { ...p, manifest: PETS.find((x) => x.id === p.style) || PETS[0] });
-      workbarWin?.webContents.send('pet:config', { style: p.style });
+      sendWorkbar('pet:config', { style: p.style });
       const size = p.size || 72;
       petWin.setSize(Math.round(size * 1.3), Math.round(size * 1.35));
       if (petDockSide) placeDock(petDockHidden);
@@ -898,7 +899,7 @@ function bootstrap() {
     tryReg(hk.ocrClipboard || 'Alt+Shift+T', () => { void runClipboardJob('image'); });
     const voiceShortcut=voice?.config().shortcut||VOICE_DEFAULTS.shortcut;
     if(isModifierShortcut(voiceShortcut)){
-      void modifierShortcut.enable().then(()=>workbarWin?.webContents.send('voice:configChanged',{...voice.config(),registered:true})).catch(()=>workbarWin?.webContents.send('voice:configChanged',{...voice.config(),registered:false}));
+      void modifierShortcut.enable().then(()=>sendWorkbar('voice:configChanged',{...voice.config(),registered:true})).catch(()=>sendWorkbar('voice:configChanged',{...voice.config(),registered:false}));
     }else{modifierShortcut.disable();tryReg(voiceShortcut,()=>{void voice?.toggle().catch(e=>voiceChanged({...voice.state(),phase:'error',message:e.message,active:false}));});}
   }
 
@@ -1158,7 +1159,7 @@ function bootstrap() {
     if (!data?.title || !data?.startsAtUtc) throw new Error('请填写日程和时间');
     const startsAtUtc = new Date(data.startsAtUtc).toISOString();
     calendar.upsert([{ source: 'local', externalId: 'local-' + Date.now(), title: String(data.title).trim().slice(0, 100), startsAtUtc, endsAtUtc: null, allDay: false, reminderOffsets: [15], syncStatus: 'ok' }]);
-    workbarWin?.webContents.send('calendar:changed', calendarView());
+    sendWorkbar('calendar:changed', calendarView());
     speak('日程记好啦，到时提醒你。', { force: true, priority: 2 });
     return true;
   });
@@ -1178,7 +1179,7 @@ function bootstrap() {
     const send = (ch) => {
       if (controller.signal.aborted || chatAbort.controller !== controller) return;
       if(processingMode!=='streaming'){processingMode='streaming';broadcastPetState();}
-      if (!quick) {workbarWin?.webContents.send('chat:delta', ch);island?.win?.webContents.send('chat:delta',ch);}
+      if (!quick) {sendWorkbar('chat:delta', ch);island?.win?.webContents.send('chat:delta',ch);}
       else {
         streamed = ch.full;
         if (!updateTimer) updateTimer = setTimeout(() => {
@@ -1292,7 +1293,7 @@ function bootstrap() {
   ipc.handle('usage:prune', () => {
     usage.prune(365);
     const snapshot = usageView();
-    workbarWin?.webContents.send('usage:updated', snapshot);
+    sendWorkbar('usage:updated', snapshot);
     return { ok: true, count: snapshot.totalFacts };
   });
   ipc.handle('usage:export', async (_e) => {
@@ -1315,12 +1316,12 @@ function bootstrap() {
       reminderOffsets: item.reminderOffsets || settings.get('calendar', {}).defaultReminderOffsets || [15],
       syncStatus: 'ok',
     }]);
-    workbarWin?.webContents.send('calendar:changed', calendarView());
+    sendWorkbar('calendar:changed', calendarView());
     return calendarView();
   });
   ipc.handle('calendar:remove', (_e, { source, externalId }) => {
     calendar.remove(source, externalId);
-    workbarWin?.webContents.send('calendar:changed', calendarView());
+    sendWorkbar('calendar:changed', calendarView());
     return calendarView();
   });
   ipc.handle('calendar:syncNotion', () => syncNotion(true));
@@ -1344,7 +1345,7 @@ function bootstrap() {
     screen.on('display-metrics-changed',()=>{if(voiceWin?.isVisible())positionVoice()});
     screen.on('display-removed',()=>{if(voiceWin?.isVisible())positionVoice()});
     secretsCache = loadSecrets();
-    voice=new VoiceService({settings,getSecret,models:voiceModels,input:voiceInput,fetcher:(url,options)=>net.fetch(url,options),connectOptions:async url=>{const resolved=await voiceWin.webContents.session.resolveProxy(url);const proxy=resolved.split(';').map(s=>s.trim()).find(s=>s.startsWith('PROXY ')||s.startsWith('HTTPS '));return proxy?{agent:new(require('https-proxy-agent').HttpsProxyAgent)('http://'+proxy.replace(/^\S+\s+/,''))}:{};},copy:text=>writeTextVerified(clipboard,text),onChange:voiceChanged,onComplete:(id,text,seconds)=>{voiceStats.record(id,text,seconds);workbarWin?.webContents.send('voice:statsChanged',voiceStats.view());},capture:command=>{if(!voiceReady)pendingVoiceCapture=command;else voiceWin?.webContents.send('voice:capture',command);}});
+    voice=new VoiceService({settings,getSecret,models:voiceModels,input:voiceInput,fetcher:(url,options)=>net.fetch(url,options),connectOptions:async url=>{const resolved=await voiceWin.webContents.session.resolveProxy(url);const proxy=resolved.split(';').map(s=>s.trim()).find(s=>s.startsWith('PROXY ')||s.startsWith('HTTPS '));return proxy?{agent:new(require('https-proxy-agent').HttpsProxyAgent)('http://'+proxy.replace(/^\S+\s+/,''))}:{};},copy:text=>writeTextVerified(clipboard,text),onChange:voiceChanged,onComplete:(id,text,seconds)=>{voiceStats.record(id,text,seconds);sendWorkbar('voice:statsChanged',voiceStats.view());},capture:command=>{if(!voiceReady)pendingVoiceCapture=command;else voiceWin?.webContents.send('voice:capture',command);}});
     try {
       if (!safeStorage.isEncryptionAvailable()) throw new Error('系统加密暂不可用，工具箱记录尚未启用');
       toolbox = new Toolbox(path.join(paths.dataDir(), 'toolbox.bin'), { encrypt: v => safeStorage.encryptString(v), decrypt: v => safeStorage.decryptString(v) });
@@ -1362,7 +1363,7 @@ function bootstrap() {
     if (focus.active) quickWin.webContents.once('did-finish-load', () => {
       positionQuick(); quickWin.showInactive(); quickExpanded = false; quickWin.webContents.send('quick:expanded', false);
     });
-    island=new IslandHost({electron:require('electron'),settings,dir:paths.dataDir(),getSecret,setSecret,registry,getPetState:()=>currentPet,getFocus:()=>focus.view(),getVoice:()=>voice?.state(),ocr:file=>ocr.recognize(file),onArchive:r=>showPromptCard({kind:'archive',title:'这份文件放在哪里？',text:r.name,subtitle:r.reason,archive:r},3),onSaved:text=>speak(text,{force:true}),showWorkbar,onUIChange:broadcastPetState,onMode:mode=>{if(mode==='island'){pendingWorkbarShow=false;workbarWin?.hide();petWin?.hide();speechWin?.hide();quickWin?.hide();}else if(alive(petWin))petWin.showInactive();}});
+    island=new IslandHost({electron:require('electron'),settings,dir:paths.dataDir(),getSecret,setSecret,registry,getPetState:()=>currentPet,getFocus:()=>focus.view(),getVoice:()=>voice?.state(),getSoundscape:()=>soundscape.view(),ocr:file=>ocr.recognize(file),onArchive:r=>showPromptCard({kind:'archive',title:'这份文件放在哪里？',text:r.name,subtitle:r.reason,archive:r},3),onSaved:text=>speak(text,{force:true}),showWorkbar,onUIChange:broadcastPetState,onMode:mode=>{if(mode==='island'){pendingWorkbarShow=false;workbarWin?.hide();petWin?.hide();speechWin?.hide();quickWin?.hide();}else if(alive(petWin))petWin.showInactive();}});
     void island.start().catch(()=>console.error('[island] startup failed'));
     const t = createTray();
     trayRebuild = t.rebuild;

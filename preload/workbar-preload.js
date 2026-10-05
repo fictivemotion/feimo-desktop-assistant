@@ -8,7 +8,7 @@ contextBridge.exposeInMainWorld('api', {
   islandHit:rects=>ipcRenderer.send('island:hit',rects),onIslandNavigate:cb=>ipcRenderer.on('island:navigate',(_e,tab)=>cb(tab)),onIslandIdle:cb=>ipcRenderer.on('island:idle',(_e,idle)=>cb(idle)),
   islandResize:height=>ipcRenderer.invoke('island:resize',height),
   islandDismissNotice:id=>ipcRenderer.invoke('island:dismissNotice',id),
-  islandState:()=>ipcRenderer.invoke('island:state'),
+  islandReveal:()=>ipcRenderer.invoke('island:reveal'),islandState:()=>ipcRenderer.invoke('island:state'),
   islandMode:mode=>ipcRenderer.invoke('island:mode',mode),
   islandExpand:on=>ipcRenderer.invoke('island:expand',on),
   islandWorkbar:tab=>ipcRenderer.invoke('island:workbar',tab),

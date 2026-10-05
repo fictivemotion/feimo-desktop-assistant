@@ -34,22 +34,24 @@
 
   function switchTab(name) {
     let [route, sub] = String(name || 'voice').split(':');
+    if(['clipboard','notes','palette'].includes(route)){sub=route;route='tools';}
+    const dockRoute=route==='tools'?(sub||'clipboard'):route;document.body.dataset.toolSection=route==='tools'?dockRoute:'';
     if (route === 'soundscape') { route = 'focus'; sub = 'soundscape'; } name = route==='usage'?'agents':route;
     if (!views[name]) name = 'chat';
     if (name === 'settings' && !views.settings._built) { window.TABS.settings?.build(); views.settings._built = true; }
     active = name;
     api.workbarScene?.(name);
-    const info = pageInfo[name];
+    const info = route==='tools'?({clipboard:['剪贴板','收好每次复制的内容。',''],notes:['速记','留住刚刚出现的灵感。',''],palette:['配色','为下一份创作找到颜色。','']}[dockRoute]||pageInfo.tools):pageInfo[name];
     $('#page-title').textContent = info[0]; $('#page-subtitle').textContent = info[1];
     $('#page-action').textContent = name === 'schedule' && views.schedule.classList.contains('editing') ? '返回日程' : info[2];
     $('#page-action').hidden = !info[2];
     $('#page-new-chat').hidden=name!=='chat';
     document.getElementById('panel').dataset.activeTab = name;
     for (const [k, v] of Object.entries(views)) v.classList.toggle('active', k === name);
-    for (const t of document.querySelectorAll('.tab')) { t.classList.toggle('active', t.dataset.tab === name); t.setAttribute('aria-current', t.dataset.tab === name ? 'page' : 'false'); }
+    for (const t of document.querySelectorAll('.tab')) { t.classList.toggle('active', t.dataset.tab === dockRoute); t.setAttribute('aria-current', t.dataset.tab === dockRoute ? 'page' : 'false'); }
     window.TABS[name]?.onShown?.();
     if(name==='agents'){window.TABS.usage?.onShown?.();if(route==='usage')usageHeading.scrollIntoView({block:'start',behavior:'smooth'});}
-    if (name === 'tools' && sub) window.TABS.tools?.show(sub);
+    if (name === 'tools') window.TABS.tools?.show(sub||'clipboard');
     if (name === 'focus' && sub) window.TABS.focus?.show(sub);
     if (name === 'voice' && sub) window.TABS.voice?.show(sub);
   }
@@ -59,7 +61,7 @@
   $('#btn-soundscape').addEventListener('click',()=>switchTab('focus:soundscape'));
   $('#btn-voice').addEventListener('click',()=>switchTab('voice'));
   window.switchTab = switchTab;
-  window.addEventListener('message',e=>{if(e.source===parent&&e.data?.type==='feimo:workbench-navigate'&&document.body.classList.contains('embedded'))switchTab(e.data.tab);});
+  window.addEventListener('message',e=>{if(e.source===parent&&e.data?.type==='feimo:workbench-navigate'&&document.body.classList.contains('embedded')){document.body.classList.toggle('primary-module',!!e.data.primary);switchTab(e.data.tab);}});
   $('#page-new-chat').addEventListener('click',()=>window.TABS.chat.newConversation());
   $('#page-action').addEventListener('click', () => {
     if (active === 'chat') { const el = $('#chat-scroll'); el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' }); }
