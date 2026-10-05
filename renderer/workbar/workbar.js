@@ -3,6 +3,7 @@
 (() => {
   const $ = (s) => document.querySelector(s);
   const api = window.api;
+  if(new URLSearchParams(location.search).has('embedded'))document.body.classList.add('embedded');
 
   // ---------- 页签 ----------
   const usageView=document.getElementById('view-usage');
@@ -26,6 +27,8 @@
     focus: ['专注与计时', '一次只做一件事。', ''],
     settings: ['设置', '让斐墨更符合你的习惯。', '返回问答'],
     tools: ['快捷工具箱', '收好复制的内容，留住灵感，找到配色。', '返回问答'],
+    files:['文件库','拖入资料，按项目自动收好。','添加文件'],
+    connections:['顶部与服务连接','把会话、服务与音乐放在同一个地方。','返回设置'],
     voice:['斐墨语音','说出想法，让文字准确落下。',''],
   };
 
@@ -56,6 +59,7 @@
   $('#btn-soundscape').addEventListener('click',()=>switchTab('focus:soundscape'));
   $('#btn-voice').addEventListener('click',()=>switchTab('voice'));
   window.switchTab = switchTab;
+  window.addEventListener('message',e=>{if(e.source===parent&&e.data?.type==='feimo:workbench-navigate'&&document.body.classList.contains('embedded'))switchTab(e.data.tab);});
   $('#page-new-chat').addEventListener('click',()=>window.TABS.chat.newConversation());
   $('#page-action').addEventListener('click', () => {
     if (active === 'chat') { const el = $('#chat-scroll'); el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' }); }
@@ -63,6 +67,8 @@
     else if (active === 'agents') {$('#ag-refresh').click();window.TABS.usage?.onShown?.();}
     else if (active === 'usage') $('#u-export').click();
     else if (active === 'schedule') window.TABS.schedule.toggleEditor();
+    else if(active==='files') api.fileSelect().catch(e=>UI.toast(e.message,true));
+    else if(active==='connections') switchTab('settings');
     else if (active === 'settings' || active === 'tools') switchTab('chat');
   });
 
@@ -226,3 +232,5 @@
     setInterval(refreshNextEvent, 60000);
   })();
 })();
+
+if(document.body.classList.contains("embedded")){document.addEventListener("focusin",e=>{if(e.target.matches("input,textarea,select"))parent.postMessage({type:"feimo:workbench-busy",busy:true},"*");});document.addEventListener("focusout",()=>setTimeout(()=>parent.postMessage({type:"feimo:workbench-busy",busy:document.activeElement?.matches("input,textarea,select")},"*"),100));}

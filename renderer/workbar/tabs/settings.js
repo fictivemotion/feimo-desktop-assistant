@@ -32,6 +32,7 @@
           <div class="switch"><span class="lbl">开机自启动<span class="sub">登录 Windows 后，让斐墨在桌面陪着你</span></span>
             <label class="toggle"><input type="checkbox" id="st-startup" ${system.openAtLogin ? 'checked' : ''}/><span class="track"></span><span class="knob"></span></label></div>
           <button class="btn" id="st-shortcut">创建桌面快捷方式</button>
+          <button class="btn" id="st-connections">顶部模式 · 会话桥接 · 服务连接</button>
         </div>
       </div>
 
@@ -246,6 +247,7 @@
       try { settings = await api.setSettings({ system: { openAtLogin: e.target.checked } }); UI.toast(e.target.checked ? '已开启开机自启动' : '已关闭开机自启动'); }
       catch (error) { e.target.checked = !e.target.checked; UI.toast(error.message, true); }
     });
+    view.querySelector('#st-connections').onclick=()=>window.switchTab('connections');
     view.querySelector('#st-shortcut').addEventListener('click', async () => {
       try { await api.createDesktopShortcut(); UI.toast('已添加到桌面'); }
       catch (error) { UI.toast(error.message, true); }

@@ -95,7 +95,7 @@
     busy = true;
     window.switchTab('chat');
     try {
-      const r = await api.chatSend(text);
+      const r = await api.chatSend(text,window.FileMentions?.ids(text)||[]);
       if(turn!==generation)return;
       if (r.ok) {
         finishAssistant(r.reply, true);

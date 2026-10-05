@@ -144,6 +144,7 @@
     const head=document.createElement('header'),title=document.createElement('strong');title.textContent=value.title;
     head.append(window.ReiconFilled.create(value.icon||'Bell',16),title,button('CloseCircle','关闭提示',()=>{if(inline){inlinePrompt=null;root.remove();scheduleMeasure();}else api.cardClose();}));root.append(head);
     const subtitle=document.createElement('p');subtitle.textContent=value.subtitle;root.append(subtitle);
+    if(value.archive){api.fileLibrary().then(data=>{const box=document.createElement("div");root.append(box);FileLibraryUI.choose(box,value.archive,data,api,()=>api.cardClose());scheduleMeasure();});}
     if(value.text){const body=document.createElement('div');body.className='prompt-text';body.textContent=value.text;root.append(body);}
     if(value.summary){const summary=document.createElement('div');summary.className='prompt-text';summary.textContent=value.summary;root.append(summary)}
     if(value.metrics){const metrics=document.createElement('div');metrics.className='prompt-metrics';for(const item of value.metrics){const cell=document.createElement('div'),valueNode=document.createElement('strong'),label=document.createElement('small');valueNode.textContent=item.value;label.textContent=item.label;cell.append(valueNode,label);metrics.append(cell)}root.append(metrics)}

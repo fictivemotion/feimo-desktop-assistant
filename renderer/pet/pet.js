@@ -5,6 +5,7 @@
 (() => {
   const api = window.petApi;
   const body = document.body;
+  document.addEventListener('dragover',e=>{e.preventDefault();api.setPassthrough(false);});document.addEventListener('drop',e=>{e.preventDefault();const files=[...e.dataTransfer.files].map(f=>api.filePath(f));if(files.length)api.fileImport(files).catch(()=>api.openWorkbar('files'));});
   const canvas = document.getElementById('sprite-canvas');
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   const tooltip = document.getElementById('tooltip');

@@ -4,7 +4,7 @@
   const api = window.api;
   const view = document.getElementById('view-agents');
   view.innerHTML = `
-    <div class="source-status" id="ag-sources"></div>
+    <div id="ag-requests"></div><div class="source-status" id="ag-sources"></div>
     <div id="ag-list"></div>
     <div class="actionbar">
       <button class="btn small" id="ag-refresh">刷新</button>
@@ -72,6 +72,7 @@
         ${s.staleNote ? `<span style="color:var(--amber)"><span data-icon="Stopwatch" data-size="16"></span> ${UI.esc(s.staleNote)}</span>` : ''}
         <span class="ago">${UI.ago(s.lastSeenAt)}</span>
       </div>`;
+    const jump=document.createElement('button');jump.className='btn small';jump.textContent='跳转终端';jump.onclick=()=>IslandWidgets.safe(()=>api.agentTerminal(s.source+':'+s.sessionId));card.append(jump);
     return card;
   }
 
@@ -79,6 +80,9 @@
     render(await api.agentsSnapshot());
   });
 
+  let bridgeSignature='';
+  const renderBridge=state=>{const next=JSON.stringify(state.bridge.requests);if(next===bridgeSignature)return;bridgeSignature=next;const box=view.querySelector('#ag-requests');box.replaceChildren();for(const r of state.bridge.requests){const child=document.createElement('div');IslandWidgets.requestCard(child,r);box.append(child);}};
+  api.onIslandChanged(renderBridge);api.islandState().then(renderBridge).catch(()=>{});
   api.onAgentsSnapshot(render);
   api.agentsSnapshot().then(render);
 

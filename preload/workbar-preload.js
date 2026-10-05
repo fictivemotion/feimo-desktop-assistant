@@ -1,8 +1,33 @@
 'use strict';
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 /** 工作栏桥：仅白名单方法，参数在主进程校验。 */
 contextBridge.exposeInMainWorld('api', {
+  fileSearch:q=>ipcRenderer.invoke('files:search',q),fileContext:ids=>ipcRenderer.invoke('files:context',ids),fileDrag:id=>ipcRenderer.send('files:drag',id),
+  fileLibrary:()=>ipcRenderer.invoke('files:state'),fileCreate:data=>ipcRenderer.invoke('files:create',data),fileResolve:data=>ipcRenderer.invoke('files:resolve',data),fileImport:files=>ipcRenderer.invoke('files:import',files),fileSelect:()=>ipcRenderer.invoke('files:select'),fileOpen:id=>ipcRenderer.invoke('files:open',id),fileRoot:()=>ipcRenderer.invoke('files:root'),filePath:file=>webUtils.getPathForFile(file),
+  islandHit:rects=>ipcRenderer.send('island:hit',rects),onIslandNavigate:cb=>ipcRenderer.on('island:navigate',(_e,tab)=>cb(tab)),onIslandIdle:cb=>ipcRenderer.on('island:idle',(_e,idle)=>cb(idle)),
+  islandResize:height=>ipcRenderer.invoke('island:resize',height),
+  islandDismissNotice:id=>ipcRenderer.invoke('island:dismissNotice',id),
+  islandState:()=>ipcRenderer.invoke('island:state'),
+  islandMode:mode=>ipcRenderer.invoke('island:mode',mode),
+  islandExpand:on=>ipcRenderer.invoke('island:expand',on),
+  islandWorkbar:tab=>ipcRenderer.invoke('island:workbar',tab),
+  islandPills:pills=>ipcRenderer.invoke('island:pills',pills),
+  onIslandChanged:cb=>ipcRenderer.on('island:changed',(_e,data)=>cb(data)),
+  onIslandExpanded:cb=>ipcRenderer.on('island:expanded',(_e,on)=>cb(on)),
+  integrationsSave:data=>ipcRenderer.invoke('integrations:save',data),
+  integrationsDisconnect:id=>ipcRenderer.invoke('integrations:disconnect',id),
+  integrationsRefresh:id=>ipcRenderer.invoke('integrations:refresh',id),
+  integrationsGithubLocal:()=>ipcRenderer.invoke('integrations:githubLocal'),
+  hooksPreview:(source,remove=false)=>ipcRenderer.invoke('hooks:preview',source,remove),
+  hooksApply:data=>ipcRenderer.invoke('hooks:apply',data),
+  hooksResolve:data=>ipcRenderer.invoke('hooks:resolve',data),
+  hooksClearRules:()=>ipcRenderer.invoke('hooks:clearRules'),
+  agentTerminal:key=>ipcRenderer.invoke('agents:terminal',key),
+  musicCommand:command=>ipcRenderer.invoke('music:command',command),
+  musicConfig:data=>ipcRenderer.invoke('music:config',data),
+  musicOpen:()=>ipcRenderer.invoke('music:open'),
+  islandDropFile:()=>ipcRenderer.invoke('island:dropFile'),
   workbarScene:tab=>ipcRenderer.send('workbar:scene',tab),
   voiceState:()=>ipcRenderer.invoke('voice:state'),voiceDevices:()=>ipcRenderer.invoke('voice:devices'),voiceConfig:()=>ipcRenderer.invoke('voice:config'),voiceSave:config=>ipcRenderer.invoke('voice:save',config),
   voiceDownload:()=>ipcRenderer.invoke('voice:download'),voiceDownloadCancel:()=>ipcRenderer.invoke('voice:downloadCancel'),
@@ -38,7 +63,7 @@ contextBridge.exposeInMainWorld('api', {
   // 窗口
   hideWorkbar: () => ipcRenderer.invoke('workbar:hide'),
   // 问答
-  chatSend: (text) => ipcRenderer.invoke('chat:send', { text }),
+  chatSend: (text,fileIds=[]) => ipcRenderer.invoke('chat:send', { text,fileIds }),
   chatStop: () => ipcRenderer.invoke('chat:stop'),
   chatHistory: () => ipcRenderer.invoke('chat:history'),
   chatClear: () => ipcRenderer.invoke('chat:clear'),
