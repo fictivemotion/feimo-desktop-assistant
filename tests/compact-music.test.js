@@ -13,10 +13,16 @@ test('expired reminders and finished activities are removed; empty and urgent st
  assert.deepEqual(activities(s).map(x=>x.id),['voice','attention']);assert.equal(picker.update(activities(s)).line,'正在校对');s.voice.active=false;assert.equal(picker.update(activities(s)).id,'attention');s.bridge.requests=[];assert.equal(picker.update(activities(s)).id,'idle');
 });
 test('music calibrates fallback lyrics, resets for changed artists, and exposes native failures without losing the song',async t=>{
- let reply={available:true,title:'测试歌曲',artist:'甲',position:12,timelineExact:false,playing:false};let child;
- const m=new Music({settings:{get:()=>({player:'netease'})},fetcher:async()=>{throw Error('offline fixture');},spawnProcess:()=>{child=new EventEmitter();child.stdout=new PassThrough();child.stderr=new PassThrough();child.stdin=new Writable({write(buf,enc,done){const request=JSON.parse(buf);setImmediate(()=>child.stdout.write(JSON.stringify({id:request.id,data:reply})+'\n'));done();}});child.kill=()=>child.emit('exit',0);return child;}});t.after(()=>m.stop());
+ let reply={available:true,title:'测试歌曲',artist:'甲',position:12,timelineExact:false,playing:false};let child,lastRequest;
+ const m=new Music({settings:{get:()=>({player:'netease'})},fetcher:async()=>{throw Error('offline fixture');},spawnProcess:()=>{child=new EventEmitter();child.stdout=new PassThrough();child.stderr=new PassThrough();child.stdin=new Writable({write(buf,enc,done){const request=JSON.parse(buf);lastRequest=request;setImmediate(()=>child.stdout.write(JSON.stringify({id:request.id,data:reply})+'\n'));done();}});child.kill=()=>child.emit('exit',0);return child;}});t.after(()=>m.stop());
  await m.command('poll');await m.command({command:'lyrics-sync',seconds:50});assert.equal((await m.command('poll')).position,50);
  reply={...reply,artist:'乙',position:0};assert.equal((await m.command('poll')).position,0);
  reply={available:false,error:'播放器未响应'};const failed=await m.command('toggle');assert.equal(failed.title,'测试歌曲');assert.equal(failed.error,'播放器未响应');
  assert.throws(()=>m.command({command:'lyrics-sync',seconds:NaN}),/无效/);
+ reply={available:true,title:'测试歌曲',artist:'乙',position:110,duration:200,timelineExact:true,canSeek:true,playing:true};
+ await m.command('poll');assert.equal(m.state.position,110);assert.throws(()=>m.command({command:'lyrics-sync',seconds:12}),/无需/);
+ assert.throws(()=>m.command({command:'seek',seconds:201}),/不支持/);assert.throws(()=>m.command({command:'seek',seconds:NaN}),/不支持/);
+ reply={...reply,position:40};assert.equal((await m.command({command:'seek',seconds:40})).position,40);
+ assert.equal(lastRequest.command,'seek');assert.equal(lastRequest.duration,200);assert.equal(lastRequest.track,'测试歌曲');
+ reply={available:false,error:'未确认跳转'};assert.equal((await m.command({command:'seek',seconds:60})).position,40);
 });

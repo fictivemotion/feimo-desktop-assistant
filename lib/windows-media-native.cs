@@ -13,6 +13,21 @@ public static class FeimoMediaNative {
  [DllImport("user32.dll",CharSet=CharSet.Unicode)] static extern int GetWindowText(IntPtr hwnd,StringBuilder text,int max);
  [DllImport("user32.dll")] static extern IntPtr SendMessageTimeout(IntPtr h,uint msg,IntPtr w,IntPtr l,uint flags,uint timeout,out IntPtr result);
  [DllImport("user32.dll")] static extern uint SendInput(uint count,INPUT[] input,int size);
+ [DllImport("user32.dll")] static extern bool GetClientRect(IntPtr h,out RECT rect);
+ [DllImport("user32.dll")] static extern uint GetDpiForWindow(IntPtr h);
+ [DllImport("user32.dll")] static extern IntPtr ChildWindowFromPointEx(IntPtr h,POINT p,uint flags);
+ [DllImport("user32.dll")] static extern bool ClientToScreen(IntPtr h,ref POINT p);
+ [DllImport("user32.dll")] static extern bool ScreenToClient(IntPtr h,ref POINT p);
+ [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
+ [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr h);
+ [DllImport("user32.dll")] static extern bool IsIconic(IntPtr h);
+ [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr h,int command);
+ [DllImport("user32.dll")] static extern bool GetCursorPos(out POINT p);
+ [DllImport("user32.dll")] static extern bool SetCursorPos(int x,int y);
+ [DllImport("user32.dll")] static extern int GetSystemMetrics(int index);
+ [DllImport("user32.dll")] static extern IntPtr WindowFromPoint(POINT p);
+ [StructLayout(LayoutKind.Sequential)] struct POINT{public int x,y;}
+ [StructLayout(LayoutKind.Sequential)] struct RECT{public int left,top,right,bottom;}
  [StructLayout(LayoutKind.Sequential)] struct INPUT{public uint type;public INPUTUNION data;}
  [StructLayout(LayoutKind.Explicit)] struct INPUTUNION{[FieldOffset(0)]public KEYBDINPUT keyboard;[FieldOffset(0)]public MOUSEINPUT mouse;}
  [StructLayout(LayoutKind.Sequential)] struct KEYBDINPUT{public ushort key,scan;public uint flags,time;public IntPtr extra;}
@@ -22,6 +37,21 @@ public static class FeimoMediaNative {
   return null;
  }
  public static bool Command(long hwnd,int command) {IntPtr result;return SendMessageTimeout(new IntPtr(hwnd),0x319,new IntPtr(hwnd),new IntPtr(command<<16),2,1200,out result)!=IntPtr.Zero && result!=IntPtr.Zero;}
+ [DllImport("user32.dll")]static extern bool SetPhysicalCursorPos(int x,int y);
+ [DllImport("user32.dll")]static extern bool GetPhysicalCursorPos(out POINT point);
+ [DllImport("user32.dll")]static extern IntPtr SetThreadDpiAwarenessContext(IntPtr context);
+ public static bool Seek(long hwnd,double fraction){
+  if(double.IsNaN(fraction)||double.IsInfinity(fraction)||fraction<0||fraction>1)return false;
+  var h=new IntPtr(hwnd);var context=SetThreadDpiAwarenessContext(new IntPtr(-4));var previous=GetForegroundWindow();POINT cursor;GetPhysicalCursorPos(out cursor);bool minimized=IsIconic(h);
+  try{
+   if(minimized)ShowWindow(h,9);SetForegroundWindow(h);System.Threading.Thread.Sleep(120);
+   RECT r;if(!GetClientRect(h,out r))return false;double scale=Math.Max(1,GetDpiForWindow(h)/96.0);int width=r.right-r.left,height=r.bottom-r.top;if(width<600*scale||height<400*scale)return false;
+   var p=new POINT{x=(int)Math.Round(fraction*(width-1)),y=height-(int)Math.Round(82*scale)};ClientToScreen(h,ref p);SetPhysicalCursorPos(p.x,p.y);System.Threading.Thread.Sleep(150);
+   uint target,hit;GetWindowThreadProcessId(h,out target);GetWindowThreadProcessId(WindowFromPoint(p),out hit);if(target!=hit)return false;
+   var down=new INPUT{type=0,data=new INPUTUNION{mouse=new MOUSEINPUT{flags=2}}};var up=new INPUT{type=0,data=new INPUTUNION{mouse=new MOUSEINPUT{flags=4}}};
+   var count=SendInput(2,new[]{down,up},Marshal.SizeOf(typeof(INPUT)));System.Threading.Thread.Sleep(150);return count==2;
+  }finally{if(minimized)ShowWindow(h,7);if(previous!=IntPtr.Zero&&previous!=h)SetForegroundWindow(previous);SetPhysicalCursorPos(cursor.x,cursor.y);SetThreadDpiAwarenessContext(context);}
+ }
  public static bool MediaKey(int command){ushort key=(ushort)(command==14?0xB3:command==11?0xB0:0xB1);var down=new INPUT{type=1,data=new INPUTUNION{keyboard=new KEYBDINPUT{key=key}}};var up=down;up.data.keyboard.flags=2;return SendInput(2,new[]{down,up},Marshal.SizeOf(typeof(INPUT)))==2;}
  public static string Diagnostic="";public static float Peak=0;
  public static bool? Playing() {
