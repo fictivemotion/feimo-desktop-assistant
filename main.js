@@ -945,7 +945,7 @@ function bootstrap() {
   });
   ipc.on('voice:ready',e=>{if(e.sender!==voiceWin?.webContents)return;voiceReady=true;voiceWin.webContents.send('voice:changed',voice.state());if(pendingVoiceCapture){voiceWin.webContents.send('voice:capture',pendingVoiceCapture);pendingVoiceCapture=null;}});
   ipc.on('voice:audio',(e,data)=>{if(e.sender===voiceWin?.webContents)voice?.audio(data?.id,data?.samples,data?.level);});
-  ipc.on('voice:report',(e,data)=>{if(e.sender!==voiceWin?.webContents)return;if(data?.type==='ready')voice?.micReady(data.id);else if(data?.type==='error')voice?.micError(data.id,String(data.message||'').slice(0,200));});
+  ipc.on('voice:report',(e,data)=>{if(e.sender!==voiceWin?.webContents)return;if(data?.type==='ready'){const info=data.info||{};voice?.micReady(data.id,{label:String(info.label||'').slice(0,200),sampleRate:Number(info.sampleRate)||0,echoCancellation:info.echoCancellation===true,noiseSuppression:info.noiseSuppression===true,autoGainControl:info.autoGainControl===true});}else if(data?.type==='error')voice?.micError(data.id,String(data.message||'').slice(0,200));});
   ipc.on('voice:dismiss',()=>{if(!voice?.active())voiceWin?.hide();});
   ipc.handle('settings:get', () => settings.get());
   ipc.handle('settings:set', (_e, patch) => {

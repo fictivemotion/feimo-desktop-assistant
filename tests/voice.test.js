@@ -21,6 +21,21 @@ test('voice configuration permits Ctrl+Alt and rejects credentials embedded in U
 test('hotwords support exact aliases, same-sound correction, blacklist and explicit rules',()=>{const c={hotwords:'斐墨 | 翡墨 ~~~ 翡翠\n伊埃斯 | 伊艾斯',rules:'扣德克斯=Codex',threshold:1};assert.equal(correct('翡墨和扣德克斯',c).text,'斐墨和Codex');assert.equal(correct('匪墨很好用',c).text,'斐墨很好用');assert.equal(correct('翡翠和翡墨',c).text,'翡翠和翡墨');assert.equal(correct('伊艾斯',c).text,'伊埃斯');assert.equal(correct('2026 hello 世界',c).text,'2026 hello 世界');assert.throws(()=>parseRules('(a+)+'));});
 test('WAV conversion clamps PCM, has correct header; transcript merge avoids overlap',()=>{const b=wav(Float32Array.from([-2,0,2]));assert.equal(b.readUInt32LE(24),16000);assert.equal(b.readInt16LE(44),-32767);assert.equal(b.readInt16LE(48),32767);assert.equal(mergeText('今天开始学习','学习新知识'),'今天开始学习新知识');});
 function fixture({targetOk=true,polish=false}={}){const copied=[],writes=[],commands=[];let voice;const settings={get:()=>({...DEFAULTS,polish})};let asr;const service=new VoiceService({settings,getSecret:async()=>null,models:{dir:'.',state:()=>({ready:true}),cancel(){}},input:{async capture(){return {ok:true}},async update(t){writes.push(t);return {ok:targetOk,message:'target moved'}},async release(){return {ok:true}},close(){}},capture:c=>commands.push(c),copy:async t=>copied.push(t),onChange(){},asrFactory:(_c,{onText})=>(asr={async start(){},accept(){},async finish(){return '今天用翡墨记录灵感'},close(){},emit:onText})});return {service,copied,writes,commands,get asr(){return asr}};}
+test('microphone and network start in parallel; early audio is replayed once in order without awaiting the editor',async()=>{
+ const f=fixture(),v=f.service,frames=[];let targetDone,asrDone;v.input.capture=()=>new Promise(r=>targetDone=r);
+ v.asrFactory=(_c,{onText})=>({start:()=>new Promise(r=>asrDone=r),accept:s=>frames.push([...s]),emit:onText,close(){}});
+ const started=v.start();while(!asrDone||!f.commands.length)await new Promise(r=>setImmediate(r));
+ v.micReady(v.state().id);assert.equal(v.state().phase,'starting');assert.match(v.state().message,/已开始收音/);
+ v.audio(v.state().id,Float32Array.of(.1,.2),.5);v.audio(v.state().id,Float32Array.of(.3),.5);assert.equal(frames.length,0);
+ asrDone();await new Promise(r=>setImmediate(r));assert.equal(v.state().phase,'listening');assert.equal(v.session.targetReady,false);assert.equal(frames.length,2);
+ v.audio(v.state().id,Float32Array.of(.4),.5);v.session.asr.emit('开头保留');assert.deepEqual(f.writes,[]);
+ targetDone({ok:true});await started;await v.settle(v.session);assert.deepEqual(f.writes,['开头保留']);assert.equal(frames.length,3);assert.ok(frames[0][0]<frames[1][0]&&frames[1][0]<frames[2][0]);await v.cancel();
+});
+test('cancel while connecting discards buffered audio and never restarts capture after a late handshake',async()=>{
+ const f=fixture(),v=f.service;let ready,accepted=0;v.asrFactory=()=>({start:()=>new Promise(r=>ready=r),accept:()=>accepted++,close(){}});
+ const started=v.start();while(!ready||!f.commands.length)await new Promise(r=>setImmediate(r));v.micReady(v.state().id);v.audio(v.state().id,new Float32Array(128),.5);
+ await v.cancel();ready();await started;assert.equal(v.state().phase,'idle');assert.equal(accepted,0);assert.equal(f.commands.at(-1).type,'stop');
+});
 test('missing or failed target capture still listens, polishes and copies without unsafe writes',async()=>{
  for(const throws of [false,true]){const f=fixture({polish:true}),v=f.service;v.input.capture=async()=>{if(throws)throw Error('定位超时');return {ok:false,message:'定位不精确'};};v.settings={get:name=>name==='llm'?{baseUrl:'https://fixture.invalid',model:'fixture'}:{...DEFAULTS,polish:true,useGlobalLlm:true}};v.fetcher=async()=>new Response(JSON.stringify({choices:[{message:{content:'校对后的正文。'}}]}),{headers:{'content-type':'application/json'}});
  await v.start();v.micReady(v.state().id);assert.equal(v.state().phase,'listening');assert.equal(v.state().inputMode,'clipboard');f.asr.emit('开头');await v.finish();assert.deepEqual(f.writes,[]);assert.deepEqual(f.copied,['校对后的正文。']);assert.equal(v.state().copied,true);}

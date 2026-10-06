@@ -7,9 +7,9 @@ function capsuleFixture(){
  const track={stop(){stops++;},addEventListener(){}};
  const stream={getTracks:()=>[track],getAudioTracks:()=>[track]};
  const node=()=>({connect(){},disconnect(){},port:{}});
- class AudioContext{constructor(){this.sampleRate=16000;this.audioWorklet={addModule:async()=>{}};}createMediaStreamSource(){return node();}createGain(){return {...node(),gain:{}};}async resume(){}async close(){}}
+ class AudioContext{constructor(){this.sampleRate=16000;this.audioWorklet={addModule:async()=>{}};}createMediaStreamSource(){return node();}createGain(){return {...node(),gain:{}};}async resume(){}async suspend(){}async close(){}}
  const api={ready(){},onState:cb=>onState=cb,onCommand:cb=>onCommand=cb,onExit:cb=>onExit=cb,report:(...args)=>reports.push(args),audio(){},dismiss(){},pause:async()=>{pauseCalls++;},finish:()=>{finishCalls++;return new Promise(r=>finishResolve=r);}};
- const context=vm.createContext({window:{voiceApi:api,ReiconFilled:{hydrate(){},create:()=>new Element()},addEventListener(){}},document:{getElementById:id=>elements[id],createElement:()=>new Element()},navigator:{mediaDevices:{getUserMedia:async()=>stream}},AudioContext,AudioWorkletNode:class{constructor(){Object.assign(this,node());}},Float32Array,performance,setTimeout});
+ const context=vm.createContext({window:{voiceApi:api,FeimoMicrophone:require('../renderer/voice/microphone'),ReiconFilled:{hydrate(){},create:()=>new Element()},addEventListener(){}},document:{getElementById:id=>elements[id],createElement:()=>new Element()},navigator:{mediaDevices:{getUserMedia:async()=>stream}},AudioContext,AudioWorkletNode:class{constructor(){Object.assign(this,node());}},Float32Array,performance,setTimeout});
  vm.runInContext(fs.readFileSync(path.resolve(__dirname,'../renderer/voice/capture.js'),'utf8'),context);
  return {elements,reports,state:s=>onState(s),command:c=>onCommand(c),exit:()=>onExit(),event:(id,type,extra={})=>elements[id].events[type]({button:0,pointerId:1,detail:1,preventDefault(){},...extra}),get stops(){return stops;},get finishCalls(){return finishCalls;},get pauseCalls(){return pauseCalls;},finish:()=>finishResolve?.({phase:'completed'})};
 }
