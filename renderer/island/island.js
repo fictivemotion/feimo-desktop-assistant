@@ -6,7 +6,7 @@
   $('#compact').onkeydown=null;$('#compact').onclick=null;$('#collapse').onclick=()=>safe(()=>api.islandExpand(false));
   $('#compact').onmouseenter=()=>clearTimeout(collapseTimer);
   $('#island').onmouseenter=()=>clearTimeout(collapseTimer);
-  $('#island').onmouseleave=()=>{clearTimeout(collapseTimer);collapseTimer=setTimeout(()=>{if(busy||embeddedFocused||state?.bridge.requests.length||document.querySelector('input:focus,textarea:focus,select:focus')||document.querySelector('dialog[open]'))return;safe(()=>api.islandExpand(false));},650);};
+  $('#island').onmouseleave=()=>{clearTimeout(collapseTimer);if(!expanded)return;collapseTimer=setTimeout(()=>{if(!expanded||busy||embeddedFocused||state?.bridge.requests.length||document.querySelector('input:focus,textarea:focus,select:focus')||document.querySelector('dialog[open]'))return;safe(()=>api.islandExpand(false));},650);};
   $('#settings').onclick=()=>safe(()=>api.islandWorkbar('connections'));$('#workbench').onclick=()=>safe(()=>api.islandWorkbar('voice'));$('#chat-workbench').onclick=()=>safe(()=>api.islandWorkbar('chat'));
   $('#content').onscroll=()=>$('#content').classList.toggle('is-scrolled',$('#content').scrollTop>2);
   function update(s){
