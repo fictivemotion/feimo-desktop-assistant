@@ -31,9 +31,9 @@ api.onState(state=>{
   stopRequested=false;
   phase=state.phase;level=state.level||0;$('capsule').dataset.phase=phase;$('message').textContent=state.message;
   if(state.active)$('capsule').classList.remove('exiting');
-  if(state.targetOk===false&&['listening','paused'].includes(phase))$('message').textContent=phase==='paused'?'听写已暂停':'继续听写中';
-  $('time').textContent=state.targetOk===false?(state.targetRetryable?'正在确认输入框写入…':'写入已停止 · 仍在听写'):state.warning?'已保留听写原文':`${String(Math.floor((state.elapsed||0)/60)).padStart(2,'0')}:${String((state.elapsed||0)%60).padStart(2,'0')}`;
-  $('capsule').title=state.warning||state.message;$('pause').hidden=!['listening','paused'].includes(phase);$('finish').hidden=!['listening','paused'].includes(phase);
+  if(state.targetOk===false&&['listening','paused'].includes(phase))$('message').textContent=phase==='paused'?'听写已暂停':'剪贴板听写中';
+  $('time').textContent=state.phase==='completed'&&state.copied?'已复制到剪贴板':state.targetOk===false?(state.targetRetryable?'正在确认输入框写入…':'结束后自动校对并复制'):state.warning?'已保留听写原文':`${String(Math.floor((state.elapsed||0)/60)).padStart(2,'0')}:${String((state.elapsed||0)%60).padStart(2,'0')}`;
+  $('capsule').title=[state.warning,state.audioWarning,state.outputMuted?'电脑输出已静音':''].filter(Boolean).join('；')||state.message;$('pause').hidden=!['listening','paused'].includes(phase);$('finish').hidden=!['listening','paused'].includes(phase);
   const pauseIcon=phase==='paused'?'Play':'Pause';
   $('pause').setAttribute('aria-label',phase==='paused'?'继续听写':'暂停听写');
   // Audio level updates must not replace the node under a pressed mouse pointer.

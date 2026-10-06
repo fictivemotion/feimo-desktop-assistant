@@ -41,6 +41,8 @@ const { pickLine, noticeLine } = require('./lib/companion');
 const { VoiceService } = require('./lib/voice/service');
 const { VoiceModels } = require('./lib/voice/models');
 const { InputTarget } = require('./lib/voice/input-target');
+const {RendererTarget}=require('./lib/voice/renderer-target');
+const {OutputAudio}=require('./lib/voice/output-audio');
 const {VoiceStats}=require('./lib/voice/stats');
 const {ModifierShortcut,isModifierShortcut}=require('./lib/voice/modifier-shortcut');
 const { DEFAULTS:VOICE_DEFAULTS, validateConfig:validateVoiceConfig } = require('./lib/voice/config');
@@ -188,7 +190,9 @@ function bootstrap() {
   let petWin = null, workbarWin = null, speechWin = null, quickWin = null, tray = null, soundscapeWin = null, voiceWin = null;
   let voice=null,voiceDismissTimer=null,voicePhase='idle',voiceReady=false,pendingVoiceCapture=null,voiceStateSentAt=0,voiceDisplayId=null;
   const voiceModels=new VoiceModels(path.join(paths.dataDir(),'voice-models','paraformer-bilingual'),{fetcher:(url,options)=>net.fetch(url,options),onChange:()=>sendWorkbar('voice:changed',voice?.state())});
-  const voiceInput=new InputTarget(path.join(paths.dataDir(),'voice-input'));
+  const voiceNativeInput=new InputTarget(path.join(paths.dataDir(),'voice-input'));
+  const voiceInput=new RendererTarget(voiceNativeInput,()=>{const focused=BrowserWindow.getFocusedWindow();return [workbarWin,quickWin,island?.win].some(w=>w&&w===focused)?focused.webContents:null;});
+  const voiceOutput=new OutputAudio(path.join(paths.dataDir(),'voice-output'));
   const voiceStats=new VoiceStats(path.join(paths.dataDir(),'voice-stats.json'));
   const modifierShortcut=new ModifierShortcut(path.join(paths.dataDir(),'voice-input'),()=>{void voice?.toggle().catch(()=>{});});
   const voiceShortcutRegistered=()=>isModifierShortcut(voice?.config().shortcut)?modifierShortcut.ready:globalShortcut.isRegistered(voice?.config().shortcut||VOICE_DEFAULTS.shortcut);
@@ -204,7 +208,7 @@ function bootstrap() {
     if(changed){
       if(state.phase==='starting')voiceDisplayId=screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).id;
       clearTimeout(voiceDismissTimer);
-      if(state.active){dismissSpeech();quickExpanded=false;quickPanel='none';quickWin?.webContents.send('quick:expanded',false);quickWin?.hide();positionVoice();voiceWin?.showInactive();}
+      if(state.active){dismissSpeech();if(!quickWin?.isFocused()&&!voiceInput.owns(quickWin?.webContents)){quickExpanded=false;quickPanel='none';quickWin?.webContents.send('quick:expanded',false);quickWin?.hide();}positionVoice();voiceWin?.showInactive();}
       else if(state.phase==='completed'||state.phase==='error'){positionVoice();voiceWin?.showInactive();if(state.phase==='completed'){voiceDismissTimer=setTimeout(()=>voiceWin?.webContents.send('voice:exit'),320);}else voiceDismissTimer=setTimeout(()=>voiceWin?.hide(),10000);}
       else voiceWin?.hide();
       broadcastPetState();
@@ -1347,7 +1351,7 @@ function bootstrap() {
     screen.on('display-metrics-changed',()=>{if(voiceWin?.isVisible())positionVoice()});
     screen.on('display-removed',()=>{if(voiceWin?.isVisible())positionVoice()});
     secretsCache = loadSecrets();
-    voice=new VoiceService({settings,getSecret,models:voiceModels,input:voiceInput,fetcher:(url,options)=>net.fetch(url,options),connectOptions:async url=>{const resolved=await voiceWin.webContents.session.resolveProxy(url);const proxy=resolved.split(';').map(s=>s.trim()).find(s=>s.startsWith('PROXY ')||s.startsWith('HTTPS '));return proxy?{agent:new(require('https-proxy-agent').HttpsProxyAgent)('http://'+proxy.replace(/^\S+\s+/,''))}:{};},copy:text=>writeTextVerified(clipboard,text),onChange:voiceChanged,onComplete:(id,text,seconds)=>{voiceStats.record(id,text,seconds);sendWorkbar('voice:statsChanged',voiceStats.view());},capture:command=>{if(!voiceReady)pendingVoiceCapture=command;else voiceWin?.webContents.send('voice:capture',command);}});
+    voice=new VoiceService({settings,getSecret,models:voiceModels,input:voiceInput,output:voiceOutput,fetcher:(url,options)=>net.fetch(url,options),connectOptions:async url=>{const resolved=await voiceWin.webContents.session.resolveProxy(url);const proxy=resolved.split(';').map(s=>s.trim()).find(s=>s.startsWith('PROXY ')||s.startsWith('HTTPS '));return proxy?{agent:new(require('https-proxy-agent').HttpsProxyAgent)('http://'+proxy.replace(/^\S+\s+/,''))}:{};},copy:text=>writeTextVerified(clipboard,text),onChange:voiceChanged,onComplete:(id,text,seconds)=>{voiceStats.record(id,text,seconds);sendWorkbar('voice:statsChanged',voiceStats.view());},capture:command=>{if(!voiceReady)pendingVoiceCapture=command;else voiceWin?.webContents.send('voice:capture',command);}});
     try {
       if (!safeStorage.isEncryptionAvailable()) throw new Error('系统加密暂不可用，工具箱记录尚未启用');
       toolbox = new Toolbox(path.join(paths.dataDir(), 'toolbox.bin'), { encrypt: v => safeStorage.encryptString(v), decrypt: v => safeStorage.decryptString(v) });
@@ -1361,7 +1365,7 @@ function bootstrap() {
     createSoundscapeWindow();
     createVoiceWindow();
     // Warm up the tiny input helper without capturing a target or requesting microphone access.
-    voiceInput.prepare().catch(()=>{});
+    voiceInput.prepare().catch(()=>{});voiceOutput.prepare().catch(()=>{});
     if (focus.active) quickWin.webContents.once('did-finish-load', () => {
       positionQuick(); quickWin.showInactive(); quickExpanded = false; quickWin.webContents.send('quick:expanded', false);
     });
