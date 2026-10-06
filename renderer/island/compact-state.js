@@ -13,7 +13,7 @@
     if(s.noise?.playing)rows.push({id:'noise',name:'白噪音',line:'留一段安静给自己'});
     if(m.available&&!m.playing)rows.push({id:'music',name:'Music',line:m.title||'音乐播放'});
     const notice=s.notices?.find(n=>now-n.id<60000);
-    if(notice)rows.push({id:'notice',name:'斐墨提醒',line:notice.text});
+    if(notice)rows.push({id:'notice',name:'斐墨提醒',line:notice.title||'点击下方卡片查看'});
     return rows;
   }
   class Selection {

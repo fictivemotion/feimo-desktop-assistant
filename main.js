@@ -471,6 +471,7 @@ function bootstrap() {
 
   function showReply(controller, phase, full = '') {
     if (chatAbort.controller !== controller || controller.replyDismissed) return;
+    if(settings.get('ui',{}).mode==='island'){island?.showReply({id:controller.replyId,phase,full,pages:splitReply(full)});return;}
     if (speechTimer) clearTimeout(speechTimer);
     cardState = null;
     messageState = null;
@@ -484,7 +485,7 @@ function bootstrap() {
   }
 
   function showPromptCard(value, priority = 3) {
-    if(settings.get('ui',{}).mode==='island'){if(settings.get('ui',{}).companionSpeech!==false)island?.notice([value.title,value.body||value.text].filter(Boolean).join(' · '));return;}
+    if(settings.get('ui',{}).mode==='island'){if(settings.get('ui',{}).companionSpeech!==false)island?.notice(value);return;}
     if (settings.get('ui', {}).companionSpeech === false || !speechWin || !petWin?.isVisible()) return;
     const card = { ...value, id: `card-${Date.now()}-${Math.random().toString(36).slice(2, 7)}` };
     playBloub(value.kind==='schedule'?'reminder':'notification');
@@ -1218,13 +1219,14 @@ function bootstrap() {
       }
     }
   }
-    ipc.handle('chat:send', (_e, { text,fileIds }) => {const files=fileIds?.length?island?.files.context(fileIds):null;return sendChat(text,false,files?fileIds:[]);});
+  ipc.handle('chat:send', (_e, { text,fileIds }) => {const files=fileIds?.length?island?.files.context(fileIds):null;return sendChat(text,false,files?fileIds:[]);});
+  ipc.on('island:replyClose',event=>{if(event.sender===island?.win?.webContents&&chatAbort.controller)chatAbort.controller.replyDismissed=true;});
   ipc.handle('quick:chat', (_e, text) => sendChat(text, true));
   ipc.handle('chat:stop', () => { chatAbort.controller?.abort(); return true; });
   ipc.handle('chat:history', () => (settings.get('privacy', {}).saveChatHistory ? chatHistory.slice(-40) : []));
   ipc.handle('chat:clear', () => {
     if(chatAbort.controller){chatAbort.controller.replyDismissed=true;chatAbort.controller.abort();chatAbort.controller=null;}
-    chatHistory=[];replyState=null;dismissSpeech();userProcessing=false;broadcastPetState();
+    chatHistory=[];replyState=null;if(island)island.reply=null;island?.changed();dismissSpeech();userProcessing=false;broadcastPetState();
     fs.writeFileSync(paths.chatFile(),JSON.stringify({messages:[]}));
     return true;
   });

@@ -4,8 +4,10 @@ const { contextBridge, ipcRenderer, webUtils } = require('electron');
 /** 工作栏桥：仅白名单方法，参数在主进程校验。 */
 contextBridge.exposeInMainWorld('api', {
   fileSearch:q=>ipcRenderer.invoke('files:search',q),fileContext:ids=>ipcRenderer.invoke('files:context',ids),fileDrag:id=>ipcRenderer.send('files:drag',id),
-  fileLibrary:()=>ipcRenderer.invoke('files:state'),fileCreate:data=>ipcRenderer.invoke('files:create',data),fileResolve:data=>ipcRenderer.invoke('files:resolve',data),fileImport:files=>ipcRenderer.invoke('files:import',files),fileSelect:()=>ipcRenderer.invoke('files:select'),fileOpen:id=>ipcRenderer.invoke('files:open',id),fileRoot:()=>ipcRenderer.invoke('files:root'),filePath:file=>webUtils.getPathForFile(file),
+  fileLibrary:()=>ipcRenderer.invoke('files:state'),fileCreate:data=>ipcRenderer.invoke('files:create',data),fileResolve:data=>ipcRenderer.invoke('files:resolve',data),fileImport:files=>ipcRenderer.invoke('files:import',files),fileImportDrop:data=>ipcRenderer.invoke('files:importDrop',data),fileSelect:()=>ipcRenderer.invoke('files:select'),fileOpen:id=>ipcRenderer.invoke('files:open',id),fileRoot:()=>ipcRenderer.invoke('files:root'),filePath:file=>webUtils.getPathForFile(file),
   islandHit:rects=>ipcRenderer.send('island:hit',rects),onIslandNavigate:cb=>ipcRenderer.on('island:navigate',(_e,tab)=>cb(tab)),onIslandIdle:cb=>ipcRenderer.on('island:idle',(_e,idle)=>cb(idle)),
+  islandHide:()=>ipcRenderer.invoke('island:hide'),islandLeave:()=>ipcRenderer.invoke('island:leave'),islandHover:on=>ipcRenderer.send('island:hover',on),
+  islandQuickChat:text=>ipcRenderer.invoke('quick:chat',text),onIslandReply:cb=>ipcRenderer.on('island:reply',(_e,value)=>cb(value)),islandReplyClose:()=>ipcRenderer.send('island:replyClose'),
   islandResize:height=>ipcRenderer.invoke('island:resize',height),
   islandDismissNotice:id=>ipcRenderer.invoke('island:dismissNotice',id),
   islandReveal:()=>ipcRenderer.invoke('island:reveal'),islandState:()=>ipcRenderer.invoke('island:state'),
