@@ -2,6 +2,7 @@
 (() => {
   const {esc,icon,safe,requestCard,sessionCard,serviceCard,musicCard}=IslandWidgets,$=s=>document.querySelector(s);
   let state=null,selected='workbench',workbenchTab='voice',requestedTab=null,expandedKnown=false,expanded=false,collapseTimer=null,signature='',requestIndex=0,petId='',pets=[],busy=false,embeddedFocused=false,reply='',assistant=null,attachment=null,frame=null;
+  document.addEventListener('pointerdown',event=>{const input=event.target.closest('input,textarea,select,[contenteditable="true"]');if(!input||expanded)return;void api.islandInputFocus().then(ok=>{if(ok&&input.isConnected)input.focus({preventScroll:true});}).catch(()=>{});},true);
   function expand(on){expandedKnown=true;expanded=!!on;$('#island').classList.toggle('collapsed',!expanded);if(on){$('#quick-pills').hidden=true;renderPanel();}publishHit();}
   $('#compact').onkeydown=null;$('#compact').onclick=null;$('#collapse').onclick=()=>safe(()=>api.islandExpand(false));
   $('#compact').onmouseenter=()=>clearTimeout(collapseTimer);

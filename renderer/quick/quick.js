@@ -5,6 +5,7 @@
   const tools = $('tools'), chat = $('quick-chat'), editor = $('editor'), pill = $('timer-pill');
   let anchor = { x: 360, y: 212, side: 'left', petWidth: 72, petHeight: 97 };
   let expanded = false, panel = 'none', mode = 'pomodoro', selectedLabel = 'focus';
+  document.addEventListener('pointerdown',event=>{const input=event.target.closest('input,textarea,select');if(!input)return;void api.inputFocus().then(ok=>{if(ok&&input.isConnected)input.focus({preventScroll:true});}).catch(()=>{});},true);
   let focus = { labels: [], active: null };
   let toastTimer = null, toolAnimationTimer = null, toolsAnimating = false;
   const toolSize = 34;

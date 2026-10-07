@@ -1,25 +1,32 @@
-using System;using System.Diagnostics;using System.Runtime.InteropServices;
+using System;using System.Diagnostics;using System.Runtime.InteropServices;using System.Threading;
+// Read key state only; never join a remote application's low-level keyboard hook
+// chain, consume injected events, or synthesize modifier releases.
 class ModifierShortcut {
- delegate IntPtr Hook(int code,IntPtr message,IntPtr data);
- [StructLayout(LayoutKind.Sequential)]struct KEY{public uint vk,scan,flags,time;public UIntPtr extra;}
- [StructLayout(LayoutKind.Sequential)]struct POINT{public int x,y;}
- [StructLayout(LayoutKind.Sequential)]struct MSG{public IntPtr hwnd;public uint message;public UIntPtr w;public IntPtr l;public uint time;public POINT point;public uint extra;}
- [DllImport("user32.dll")]static extern IntPtr SetWindowsHookEx(int id,Hook hook,IntPtr module,uint thread);
- [DllImport("user32.dll")]static extern IntPtr CallNextHookEx(IntPtr hook,int code,IntPtr message,IntPtr data);
- [DllImport("user32.dll")]static extern bool UnhookWindowsHookEx(IntPtr hook);
- [DllImport("user32.dll")]static extern int GetMessage(out MSG message,IntPtr hwnd,uint min,uint max);
- [DllImport("user32.dll")]static extern bool TranslateMessage(ref MSG message);
- [DllImport("user32.dll")]static extern IntPtr DispatchMessage(ref MSG message);
- [DllImport("kernel32.dll",CharSet=CharSet.Unicode)]static extern IntPtr GetModuleHandle(string name);
- static IntPtr handle;static Hook callback=OnKey;static bool ctrl,alt,candidate,invalid;static long start,last=-1000;static Stopwatch clock=Stopwatch.StartNew();
- static IntPtr OnKey(int code,IntPtr message,IntPtr data){
-  if(code>=0){var k=(KEY)Marshal.PtrToStructure(data,typeof(KEY));bool down=message.ToInt32()==0x100||message.ToInt32()==0x104;bool up=message.ToInt32()==0x101||message.ToInt32()==0x105;bool control=k.vk==0x11||k.vk==0xA2||k.vk==0xA3;bool menu=k.vk==0x12||k.vk==0xA4||k.vk==0xA5;
-   if(down){if(control)ctrl=true;else if(menu){alt=true;if(k.vk==0xA5||(k.flags&1)!=0)invalid=true;}else if(ctrl||alt)invalid=true;
-    if(ctrl&&alt&&!candidate){candidate=true;start=clock.ElapsedMilliseconds;} }
-   if(up){if(control)ctrl=false;if(menu)alt=false;if(!ctrl&&!alt){long now=clock.ElapsedMilliseconds;if(candidate&&!invalid&&now-start>=25&&now-start<2000&&now-last>250){last=now;Console.WriteLine("toggle");Console.Out.Flush();}candidate=false;invalid=false;}}
+ [DllImport("user32.dll")]static extern short GetAsyncKeyState(int key);
+ internal sealed class Chord {
+  bool candidate,invalid,held;long start,last=-1000;
+  internal bool Step(bool ctrl,bool alt,bool other,long now){
+   if(ctrl||alt){
+    if(!held){held=true;invalid=other;}invalid|=other;
+    if(ctrl&&alt&&!candidate){candidate=true;start=now;}return false;
+   }
+   bool toggle=held&&candidate&&!invalid&&now-start>=25&&now-start<2000&&now-last>250;
+   held=candidate=invalid=false;if(toggle)last=now;return toggle;
   }
-  // Observes the chord only. Never consumes keys or changes the normal keyboard / IME flow.
-  return CallNextHookEx(handle,code,message,data);
  }
- static void Main(){handle=SetWindowsHookEx(13,callback,GetModuleHandle(Process.GetCurrentProcess().MainModule.ModuleName),0);if(handle==IntPtr.Zero){Console.WriteLine("error");return;}Console.WriteLine("ready");Console.Out.Flush();MSG m;try{while(GetMessage(out m,IntPtr.Zero,0,0)>0){TranslateMessage(ref m);DispatchMessage(ref m);}}finally{UnhookWindowsHookEx(handle);}}
+ static bool Down(int key){return (GetAsyncKeyState(key)&0x8000)!=0;}
+ static void Main(){
+  var chord=new Chord();var clock=Stopwatch.StartNew();
+  bool initial=Down(0x11)||Down(0x12);
+  Console.WriteLine("ready");Console.Out.Flush();
+  while(true){
+   bool ctrl=Down(0x11),alt=Down(0x12),other=initial||Down(0xA5)||Down(0x10)||Down(0x5B)||Down(0x5C);
+   if(ctrl||alt){for(int key=8;key<=254&&!other;key++){
+    if(key==0x10||key==0x11||key==0x12||(key>=0xA0&&key<=0xA5))continue;
+    other=Down(key);
+   }}else initial=false;
+   if(chord.Step(ctrl,alt,other,clock.ElapsedMilliseconds)){Console.WriteLine("toggle");Console.Out.Flush();}
+   Thread.Sleep(10);
+  }
+ }
 }

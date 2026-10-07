@@ -1,6 +1,7 @@
 'use strict';
 const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('quickApi', {
+  inputFocus:()=>ipcRenderer.invoke('quick:inputFocus'),
   soundscapeState:()=>ipcRenderer.invoke('soundscape:state'),
   soundscapeCommand:data=>ipcRenderer.invoke('soundscape:command',data),
   onSoundscapeChanged:cb=>ipcRenderer.on('soundscape:changed',(_e,value)=>cb(value)),

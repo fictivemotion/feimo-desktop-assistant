@@ -45,6 +45,7 @@ const {RendererTarget}=require('./lib/voice/renderer-target');
 const {OutputAudio}=require('./lib/voice/output-audio');
 const {VoiceStats}=require('./lib/voice/stats');
 const {ModifierShortcut,isModifierShortcut}=require('./lib/voice/modifier-shortcut');
+const {overlayFocusable}=require('./lib/overlay-focus');
 const { DEFAULTS:VOICE_DEFAULTS, validateConfig:validateVoiceConfig } = require('./lib/voice/config');
 const { correct:correctVoice, parseRules:parseVoiceRules } = require('./lib/voice/hotwords');
 
@@ -343,7 +344,7 @@ function bootstrap() {
   function createQuickWindow() {
     quickWin = new BrowserWindow({
       width: QUICK_WIDTH, height: QUICK_HEIGHT, show: false, frame: false, transparent: true,
-      resizable: false, focusable: true, skipTaskbar: true, hasShadow: false,
+      resizable: false, focusable: false, skipTaskbar: true, hasShadow: false,
       alwaysOnTop: true, backgroundColor: '#00000000',
       webPreferences: { preload: path.join(__dirname, 'preload', 'quick-preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: false },
     });
@@ -357,7 +358,7 @@ function bootstrap() {
     quickWin.webContents.on('will-navigate', (e) => e.preventDefault());
     quickWin.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     quickWin.on('closed', () => { quickWin = null; });
-    quickWin.on('blur', () => hideQuickSoon());
+    quickWin.on('blur', () => {if(quickPanel==='none')overlayFocusable(quickWin,false);hideQuickSoon();});
   }
 
   function positionQuick() {
@@ -380,6 +381,7 @@ function bootstrap() {
     if (workbarWin?.isVisible() || !petWin?.isVisible()) return;
     if (quickLeaveTimer) clearTimeout(quickLeaveTimer);
     if (!quickWin) createQuickWindow();
+    overlayFocusable(quickWin,quickPanel!=='none');
     positionQuick();
     quickWin.showInactive();
     // The tool launch path crosses the pet; keep the pet above it so clicks still land on the companion.
@@ -403,6 +405,7 @@ function bootstrap() {
       if (petHovered && pet && (cursor.x < pet.x || cursor.x >= pet.x + pet.width || cursor.y < pet.y || cursor.y >= pet.y + pet.height)) petHovered = false;
       if (petHovered || cursorOnQuickControl() || (quickWin?.isFocused() && (quickDraft || quickPanel !== 'none'))) { hideQuickSoon(); return; }
       quickPanel = 'none';
+      overlayFocusable(quickWin,false);
       quickExpanded = false;
       quickWin?.webContents.send('quick:expanded', false);
       if (!focus.active) quickWin?.hide();
@@ -1135,8 +1138,9 @@ function bootstrap() {
   });
 
   ipc.on('quick:enter', () => { if (cursorOnQuickControl()) { revealDock(); hideQuickSoon(); } });
+  ipc.handle('quick:inputFocus',e=>{if(e.sender!==quickWin?.webContents||!quickWin?.isVisible())return false;overlayFocusable(quickWin,true);quickWin.focus();return true;});
   ipc.on('quick:leave', () => { hideQuickSoon(); scheduleDockHide(); });
-  ipc.on('quick:panel', (_e, name) => { quickPanel = ['timer', 'schedule', 'note','noise'].includes(name) ? name : 'none';if(quickPanel!=='none')playBloub('toolsOpen'); });
+  ipc.on('quick:panel', (e, name) => { if(e.sender!==quickWin?.webContents)return;quickPanel = ['timer', 'schedule', 'note','noise'].includes(name) ? name : 'none';overlayFocusable(quickWin,quickPanel!=='none');if(quickPanel!=='none')playBloub('toolsOpen'); });
   ipc.on('quick:draft', (_e, hasDraft) => { quickDraft = hasDraft === true; });
   ipc.on('quick:shape', (_e, rects) => {
     if (!quickWin || !Array.isArray(rects)) return;
