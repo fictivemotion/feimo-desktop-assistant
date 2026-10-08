@@ -9,8 +9,10 @@
  row.onwheel=e=>{e.preventDefault();row.scrollBy({left:e.deltaY||e.deltaX,behavior:'smooth'});};
  const close=()=>{dock.hidden=true;card.hidden=true;cardType='';window.IslandHit?.();};
  function reveal(){clearTimeout(hideTimer);if(!$('#island').classList.contains('collapsed'))return;dock.hidden=false;void api.islandReveal();}
- function leave(e){if(e?.relatedTarget&&(dock.contains(e.relatedTarget)||pill.contains(e.relatedTarget)||document.getElementById('island-cards')?.contains(e.relatedTarget)))return;hover=false;api.islandHover(false);api.islandLeave();clearTimeout(hideTimer);hideTimer=setTimeout(()=>{if(!dock.contains(document.activeElement))close();},450);}
- pill.onmouseenter=()=>{hover=true;api.islandHover(true);reveal();};pill.onmouseleave=leave;dock.onmouseenter=()=>{hover=true;api.islandHover(true);clearTimeout(hideTimer);};dock.onmouseleave=leave;
+ function enter(){clearTimeout(hideTimer);hover=true;api.islandHover(true);}
+ function leave(e){if(e?.relatedTarget&&(dock.contains(e.relatedTarget)||pill.contains(e.relatedTarget)||document.getElementById('island-cards')?.contains(e.relatedTarget))){enter();return;}clearTimeout(hideTimer);hideTimer=setTimeout(()=>{if(dock.matches(':hover')||pill.matches(':hover')||document.getElementById('island-cards')?.matches(':hover')||dock.contains(document.activeElement))return;hover=false;api.islandHover(false);api.islandLeave();close();},450);}
+ window.IslandQuickHover={enter,leave};
+ pill.onmouseenter=()=>{enter();reveal();};pill.onmouseleave=leave;dock.onmouseenter=enter;dock.onmouseleave=leave;
  $('#compact-open').onclick=e=>{e.stopPropagation();close();safe(()=>api.islandWorkbar('voice'));};
  setInterval(()=>{if(!dock.hidden&&(hover||dock.contains(document.activeElement)))void api.islandReveal();},1000);
  function head(text){card.hidden=false;card.innerHTML=`<div class="quick-card-heading"><strong>${esc(text)}</strong><button class="icon-btn" aria-label="关闭快捷卡片">${icon('CloseCircle',16)}</button></div><div class="quick-card-body"></div>`;card.querySelector('.quick-card-heading button').onclick=()=>{card.hidden=true;cardType='';};return card.querySelector('.quick-card-body');}

@@ -7,9 +7,19 @@ test('manual hide ignores stale hover reveals and the edge reached by an upward 
 
 test('a delayed workbench collapse cannot override a manually hidden capsule',()=>{const {IslandHost}=require('../lib/island-host');let polls=0;const host={expanded:false,activity:()=>polls++,visibility:new Visibility()};host.visibility.hide();IslandHost.prototype.expand.call(host,false);assert.equal(host.visibility.manual,true);assert.equal(host.visibility.idle,true);assert.equal(polls,1);});
 test('leaving the pill cannot hide a visible notice or reply before reaching its controls',()=>{
- const {IslandHost}=require('../lib/island-host');let hidden=0;const h={expanded:false,reply:null,notices:[{at:Date.now()}],visibility:new Visibility(),persistent:()=>false,hide:()=>hidden++,hasCards:IslandHost.prototype.hasCards};
+ const {IslandHost}=require('../lib/island-host');let hidden=0;const h={expanded:false,reply:null,notices:[{at:Date.now()}],visibility:new Visibility(),persistent:()=>false,cursorInside:()=>false,hide:()=>hidden++,hasCards:IslandHost.prototype.hasCards};
  IslandHost.prototype.leave.call(h);assert.equal(hidden,0);
  h.notices=[];h.reply={id:'test',pages:['回答']};IslandHost.prototype.leave.call(h);assert.equal(hidden,0);
  h.reply=null;h.notices=[{at:Date.now()-61000}];IslandHost.prototype.leave.call(h);assert.equal(hidden,1);
  h.notices=[];IslandHost.prototype.leave.call(h);assert.equal(hidden,2);
+});
+test('a stale renderer leave event cannot hide controls under the actual cursor',()=>{
+ const {IslandHost}=require('../lib/island-host');let hidden=0;const h={visibility:new Visibility(),cursorInside:()=>true,hide:()=>hidden++};
+ IslandHost.prototype.leave.call(h);assert.equal(hidden,0);assert.equal(h.visibility.hover,true);
+});
+test('external click detection samples the current cursor instead of the previous hit-timer result',()=>{
+ const {IslandHost}=require('../lib/island-host');let hidden=0,inside=true;const h={settings:{get:()=>({mode:'island'})},expanded:false,acceptsMouse:false,persistent:()=>false,cursorInside:()=>inside,hide:()=>hidden++};
+ IslandHost.prototype.outsideClick.call(h);assert.equal(hidden,0);
+ inside=false;h.acceptsMouse=true;IslandHost.prototype.outsideClick.call(h);assert.equal(hidden,1);
+ h.expanded=true;IslandHost.prototype.outsideClick.call(h);assert.equal(hidden,1);
 });
