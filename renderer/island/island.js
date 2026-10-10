@@ -3,7 +3,7 @@
   const {esc,icon,safe,requestCard,sessionCard,serviceCard,musicCard}=IslandWidgets,$=s=>document.querySelector(s);
   let state=null,selected='workbench',workbenchTab='voice',requestedTab=null,expandedKnown=false,expanded=false,collapseTimer=null,signature='',requestIndex=0,petId='',pets=[],busy=false,embeddedFocused=false,reply='',assistant=null,attachment=null,frame=null;
   document.addEventListener('pointerdown',event=>{const input=event.target.closest('input,textarea,select,[contenteditable="true"]');if(!input||expanded)return;void api.islandInputFocus().then(ok=>{if(ok&&input.isConnected)input.focus({preventScroll:true});}).catch(()=>{});},true);
-  function expand(on){expandedKnown=true;expanded=!!on;$('#island').classList.toggle('collapsed',!expanded);if(on){$('#quick-pills').hidden=true;renderPanel();}publishHit();}
+  function expand(on){if(expanded!==!!on){clearTimeout(collapseTimer);window.IslandMotion?.();}expandedKnown=true;expanded=!!on;$('#island').classList.toggle('collapsed',!expanded);if(on){$('#quick-pills').hidden=true;renderPanel();}publishHit();}
   $('#compact').onkeydown=null;$('#compact').onclick=null;$('#collapse').onclick=()=>safe(()=>api.islandExpand(false));
   $('#compact').onmouseenter=()=>clearTimeout(collapseTimer);
   $('#island').onmouseenter=()=>clearTimeout(collapseTimer);
@@ -70,15 +70,7 @@
   window.addEventListener('message',e=>{if(e.source===$('#full-workbench').contentWindow&&e.data?.type==='feimo:workbench-busy')embeddedFocused=!!e.data.busy;});
   function navigate(tab){requestedTab=tab;const route=String(tab).split(':')[0];selected=['agents','focus','files'].includes(route)?route:'workbench';workbenchTab=tab;signature='';$('#full-workbench').dataset.route='';renderPanel();}
   $('#full-workbench').onload=()=>navigate(requestedTab||state?.module||'voice');api.onIslandNavigate(navigate);window.FeimoNavigate=navigate;api.onIslandIdle(idle=>{$('#island').classList.toggle('idle-dot',idle);document.body.classList.toggle('capsule-hidden',idle);if(idle)$('#quick-pills').hidden=true;publishHit();});
-  function publishHit(){
-    const rects=[...document.querySelectorAll('#island,#compact-hide,#quick-pills:not([hidden]),#island-cards:not([hidden]) .island-pop-card:not([hidden]),dialog[open]')].filter(el=>el.getClientRects().length&&!document.body.classList.contains('capsule-hidden')||el.id==='island').map(el=>{const r=el.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height};});
-    // Include the CSS hover bridges in the native hit region too. Pseudo-elements
-    // have no DOM rectangle, so clipping only to cards would drop their mouse path.
-    for(const [id,gap]of [['quick-pills',20],['island-cards',8]]){const node=document.getElementById(id);if(node&&!node.hidden&&node.getClientRects().length&&!document.body.classList.contains('capsule-hidden')){const r=node.getBoundingClientRect();rects.unshift({x:r.x,y:r.y-gap,width:r.width,height:gap});}}
-    api.islandHit?.(rects);
-  }
-  window.IslandHit=publishHit;
-  const hitObserver=new ResizeObserver(publishHit);hitObserver.observe($('#island'));document.addEventListener('animationstart',()=>{let end=performance.now()+450;const tick=()=>{publishHit();if(performance.now()<end)requestAnimationFrame(tick);};requestAnimationFrame(tick);});
+  function publishHit(){window.IslandHit?.();}
   api.onIslandChanged(update);api.onIslandExpanded(expand);
   (async()=>{pets=await api.getPets();update(await api.islandState());const history=await api.chatHistory();for(const m of history||[])message(m.content||m.text||'',m.role==='user');})().catch(e=>UI.toast(e.message,true));
 })();

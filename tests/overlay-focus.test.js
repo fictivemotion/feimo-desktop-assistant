@@ -18,3 +18,15 @@ test('native hit region follows visible controls independent of local or remote 
  overlayShape(win,rects);overlayShape(win,rects);assert.equal(regions.length,1);assert.deepEqual(regions[0],[{x:200,y:6,width:501,height:71},{x:0,y:100,width:196,height:60}]);assert.deepEqual(ignore,[false]);
  overlayShape(win,[]);assert.deepEqual(ignore,[false,true]);assert.equal(regions.length,1);
 });
+test('unchanged geometry recovers mouse input after native style drift without recutting the window',()=>{
+ const regions=[],ignore=[];let now=5000;const original=Date.now;Date.now=()=>now;
+ try{const win={isDestroyed:()=>false,getBounds:()=>({width:1000,height:640}),setShape:r=>regions.push(r),setIgnoreMouseEvents:b=>ignore.push(b)};
+ const rects=[{x:300,y:2,width:360,height:54}];overlayShape(win,rects);overlayShape(win,rects);assert.deepEqual(ignore,[false]);
+ now+=1100;overlayShape(win,rects);assert.deepEqual(ignore,[false,false]);assert.equal(regions.length,1);
+ overlayShape(win,rects,{force:true});assert.equal(regions.length,2);
+ }finally{Date.now=original;}
+});
+test('changing focus invalidates the native region cache so a later hit update reestablishes it',()=>{
+ let focusable=false;const win={isDestroyed:()=>false,isFocusable:()=>focusable,isFocused:()=>false,setFocusable:v=>focusable=v,_feimoShape:'stale'};
+ overlayFocusable(win,true);assert.equal(win._feimoShape,null);win._feimoShape='fresh';overlayFocusable(win,true);assert.equal(win._feimoShape,'fresh');overlayFocusable(win,false);assert.equal(win._feimoShape,null);
+});
