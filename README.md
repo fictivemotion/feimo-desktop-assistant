@@ -56,6 +56,12 @@
 
 顶部工作台与服务适配借鉴 [Coucou](https://github.com/Louis-CFM/coucou) 的 MIT 代码，保留[上游许可](assets/licenses/COUCOU-MIT.txt)。使用斐墨自有界面及 Bloub；不包含上游保留版权的 Mochi 角色、图标或音效。
 
+## 区域截图与剪贴板浮窗
+
+**Ctrl + Shift + A** 选择屏幕区域，支持矩形/圈选/画笔/箭头/文字、颜色与线宽、马赛克、撤销、保存和复制。选区文字、表格、公式由本机 Xiaomi-OCR-0 识别；可继续清洗、图片翻译或提取色值。
+
+**中键长按 0.5 秒** 在鼠标位置唤出图片与文字剪贴板历史，点击缩略图即可复制。默认不自动记录剪贴板，截图确认会加入本机加密历史。[使用与本机模型部署](docs/SCREENSHOT.md)。
+
 ## 功能一览
 
 ![Bloub 的多种原版动作与实际使用场景](docs/images/bloub-states.png)

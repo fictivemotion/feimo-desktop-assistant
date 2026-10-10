@@ -6,7 +6,7 @@
   view.innerHTML=`
     <div class="subtabs tool-tabs"><button class="subtab active" data-tool="clipboard"><span data-icon="ClipboardText" data-size="16"></span>剪贴板</button><button class="subtab" data-tool="notes"><span data-icon="NoteText" data-size="16"></span>速记</button><button class="subtab" data-tool="palette"><span data-icon="Palette" data-size="16"></span>配色</button></div>
     <div id="tb-error" class="tool-error" hidden></div>
-    <section id="tb-clipboard"><div class="card toolbox-intro"><h2>随时找回刚复制的内容</h2><p>本机加密保存，最多 80 条；常见密钥不会进入历史。</p><div class="tool-actions"><button class="btn primary" id="tb-capture">收录当前剪贴板</button><button class="btn small" id="tb-clear">清除未固定记录</button></div><label class="tool-opt"><input type="checkbox" id="tb-auto">自动记录剪贴板<span>仅开启后在后台读取文字和图片</span></label></div><input class="tool-search" id="tb-clip-search" placeholder="搜索剪贴板文字…" aria-label="搜索剪贴板"><div id="tb-clips"></div></section>
+    <section id="tb-clipboard"><div class="card toolbox-intro"><h2>随时找回刚复制的内容</h2><p>本机加密保存，最多 80 条；常见密钥不会进入历史。</p><div class="tool-actions"><button class="btn primary" id="tb-capture">收录当前剪贴板</button><button class="btn" id="tb-screenshot"><span data-icon="Image" data-size="16"></span>区域截图</button><button class="btn small" id="tb-clear">清除未固定记录</button></div><label class="tool-opt"><input type="checkbox" id="tb-auto">自动记录剪贴板<span>仅开启后在后台读取文字和图片</span></label><label class="tool-opt"><input type="checkbox" id="tb-middle">中键长按唤出历史<span>按住鼠标中键 0.5 秒，在鼠标位置显示</span></label></div><input class="tool-search" id="tb-clip-search" placeholder="搜索剪贴板文字…" aria-label="搜索剪贴板"><div id="tb-clips"></div></section>
     <section id="tb-notes" hidden><div class="tool-actions"><button class="btn primary" id="tb-new-note"><span data-icon="Add" data-size="16"></span>新速记</button><button class="btn" id="tb-export-notes">导出 Markdown</button></div><div id="tb-note-editor" class="card" hidden><input id="tb-note-title" maxlength="80" placeholder="标题（可选）" aria-label="速记标题"><textarea id="tb-note-text" maxlength="30000" placeholder="记下灵感、待办或一段文字…" aria-label="速记正文"></textarea><div class="tool-actions"><button class="btn primary" id="tb-save-note">保存速记</button><button class="btn" id="tb-cancel-note">返回列表</button><span id="tb-note-hint" class="muted">支持 Markdown</span></div></div><input class="tool-search" id="tb-note-search" placeholder="搜索速记…" aria-label="搜索速记"><div id="tb-note-list"></div></section>
     <section id="tb-palette" hidden><div class="card palette-control"><h2>为下一份创作找一组颜色</h2><p class="muted">点击色块复制 HEX；从主色生成协调的五色搭配。</p><div class="palette-inputs"><input type="color" id="tb-color" value="#789A87" aria-label="选择主色"><input id="tb-hex" value="#789A87" maxlength="7" aria-label="主色 HEX"><select id="tb-harmony" aria-label="搭配方式"><option value="analogous">邻近色</option><option value="complementary">互补色</option><option value="triadic">三角色</option></select><button class="btn" id="tb-generate">生成</button></div><div id="tb-palette-preview"></div><div class="tool-actions"><button class="btn primary" id="tb-copy-palette">复制整组</button><button class="btn" id="tb-save-palette">收藏色卡</button></div></div><h3 class="tool-section-title">精选搭配</h3><div id="tb-curated" class="palette-grid"></div><h3 class="tool-section-title">我的色卡</h3><div id="tb-palettes" class="palette-grid"></div></section>`;
   function error(e){const box=$('tb-error');box.hidden=false;box.textContent=e?.message||String(e);}
@@ -14,7 +14,7 @@
   function empty(text){const el=document.createElement('div');el.className='tool-empty';el.textContent=text;return el;}
   function action(text,fn,icon){const b=document.createElement('button');b.className='btn small';b.type='button';b.textContent=text;if(icon)b.prepend(window.ReiconFilled.create(icon,16));b.onclick=()=>run(fn);return b;}
   function renderClips(){
-    $('tb-auto').checked=data.autoCapture;
+    $('tb-auto').checked=data.autoCapture;$('tb-middle').checked=data.middleHold!==false;
     const root=$('tb-clips'),query=$('tb-clip-search').value.toLowerCase();root.replaceChildren();
     const list=data.clips.filter(c=>!query||c.kind==='text'&&c.value.toLowerCase().includes(query)).sort((a,b)=>Number(b.pinned)-Number(a.pinned));
     if(!list.length)root.append(empty(query?'没有找到相符记录':'先收录一条复制的内容吧。'));
@@ -53,7 +53,9 @@
   function show(name){if(!['clipboard','notes','palette'].includes(name))return;section=name;view.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool===name));for(const n of ['clipboard','notes','palette'])$('tb-'+n).hidden=n!==name;}
   view.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>show(b.dataset.tool));
   $('tb-capture').onclick=()=>run(async()=>{const r=await api.toolboxCapture();const msg={saved:'已收录',sensitive:'检测到疑似密钥，不加入历史',empty:'剪贴板为空',large:'内容过大，未加入历史'};UI.toast(msg[r.status]||'已收录');});
-  $('tb-auto').onchange=()=>run(async()=>{await api.setSettings({toolbox:{autoCapture:$('tb-auto').checked}});await refresh();});
+  $('tb-auto').onchange=()=>run(async()=>{await api.setSettings({toolbox:{autoCapture:$('tb-auto').checked,middleHold:$('tb-middle').checked}});await refresh();});
+  $('tb-screenshot').onclick=()=>run(()=>api.screenshot());
+  $('tb-middle').onchange=()=>run(async()=>{await api.setSettings({toolbox:{autoCapture:$('tb-auto').checked,middleHold:$('tb-middle').checked}});await refresh();});
   $('tb-clear').onclick=()=>{if(confirm('清除所有未固定的剪贴板记录？'))run(()=>api.toolboxClearClips());};
   $('tb-clip-search').oninput=renderClips;$('tb-note-search').oninput=renderNotes;
   $('tb-new-note').onclick=()=>editNote();$('tb-cancel-note').onclick=()=>{if(dirty&&!confirm('速记尚未保存，放弃修改吗？'))return;$('tb-note-editor').hidden=true;dirty=false;};

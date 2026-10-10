@@ -13,6 +13,7 @@
     const clean = await api.textCleanStatus();
     const hasNotion = await api.hasSecret('notionToken');
     const hk = settings.hotkeys || {};
+    const capture = settings.capture || {};
     const ag = settings.agents || {};
     const llm = settings.llm || {};
     const notion = settings.notion || {};
@@ -72,6 +73,23 @@
       </div>
 
       <div class="settings-section">
+        <h4><span data-icon="Image" data-size="16"></span> 区域截图与识别</h4>
+        <div class="card">
+          <p>Ctrl + Shift + A 选区截图 · 标注、马赛克、取色、保存和复制</p>
+          <div class="field"><label>识别服务</label><select id="st-capture-backend"><option value="xiaomi" ${capture.backend!=='qwen'?'selected':''}>本机 Xiaomi-OCR-0</option><option value="qwen" ${capture.backend==='qwen'?'selected':''}>在线 Qwen 视觉模型</option></select></div>
+          <div class="field"><label>本机运行方式</label><select id="st-capture-transport"><option value="ollama" ${capture.transport!=='openai'?'selected':''}>Ollama</option><option value="openai" ${capture.transport==='openai'?'selected':''}>SGLang / vLLM（OpenAI 兼容）</option></select></div>
+          <div class="field"><label>本机服务地址</label><input id="st-capture-local-url" value="${UI.esc(capture.localUrl||'http://127.0.0.1:11434')}"></div>
+          <div class="field"><label>本机模型名称</label><input id="st-capture-local-model" value="${UI.esc(capture.localModel||'longwayxu/xiaomi-ocr-0:bf16')}"></div>
+          <div class="field"><label>在线服务地址</label><input id="st-capture-url" value="${UI.esc(capture.url||'https://dashscope.aliyuncs.com/compatible-mode/v1')}"></div>
+          <div class="field"><label>在线模型名称</label><input id="st-capture-model" value="${UI.esc(capture.model||'qwen3-vl-plus')}"></div>
+          <div class="field"><label>在线 Qwen 密钥（可选，留空复用语音识别密钥）</label><input type="password" autocomplete="new-password" id="st-capture-key" placeholder="留空保留已保存的密钥"></div>
+          <p class="muted">本机模式不上传图片。提取并清洗、图片翻译只发送识别文字到已配置的 DeepSeek；在线模式发送选区图片到 Qwen。首次加载本机模型会稍慢。</p>
+          <div class="actionbar"><button class="btn primary" id="st-capture-save">保存识别配置</button><button class="btn" id="st-capture-check">检查本机模型</button><button class="btn" id="st-capture-guide">部署指引</button></div>
+          <p class="hint" id="st-capture-status" role="status"></p>
+        </div>
+      </div>
+
+      <div class="settings-section">
         <h4><span data-icon="Paw" data-size="16"></span> 宠物形象</h4>
         <div class="card">
           <div class="pet-grid" id="st-pets"></div>
@@ -105,6 +123,7 @@
           <div class="hotkey-row"><span class="lbl">唤起 / 收起工作栏</span><input type="text" id="st-hk1" value="${UI.esc(hk.show || '')}"/></div>
           <div class="hotkey-row"><span class="lbl">文本清洗并复制结果</span><input type="text" id="st-hk2" value="${UI.esc(hk.processClipboard || 'Alt+Shift+O')}"/></div>
           <div class="hotkey-row"><span class="lbl">图片提字并复制结果</span><input type="text" id="st-hk3" value="${UI.esc(hk.ocrClipboard || 'Alt+Shift+T')}"/></div>
+          <div class="hotkey-row"><span class="lbl">区域截图</span><input type="text" id="st-hk4" value="${UI.esc(hk.capture||'Ctrl+Shift+A')}"/></div>
           <div class="hint" style="margin-top:6px">格式：Alt+Shift+P / Ctrl+Alt+T 等；保存后立即生效，冲突时注册失败不提示覆盖</div>
           <button class="btn primary" id="st-save-hk" style="margin-top:8px">保存热键</button>
         </div>
@@ -294,13 +313,21 @@
       catch(error){UI.toast(error.message,true);}finally{button.disabled=false;button.textContent='测试清洗';}
     });
 
+    view.querySelector('#st-capture-save').onclick=async()=>{try{
+      settings=await api.setSettings({capture:{backend:view.querySelector('#st-capture-backend').value,transport:view.querySelector('#st-capture-transport').value,localUrl:view.querySelector('#st-capture-local-url').value.trim(),localModel:view.querySelector('#st-capture-local-model').value.trim(),url:view.querySelector('#st-capture-url').value.trim(),model:view.querySelector('#st-capture-model').value.trim()}});
+      const key=view.querySelector('#st-capture-key');if(key.value.trim()){await api.setSecret('captureApiKey',key.value.trim());key.value='';}UI.toast('截图配置已保存');
+    }catch(e){UI.toast(e.message,true);}};
+    view.querySelector('#st-capture-check').onclick=async()=>{const output=view.querySelector('#st-capture-status');output.textContent='正在检查…';try{const r=await api.captureStatus();output.textContent=r.ready?'本机模型已就绪':r.connected?'服务已启动，模型尚未下载':r.installed?'运行环境已安装，点击提取时自动启动':'本机服务未启动，请按部署指引准备模型';}catch(e){output.textContent=e.message;}};
+    view.querySelector('#st-capture-guide').onclick=()=>api.captureGuide();
     // 热键
     view.querySelector('#st-save-hk').addEventListener('click', async () => {
       settings = await api.setSettings({
         hotkeys: {
+          ...hk,
           show: view.querySelector('#st-hk1').value.trim() || 'Alt+Shift+P',
           processClipboard: view.querySelector('#st-hk2').value.trim() || 'Alt+Shift+O',
           ocrClipboard: view.querySelector('#st-hk3').value.trim() || 'Alt+Shift+T',
+          capture:view.querySelector('#st-hk4').value.trim()||'Ctrl+Shift+A',
         },
       });
       const registered = await api.hotkeyStatus();
