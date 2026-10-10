@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const {overlayFocusable,overlayShape}=require('../lib/overlay-focus');
+const {overlayFocusable,overlayInteraction,overlayShape}=require('../lib/overlay-focus');
 const {IslandHost}=require('../lib/island-host');
 test('passive overlay releases focus, does not repeatedly change native styles, and never activates other apps',()=>{
  let focusable=true,focused=true;const changes=[];
@@ -29,4 +29,25 @@ test('unchanged geometry recovers mouse input after native style drift without r
 test('changing focus invalidates the native region cache so a later hit update reestablishes it',()=>{
  let focusable=false;const win={isDestroyed:()=>false,isFocusable:()=>focusable,isFocused:()=>false,setFocusable:v=>focusable=v,_feimoShape:'stale'};
  overlayFocusable(win,true);assert.equal(win._feimoShape,null);win._feimoShape='fresh';overlayFocusable(win,true);assert.equal(win._feimoShape,'fresh');overlayFocusable(win,false);assert.equal(win._feimoShape,null);
+});
+test('interactive capsule avoids Windows click-eating without focusing a window on hover',()=>{
+ let focusable=false,focused=false;const changes=[];
+ const win={isDestroyed:()=>false,isFocusable:()=>focusable,isFocused:()=>focused,setFocusable:on=>{focusable=on;changes.push(on);},blur:()=>{focused=false;changes.push('blur');},focus:()=>assert.fail('hover must not focus')};
+ for(let cycle=0;cycle<50;cycle++){
+  overlayInteraction(win,{inside:true});assert.equal(focusable,true);
+  overlayInteraction(win,{inside:true});
+  focused=true;overlayInteraction(win,{});assert.equal(focusable,false);assert.equal(focused,false);
+ }
+ assert.equal(changes.filter(v=>v===true).length,50);
+ focused=true;overlayInteraction(win,{editing:true});assert.equal(focusable,true);
+ focused=false;overlayInteraction(win,{editing:true});assert.equal(focusable,false);
+ overlayInteraction(win,{expanded:true});assert.equal(focusable,true);
+});
+test('host restores activation before native hit testing and returns to passive outside controls',()=>{
+ let focusable=false,focused=false,inside=true;const order=[];
+ const win={webContents:{isDestroyed:()=>false},isDestroyed:()=>false,isVisible:()=>true,isFocusable:()=>focusable,isFocused:()=>focused,setFocusable:on=>{focusable=on;order.push('focusable:'+on);},blur:()=>{focused=false;},getBounds:()=>({width:1000,height:640}),setShape:()=>order.push('shape'),setIgnoreMouseEvents:()=>order.push('mouse')};
+ const host={win,hitRects:[{x:200,y:2,width:500,height:60}],cursorInside:()=>inside,expanded:false};
+ IslandHost.prototype.updateHit.call(host);assert.equal(focusable,true);assert.equal(order[0],'focusable:true');
+ focused=true;inside=false;IslandHost.prototype.updateHit.call(host);assert.equal(focusable,false);assert.equal(focused,false);
+ host.idle=true;inside=true;IslandHost.prototype.updateHit.call(host);assert.equal(focusable,false);
 });
