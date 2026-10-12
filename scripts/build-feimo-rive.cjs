@@ -42,10 +42,10 @@ const eyes=group('eyes',0,-4,happyEyes+rect('eyeL',-17,0,10,24,5,white)+rect('ey
 // Pure black circular silhouette, no mouth: emotion is carried by eyes and motion.
 const body=ellipse('body',0,0,160,160,'FF08090A');
 const character=group('character',160,164,question+attention+success+error+sleep+notes+sparkles+coffee+writing+headphones+voice+eyes+body);
-const modes=['idle','music','focus','thinking','attention','completed','failed','sleeping','listening','streaming','greeting','dragging','break','workbench'];
+const {modes}=require('../assets/pets/feimo-rive/scenes');
 const defaults={character:{x:160,y:164,rotation:0,scaleX:1,scaleY:1},eyes:{x:0,y:-4,scaleY:1},eyeL:{rotation:-.07,y:0,scaleY:1,opacity:1},eyeR:{rotation:.07,y:0,scaleY:1,opacity:1},happyEyes:{opacity:0},headphones:{opacity:0},notes:{opacity:0,y:0},writing:{opacity:0},pen:{x:39,y:56,rotation:.4},coffee:{opacity:0,x:61,y:60,rotation:0},question:{opacity:0,y:-89,rotation:0},attention:{opacity:0,y:-89,scaleX:1,scaleY:1},success:{opacity:0},error:{opacity:0},voice:{opacity:0},sleep:{opacity:0,y:-75},sparkles:{opacity:0,rotation:0}};
 for(let i=0;i<5;i++)defaults['wave'+i]={scaleY:1};
-function animation(mode,index){const duration=mode==='focus'?1440:mode==='idle'?480:240;const tracks=structuredClone(defaults);const set=(n,p,v)=>tracks[n][p]=v;const keys=(...pairs)=>pairs;
+function animation(mode,index){const duration=mode==='focus'?1440:mode==='idle'?480:mode==='idle-doze'?420:240;const tracks=structuredClone(defaults);const set=(n,p,v)=>tracks[n][p]=v;const keys=(...pairs)=>pairs;
 set('character','y',keys([0,164],[duration/2,160],[duration,164]));set('character','scaleY',keys([0,1],[duration/2,1.025],[duration,1]));
 set('eyeL','rotation',keys([0,-.07],[duration/2,.04],[duration,-.07]));set('eyeR','rotation',keys([0,.07],[duration/2,-.04],[duration,.07]));
 set('eyes','scaleY',keys([0,1],[100,1],[106,.12],[112,1],[duration,1]));
@@ -63,6 +63,16 @@ if(mode==='dragging'){set('character','rotation',keys([0,-.12],[120,.12],[240,-.
 if(mode==='break'){set('coffee','opacity',1);set('coffee','y',keys([0,60],[70,60],[110,23],[150,23],[190,60],[240,60]));set('coffee','x',keys([0,61],[70,61],[110,23],[150,23],[190,61],[240,61]));}
 if(mode==='workbench'){set('sparkles','opacity',.45);}
 if(['completed','greeting','music'].includes(mode)){set('happyEyes','opacity',keys([0,0],[30,0],[48,1],[150,1],[168,0],[240,0]));set('eyeL','opacity',keys([0,1],[30,1],[48,0],[150,0],[168,1],[240,1]));set('eyeR','opacity',tracks.eyeL.opacity);}
+if(mode.startsWith('idle-')){
+ set('eyes','scaleY',1);set('character','y',164);set('character','scaleY',1);
+ if(mode==='idle-asymmetric'){set('eyeL','scaleY',keys([0,1],[40,1.3],[95,1.3],[135,.72],[175,1],[240,1]));set('eyeR','scaleY',keys([0,1],[40,.65],[95,.65],[135,1.2],[175,1],[240,1]));set('character','rotation',keys([0,0],[40,-.08],[95,-.08],[135,.06],[175,0],[240,0]));}
+ if(mode.includes('wink')){const left=mode.endsWith('left'),eye=left?'eyeL':'eyeR',other=left?'eyeR':'eyeL';set(eye,'scaleY',keys([0,1],[25,1],[35,.06],[70,.06],[85,1],[240,1]));set(other,'scaleY',keys([0,1],[35,1.13],[70,1.13],[95,1],[240,1]));set('character','rotation',keys([0,0],[35,left?-.07:.07],[70,left?-.07:.07],[105,0],[240,0]));}
+ if(mode==='idle-double-blink')set('eyes','scaleY',keys([0,1],[30,1],[36,.06],[44,1],[55,1],[61,.06],[70,1],[240,1]));
+ if(mode.includes('look')){const sign=mode.endsWith('left')?-1:1;set('eyes','x',keys([0,0],[45,sign*13],[110,sign*13],[160,0],[240,0]));set('character','x',keys([0,160],[45,160+sign*3],[110,160+sign*3],[160,160],[240,160]));set('character','rotation',keys([0,0],[45,sign*.08],[110,sign*.08],[160,0],[240,0]));set('character','scaleX',keys([0,1],[45,.96],[110,.96],[160,1],[240,1]));set(sign<0?'eyeL':'eyeR','scaleY',keys([0,1],[45,.84],[110,.84],[160,1],[240,1]));}
+ if(mode==='idle-nod'){set('character','y',keys([0,164],[35,169],[65,160],[100,167],[135,164],[240,164]));set('character','scaleY',keys([0,1],[35,.94],[65,1.025],[100,.97],[135,1],[240,1]));set('eyes','y',keys([0,-4],[35,1],[65,-6],[100,-1],[135,-4],[240,-4]));set('eyes','scaleY',keys([0,1],[35,.6],[65,1],[100,.8],[135,1],[240,1]));}
+ if(mode==='idle-doze'){set('eyes','scaleY',keys([0,1],[60,.55],[100,.09],[280,.09],[310,1.14],[335,1],[420,1]));set('character','rotation',keys([0,0],[100,.10],[220,.12],[280,.1],[310,-.04],[350,0],[420,0]));set('character','y',keys([0,164],[100,169],[220,171],[280,169],[310,161],[350,164],[420,164]));set('sleep','opacity',keys([0,0],[100,0],[130,.8],[270,.8],[295,0],[420,0]));set('sleep','y',keys([0,-75],[130,-75],[270,-87],[420,-75]));}
+ if(mode==='idle-stretch'){set('character','scaleX',keys([0,1],[50,.95],[85,.92],[115,1.06],[150,1],[240,1]));set('character','scaleY',keys([0,1],[50,1.07],[85,1.12],[115,.95],[150,1],[240,1]));set('eyes','scaleY',keys([0,1],[65,.2],[95,.2],[120,1.08],[150,1],[240,1]));}
+}
 return tag('LinearAnimation',{id:id('anim-'+mode),name:mode,fps:60,duration,loopValue:'loop'},Object.entries(tracks).map(([n,props])=>tag('KeyedObject',{objectId:id(n)},Object.entries(props).map(([property,v])=>tag('KeyedProperty',{property},(Array.isArray(v)?v:[[0,v]]).map(([frame,value])=>tag('KeyFrameDouble',{frame,value,interpolationType:'cubic'},tag('CubicEaseInterpolator',{x1:.42,y1:0,x2:.58,y2:1}))).join(''))).join(''))).join(''));}
 const animations=modes.map(animation).join('');
 const condition=value=>tag('TransitionViewModelCondition',{opValue:'equal'},tag('TransitionPropertyViewModelComparator',{},tag('BindablePropertyNumber',{},tag('DataBindContext',{sourcePathIds:'0:40-0:45',propertyKey:636})))+tag('TransitionValueNumberComparator',{value}));

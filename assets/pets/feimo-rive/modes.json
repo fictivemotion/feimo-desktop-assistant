@@ -12,5 +12,14 @@
   "greeting",
   "dragging",
   "break",
-  "workbench"
+  "workbench",
+  "idle-asymmetric",
+  "idle-wink-left",
+  "idle-wink-right",
+  "idle-double-blink",
+  "idle-look-left",
+  "idle-look-right",
+  "idle-nod",
+  "idle-doze",
+  "idle-stretch"
 ]

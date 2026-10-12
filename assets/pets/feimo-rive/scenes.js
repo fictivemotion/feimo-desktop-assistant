@@ -1,14 +1,17 @@
 'use strict';
 // Shared scene contract. Rive owns interpolation; the host only selects a state.
 (function(root,factory){const value=factory();if(typeof module==='object')module.exports=value;else root.FeimoScenes=value;})(typeof globalThis==='object'?globalThis:this,()=>{
- const modes=['idle','music','focus','thinking','attention','completed','failed','sleeping','listening','streaming','greeting','dragging','break','workbench'];
+ const modes=['idle','music','focus','thinking','attention','completed','failed','sleeping','listening','streaming','greeting','dragging','break','workbench','idle-asymmetric','idle-wink-left','idle-wink-right','idle-double-blink','idle-look-left','idle-look-right','idle-nod','idle-doze','idle-stretch'];
+ const idleModes=modes.filter(m=>m.startsWith('idle-'));
  const aliases={processing:'thinking',agentWorking:'thinking',voiceListening:'listening',voicePaused:'sleeping',replyStreaming:'streaming',docked:'sleeping',settings:'workbench',tools:'workbench',focusRunning:'focus',focusBreak:'break',soundscapePlaying:'music',musicPlaying:'music',needsInput:'attention',interaction:'greeting',startup:'greeting',wake:'greeting',workbenchOpen:'workbench',toolsOpen:'workbench',settingsOpen:'workbench',notification:'attention',reminder:'attention','dragging-left':'dragging','dragging-right':'dragging',jumping:'greeting'};
  const modeFor=scene=>modes.indexOf(aliases[scene]||scene)>=0?modes.indexOf(aliases[scene]||scene):0;
  class Controller{
-  constructor(now=()=>performance.now()){this.now=now;this.base='idle';this.pulse=null;}
-  set(scene){this.base=scene;if(['voiceListening','listening','dragging-left','dragging-right'].includes(scene))this.pulse=null;return this.value();}
-  event(scene){if(['voiceListening','listening','dragging-left','dragging-right'].includes(this.base))return this.value();const priority=['failed','reminder','needsInput'].includes(scene)?3:['completed','notification'].includes(scene)?2:1;if(!this.pulse||this.pulse.until<=this.now()||priority>=this.pulse.priority)this.pulse={scene,priority,until:this.now()+(priority>1?3600:1600)};return this.value();}
-  value(){if(this.pulse&&this.pulse.until<=this.now())this.pulse=null;return modeFor(this.pulse?.scene||this.base);}
+  constructor(now=()=>performance.now(),random=Math.random,{ambient=true}={}){this.now=now;this.random=random;this.ambientEnabled=ambient;this.base='idle';this.pulse=null;this.ambient=null;this.idleSince=now();this.nextIdle=now()+this.delay();this.lastIdle=null;}
+  delay(){return 8000+this.random()*10000;}
+  rest(){this.ambient=null;this.nextIdle=this.now()+this.delay();}
+  set(scene){if(this.base!==scene){this.base=scene;this.idleSince=this.now();this.rest();if(modeFor(scene)!==0)this.pulse=null;}return this.value();}
+  event(scene){if(['voiceListening','listening','dragging-left','dragging-right'].includes(this.base))return this.value();const priority=['failed','reminder','needsInput'].includes(scene)?3:['completed','notification'].includes(scene)?2:1;if(!this.pulse||this.pulse.until<=this.now()||priority>=this.pulse.priority){this.rest();this.pulse={scene,priority,until:this.now()+(priority>1?3600:1600)};}return this.value();}
+  value(){const now=this.now();if(this.pulse&&this.pulse.until<=now)this.pulse=null;if(this.pulse)return modeFor(this.pulse.scene);if(!this.ambientEnabled||modeFor(this.base)!==0||this.base!=='idle')return modeFor(this.base);if(this.ambient&&this.ambient.until<=now)this.rest();if(!this.ambient&&now>=this.nextIdle){const choices=idleModes.filter(m=>m!==this.lastIdle&&(m!=='idle-doze'||now-this.idleSince>=60000));const scene=choices[Math.min(choices.length-1,Math.floor(this.random()*choices.length))];this.lastIdle=scene;this.ambient={scene,until:now+(scene==='idle-doze'?7400:4400)};}return modeFor(this.ambient?.scene||this.base);}
  }
- return {modes,aliases,modeFor,Controller};
+ return {modes,idleModes,aliases,modeFor,Controller};
 });
