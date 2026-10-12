@@ -47,14 +47,14 @@
     greetingUntil = performance.now() + 2600;
     api.onConfig((c) => { config = { ...c }; applyPetStyle(c.style); });
     api.onState(onState);
-    api.onActivity?.(value=>{if(body.dataset.pet==='bloub')orbFrame.contentWindow?.postMessage({type:'feimo:orb-event',scene:value.scene},'*');});
+    api.onActivity?.(value=>{if(['bloub','feimo-rive'].includes(body.dataset.pet))orbFrame.contentWindow?.postMessage({type:'feimo:orb-event',scene:value.scene},'*');});
     api.onSnapped(() => { /* 吸边后小回弹 */ bounce(); });
     api.onDock((dock) => {
       dockSide = dock.side;
       dockHidden = dock.hidden;
       if (dockHidden) restStartedAt = 0;
     });
-    api.onPlay(() => { if(body.dataset.pet==='bloub')orbFrame.contentWindow?.postMessage({type:'feimo:orb-event',scene:'interaction'},'*');else greetingUntil = performance.now() + 1800; bounce(); });
+    api.onPlay(() => { if(['bloub','feimo-rive'].includes(body.dataset.pet))orbFrame.contentWindow?.postMessage({type:'feimo:orb-event',scene:'interaction'},'*');else greetingUntil = performance.now() + 1800; bounce(); });
     buildArtPet();
     requestAnimationFrame(tick);
   })();
@@ -93,7 +93,7 @@
   // ---------- 状态 ----------
   function onState(s) {
     const nextScene=s.scene||s.state;
-    if(scene!==nextScene){scene=nextScene;if(body.dataset.pet==='bloub')updateOrbState(scene);}
+    if(scene!==nextScene){scene=nextScene;if(['bloub','feimo-rive'].includes(body.dataset.pet))updateOrbState(scene);}
     if (s.state !== state) {
       state = s.state;
       updateOrbState();
@@ -113,7 +113,7 @@
   }
   let lastOrbState=null;
   function updateOrbState(effective=state) {
-    const mapped = body.dataset.pet==='bloub'?(effective===state?scene:effective):({ processing: 'thinking', agentWorking: 'agentWorking', attention: 'attention', completed: 'completed', failed: 'failed', listening: 'listening' })[state] || 'idle';
+    const mapped = ['bloub','feimo-rive'].includes(body.dataset.pet)?(effective===state?scene:effective):({ processing: 'thinking', agentWorking: 'agentWorking', attention: 'attention', completed: 'completed', failed: 'failed', listening: 'listening' })[state] || 'idle';
     lastOrbState=mapped;
     orbFrame.contentWindow?.postMessage({ type: 'feimo:orb-state', state: mapped }, '*');
   }
@@ -151,7 +151,7 @@
     let effState = state;
     if (greetingUntil > ts && (state === 'idle' || state === 'listening')) effState = 'greeting';
     if (dragging) effState = lastDragDx < 0 ? 'dragging-left' : 'dragging-right';
-    if(body.dataset.pet==='bloub'){
+    if(['bloub','feimo-rive'].includes(body.dataset.pet)){
       // Voice/processing scenes must not be masked by a startup greeting.
       const bloubScene=dragging?effState:dockHidden&&scene==='idle'?'docked':scene;
       if(lastOrbState!==bloubScene)updateOrbState(bloubScene);
@@ -344,9 +344,9 @@
     pointerInside = true;
     updatePassthrough(e.clientX, e.clientY);
     updateLookAngle(e.screenX, e.screenY);
-    if(body.dataset.pet==='bloub')orbFrame.contentWindow?.postMessage({type:'feimo:orb-look',x:(e.clientX/body.clientWidth-.5)*2,y:(e.clientY/body.clientHeight-.5)*2},'*');
+    if(['bloub','feimo-rive'].includes(body.dataset.pet))orbFrame.contentWindow?.postMessage({type:'feimo:orb-look',x:(e.clientX/body.clientWidth-.5)*2,y:(e.clientY/body.clientHeight-.5)*2},'*');
   });
-  document.addEventListener('mouseleave', () => { pointerInside = false; lookAngle = null; wasOpaque = false; api.left();if(body.dataset.pet==='bloub')orbFrame.contentWindow?.postMessage({type:'feimo:orb-look'},'*'); });
+  document.addEventListener('mouseleave', () => { pointerInside = false; lookAngle = null; wasOpaque = false; api.left();if(['bloub','feimo-rive'].includes(body.dataset.pet))orbFrame.contentWindow?.postMessage({type:'feimo:orb-look'},'*'); });
 
   function updateLookAngle(screenX, screenY) {
     // 需要窗口在屏幕上的位置：用 window.screenX/screenY（DIP）

@@ -1,7 +1,7 @@
 {
   "name": "feimo-desktop-assistant",
   "productName": "斐墨",
-  "version": "1.7.1",
+  "version": "1.8.0",
   "description": "常驻 Windows 桌面的轻量即时助手：悬浮宠物 + 工作栏（问答 / 文本处理 / OCR / Agent 状态 / Token 用量 / 日程提醒）",
   "main": "main.js",
   "author": "Opal Desk",
@@ -10,7 +10,9 @@
     "start": "electron .",
     "test": "node --test tests/*.test.js",
     "dist:win": "electron-builder --win nsis portable --x64",
-    "build:bloub": "node scripts/build-bloub.cjs"
+    "build:bloub": "node scripts/build-bloub.cjs",
+    "build:rive": "node scripts/build-feimo-rive.cjs",
+    "build:companion-runtime": "node scripts/build-companion-runtime.cjs"
   },
   "devDependencies": {
     "electron": "^44.4.5",
@@ -31,7 +33,9 @@
     "pinyin-pro": "3.27.0",
     "sharp": "^0.35.5",
     "sherpa-onnx-node": "1.13.8",
-    "ws": "^8.22.0"
+    "ws": "^8.22.0",
+    "@rive-app/canvas": "2.44.2",
+    "uisfx": "0.4.0"
   },
   "build": {
     "appId": "com.feimo.desktop",
@@ -55,7 +59,8 @@
       "package.json",
       "LICENSE",
       "!assets/pets/kenney/**",
-      "!lib/pets.local.js"
+      "!lib/pets.local.js",
+      "!assets/pets/feimo-rive/source/**"
     ],
     "win": {
       "target": [

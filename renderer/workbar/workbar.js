@@ -164,16 +164,19 @@
     attention: '需要注意', completed: '已完成', failed: '出错了', sleeping: '休眠中',
   };
   api.onPetState((s) => {
+    brandAvatar.querySelector('iframe')?.contentWindow?.postMessage({type:'feimo:orb-state',state:s.scene||s.state},'*');
     stateChip.textContent = s.detail || stateText[s.state] || s.state;
     stateChip.className = 'chip ' + s.state;
   });
   const brandAvatar = $('#brand-avatar');
+  api.onPetActivity?.(value=>brandAvatar.querySelector('iframe')?.contentWindow?.postMessage({type:'feimo:orb-event',scene:value.scene},'*'));
   function setBrandAvatar(style) {
     brandAvatar.replaceChildren();
-    if (['forest-flow','iridescent-opal','bloub'].includes(style)) {
+    if (['forest-flow','iridescent-opal','bloub','feimo-rive'].includes(style)) {
       const frame = document.createElement('iframe');
-      frame.src = style==='bloub'?'../../assets/pets/bloub/bloub.html?preview=1':`../../assets/orb/${style}.html`;
+      frame.src = style==='feimo-rive'?'../../assets/pets/feimo-rive/feimo.html':style==='bloub'?'../../assets/pets/bloub/bloub.html?preview=1':`../../assets/orb/${style}.html`;
       frame.title = style; frame.tabIndex = -1;
+      frame.onload=()=>api.getPetState().then(s=>frame.contentWindow?.postMessage({type:'feimo:orb-state',state:s.scene||s.state},'*'));
       brandAvatar.appendChild(frame);
     } else {
       brandAvatar.appendChild(window.PetAvatar.eous(34));

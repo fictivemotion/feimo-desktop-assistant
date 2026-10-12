@@ -23,7 +23,8 @@
     nav.querySelectorAll('button').forEach(b=>b.onclick=()=>{selected=b.dataset.pill;signature='';nav.querySelectorAll('button').forEach(x=>{x.classList.toggle('active',x===b);x.setAttribute('aria-pressed',String(x===b));});renderPanel();});
     renderPanel();
   }
-  function sendScene(){if(!state)return;const scene=state.music.playing&&state.petState.state==='idle'?'soundscapePlaying':state.petState.scene||state.petState.state;document.querySelectorAll('.brand-avatar iframe,.compact-avatar iframe').forEach(f=>f.contentWindow?.postMessage({type:'feimo:orb-state',state:scene},'*'));}
+  function sendScene(){if(!state)return;const scene=state.petState.scene||(state.music.playing&&state.petState.state==='idle'?'musicPlaying':state.petState.state);document.querySelectorAll('.brand-avatar iframe,.compact-avatar iframe').forEach(f=>f.contentWindow?.postMessage({type:'feimo:orb-state',state:scene},'*'));}
+  api.onPetActivity?.(value=>document.querySelectorAll('.brand-avatar iframe,.compact-avatar iframe').forEach(f=>f.contentWindow?.postMessage({type:'feimo:orb-event',scene:value.scene},'*')));
   api.onPetState(pet=>{if(state){state.petState=pet;sendScene();}});
   $('.brand-avatar').onclick=()=>document.querySelectorAll('.brand-avatar iframe').forEach(f=>f.contentWindow?.postMessage({type:'feimo:orb-event',scene:'interaction'},'*'));
   function renderPanel(){

@@ -19,6 +19,7 @@ const paths = require('./lib/paths');
 const { EventBus } = require('./lib/events');
 const { JsonStore } = require('./lib/store');
 const { PETS } = require('./lib/pets');
+const {Feedback,config:feedbackConfig,DEFAULTS:FEEDBACK_DEFAULTS}=require('./lib/feedback');
 const { petScene } = require('./lib/pet-scenes');
 const { TextCleaner, OPTIONS: CLEAN_OPTIONS } = require('./lib/text-cleaner');
 const { readImageBuffer, snapshotClipboard, writeTextVerified, writeImageVerified } = require('./lib/clipboard');
@@ -79,6 +80,7 @@ function bootstrap() {
     privacy: { saveChatHistory: true },
     usage: { pruneDays: 365 },
     ui: { theme: 'glass', companionSpeech: true, ambientSpeech: true },
+    feedback:{...FEEDBACK_DEFAULTS},
     system: { openAtLogin: false },
     toolbox: { autoCapture: false, middleHold:true },
     capture:{...CAPTURE_DEFAULTS},
@@ -88,6 +90,7 @@ function bootstrap() {
   if (!PETS.some((pet) => pet.id === savedPet.style)) {
     settings.set('pet', { ...savedPet, style: PETS[0]?.id || 'eous' });
   }
+  if(!settings.get('pet',{}).riveIntroduced){const p=settings.get('pet',{});settings.set('pet',{...p,style:p.style==='bloub'?'feimo-rive':p.style,riveIntroduced:true});}
   // Migrate the original shortcut pair; preserve any user-customized bindings.
   const savedHotkeys = settings.get('hotkeys', {});
   if (savedHotkeys.processClipboard === 'Alt+Shift+T' && savedHotkeys.ocrClipboard === 'Alt+Shift+O') {
@@ -181,7 +184,8 @@ function bootstrap() {
   let currentPet = { state: 'idle', detail: null, stateSince: Date.now() };
   let userProcessing = false;   // 本产品自身任务（问答/OCR）
   let processingMode = 'thinking', workbarTab = 'voice';
-  function playBloub(scene){petWin?.webContents.send('pet:activity',{scene});}
+  const feedback=new Feedback({settings,send:message=>{if(alive(soundscapeWin))soundscapeWin.webContents.send('feedback:command',message);}});
+  function playBloub(scene){petWin?.webContents.send('pet:activity',{scene});sendWorkbar('pet:activity',{scene});feedback.event(scene);}
   let flashUntil = 0;           // 完成/失败闪烁窗口
   let flashKind = null;
   const chatAbort = { controller: null };
@@ -214,7 +218,7 @@ function bootstrap() {
     voiceWin.setBounds(placeVoice(display.workArea),false);
   }
   function voiceChanged(state){
-    if(!state)return;island?.changed();const changed=state.phase!==voicePhase;voicePhase=state.phase;
+    if(!state)return;feedback.voice(state.phase);island?.changed();const changed=state.phase!==voicePhase;voicePhase=state.phase;
     voiceWin?.webContents.send('voice:changed',state);
     if(changed||Date.now()-voiceStateSentAt>160){sendWorkbar('voice:changed',state);voiceStateSentAt=Date.now();}
     if(changed){
@@ -240,7 +244,7 @@ function bootstrap() {
   }
   const soundscape=new Soundscape({settings,send:state=>soundscapeWin?.webContents.send('soundscape:player',{...state,sounds:soundscapeCatalog.sounds}),onChange:value=>{sendWorkbar('soundscape:changed',value);quickWin?.webContents.send('soundscape:changed',value);broadcastPetState();if(value.error)playBloub('failed')}});
   function createSoundscapeWindow(){
-    soundscapeWin=new BrowserWindow({show:false,width:200,height:100,webPreferences:{preload:path.join(__dirname,'preload','soundscape-preload.js'),sandbox:true,nodeIntegration:false,contextIsolation:true,backgroundThrottling:false}});
+    soundscapeWin=new BrowserWindow({show:false,width:200,height:100,webPreferences:{preload:path.join(__dirname,'preload','soundscape-preload.js'),autoplayPolicy:'no-user-gesture-required',sandbox:true,nodeIntegration:false,contextIsolation:true,backgroundThrottling:false}});
     soundscapeWin.webContents.setWindowOpenHandler(()=>({action:'deny'}));soundscapeWin.webContents.on('will-navigate',e=>e.preventDefault());
     soundscapeWin.loadFile(path.join(__dirname,'renderer','soundscape','player.html'));
   }
@@ -633,12 +637,13 @@ function bootstrap() {
   let stateTimer = null;
   function broadcastPetState() {
     const [state, detail] = computePetState();
-    const scene=petScene({state,voicePhase:voice?.state().phase,processingMode,focus:focus.active,soundscape:soundscape.state,workbarVisible:workbarWin?.isVisible()||(settings.get('ui',{}).mode==='island'&&island?.expanded),workbarTab});
+    const scene=petScene({state,voicePhase:voice?.state().phase,processingMode,focus:focus.active,soundscape:soundscape.state,music:island?.music.state,workbarVisible:workbarWin?.isVisible()||(settings.get('ui',{}).mode==='island'&&island?.expanded),workbarTab});
     if (state !== currentPet.state || detail !== currentPet.detail || scene !== currentPet.scene) {
       const previousState = currentPet.state;
       currentPet = { state, detail, scene, stateSince: Date.now() };
+      feedback.state(scene);
       petWin?.webContents.send('pet:state', { state, detail, scene });
-      sendWorkbar('pet:state', { state, detail });
+      sendWorkbar('pet:state', { state, detail, scene });
       island?.win?.webContents.send('pet:state',{state,detail,scene});
       if (state === 'processing' && previousState !== 'processing' && !workbarWin?.isVisible()) {
         speak('收到啦，我正在认真处理。', { duration: 3200 });
@@ -968,7 +973,8 @@ function bootstrap() {
   ipc.handle('screenshot:guide',()=>shell.openExternal('https://github.com/fictivemotion/feimo-desktop-assistant/blob/main/docs/SCREENSHOT.md'));
   ipc.handle('settings:set', (_e, patch) => {
     for (const k of Object.keys(patch)) {
-      if (!['pet', 'llm', 'hotkeys', 'agents', 'calendar', 'notion', 'privacy', 'usage', 'ui', 'system', 'toolbox','capture'].includes(k)) continue;
+      if (!['pet', 'llm', 'hotkeys', 'agents', 'calendar', 'notion', 'privacy', 'usage', 'ui', 'system', 'toolbox','capture','feedback'].includes(k)) continue;
+      if(k==='feedback')patch[k]=feedbackConfig(patch[k]);
       if(k==='capture')patch[k]=captureConfig(patch[k]);
       if (k === 'system') patch[k] = { openAtLogin: windowsIntegration.setStartup(app, !!patch[k]?.openAtLogin) };
       settings.set(k, patch[k]);
@@ -978,11 +984,13 @@ function bootstrap() {
     if (patch.calendar || patch.notion) restartNotionTimer();
     if (patch.toolbox) restartClipboardPoll();
     if(patch.capture)captureRuntime.stop();
+    if(patch.feedback)feedback.configure();
     registerHotkeys();
     const trayRef = trayRebuild;
     trayRef?.();
     return settings.get();
   });
+  ipc.handle('feedback:preview',()=>feedback.event('completed'));
   ipc.handle('system:state', () => ({ openAtLogin: windowsIntegration.startupState(app), version: app.getVersion() }));
   ipc.handle('system:shortcut', () => windowsIntegration.createDesktopShortcut(app, shell));
   ipc.on('speech:layout', (_e, data) => {
@@ -1021,7 +1029,7 @@ function bootstrap() {
   ipc.on('speech:cardOpen', (_e, tab) => { if (['agents', 'schedule', 'focus', 'usage'].includes(String(tab).split(':')[0])) { if (cardState) dismissSpeech(); showWorkbar(tab); } });
   ipc.handle('soundscape:state',()=>soundscape.view());
   ipc.handle('soundscape:command',(_e,data)=>soundscape.command(data||{}));
-  ipcMain.on('soundscape:ready',e=>{if(e.sender===soundscapeWin?.webContents)soundscapeWin.webContents.send('soundscape:player',{...soundscape.state,sounds:soundscapeCatalog.sounds})});
+  ipcMain.on('soundscape:ready',e=>{if(e.sender===soundscapeWin?.webContents){feedback.configure();soundscapeWin.webContents.send('soundscape:player',{...soundscape.state,sounds:soundscapeCatalog.sounds});}});
   ipcMain.on('soundscape:report',(e,data)=>{if(e.sender===soundscapeWin?.webContents)soundscape.report(data||{})});
   ipc.handle('quick:quota', async () => {
     await refreshLimits();
@@ -1065,6 +1073,7 @@ function bootstrap() {
     return clipboardJobStatus;
   });
 
+  ipc.handle('pet:current',()=>currentPet);
   ipc.handle('pets:list', () => PETS);
   ipc.handle('workbar:show', (_e, tab) => showWorkbar(tab));
   ipc.on('workbar:scene',(e,tab)=>{
@@ -1384,8 +1393,9 @@ function bootstrap() {
     createSpeechWindow();
     createQuickWindow();
     createSoundscapeWindow();
+    void captureRuntime.ensure(captureConfig(settings.get('capture',{}))).catch(()=>{});
     createVoiceWindow();
-    captureHost=new CaptureHost({electron:require('electron'),dir:paths.dataDir(),settings,vision:captureVision,toolbox:requireToolbox,changed:toolboxChanged,overlays:()=>[petWin,workbarWin,speechWin,quickWin,soundscapeWin,voiceWin,island?.win]});captureHost.register();captureHost.startPointer();
+    captureHost=new CaptureHost({electron:require('electron'),dir:paths.dataDir(),settings,vision:captureVision,toolbox:requireToolbox,changed:toolboxChanged,overlays:()=>[petWin,workbarWin,speechWin,quickWin,soundscapeWin,voiceWin,island?.win]});captureHost.register();captureHost.startPointer();void captureHost.prewarm().catch(e=>console.warn("[capture] prewarm:",e.message));
     // Warm up the tiny input helper without capturing a target or requesting microphone access.
     voiceInput.prepare().catch(()=>{});voiceOutput.prepare().catch(()=>{});
     if (focus.active) quickWin.webContents.once('did-finish-load', () => {

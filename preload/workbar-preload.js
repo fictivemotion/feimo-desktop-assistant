@@ -118,11 +118,14 @@ contextBridge.exposeInMainWorld('api', {
   onCalendarFired: (cb) => ipcRenderer.on('calendar:fired', (_e, v) => cb(v)),
   onCalendarSyncResult: (cb) => ipcRenderer.on('calendar:syncResult', (_e, v) => cb(v)),
   // 宠物状态（工作栏头部展示）
+  feedbackPreview: () => ipcRenderer.invoke('feedback:preview'),
+  onPetActivity: cb => ipcRenderer.on('pet:activity',(_e,value)=>cb(value)),
   onPetState: (cb) => ipcRenderer.on('pet:state', (_e, s) => cb(s)),
   // 页签跳转（如提醒点击 → 日程页）
   onNavigate: (cb) => ipcRenderer.on('workbar:navigate', (_e, tab) => cb(tab)),
   // 通用
   openExternal: (url) => ipcRenderer.invoke('sys:openExternal', url),
+  getPetState: () => ipcRenderer.invoke('pet:current'),
   getPets: () => ipcRenderer.invoke('pets:list'),
   setListening: (on) => ipcRenderer.send('ui:setListening', on),
 });

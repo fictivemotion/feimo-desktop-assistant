@@ -19,6 +19,7 @@
     const notion = settings.notion || {};
     const cal = settings.calendar || {};
     const pet = settings.pet || {};
+    const feedback={enabled:true,volume:.24,pack:'soft',...settings.feedback};
     const system = await api.systemState();
 
     view.innerHTML = `
@@ -27,6 +28,15 @@
         <button class="btn small" id="st-back">返回（Esc）</button>
       </div>
 
+      <div class="settings-section">
+        <h4><span data-icon="Volume" data-size="16"></span> 伙伴提示音</h4>
+        <div class="card">
+          <div class="switch"><span class="lbl">状态提示音<span class="sub">轻声提示开始、完成和提醒；语音输入期间自动安静</span></span><label class="toggle"><input type="checkbox" id="st-feedback-enabled" ${feedback.enabled?'checked':''}/><span class="track"></span><span class="knob"></span></label></div>
+          <div class="field"><label>声音风格</label><select id="st-feedback-pack"><option value="soft">柔和 · Soft</option><option value="minimal">简洁 · Minimal</option><option value="zen">静谧 · Zen</option></select></div>
+          <div class="field"><label>提示音音量 <span id="st-feedback-level">${Math.round(feedback.volume*100)}%</span></label><input id="st-feedback-volume" type="range" min="0" max="100" value="${Math.round(feedback.volume*100)}"/></div>
+          <button class="btn small" id="st-feedback-preview">试听</button><span class="hint">音效来自 uisfx</span>
+        </div>
+      </div>
       <div class="settings-section">
         <h4><span data-icon="Widget" data-size="16"></span> Windows 启动</h4>
         <div class="card">
@@ -191,7 +201,7 @@
         <h4><span data-icon="InfoCircle" data-size="16"></span> 关于</h4>
         <div class="card muted">
           斐墨 v${UI.esc(system.version)} · Opal Desk<br/>
-            形象：伊埃斯、Bloub、Forest Flow、Iridescent Opal；形象许可见项目文档<br/>
+            形象：斐墨 Rive、伊埃斯、Bloub、Forest Flow、Iridescent Opal；形象许可见项目文档<br/>
           参考：Ping Island 状态优先级思路 · Token Monitor 用量信息层级（Apache-2.0 / MIT，未复制代码）
         </div>
       </div>`;
@@ -223,6 +233,10 @@
     view.prepend(nav); showGroup('general');
     view.querySelector('#st-back').addEventListener('click', () => window.switchTab('chat'));
 
+    view.querySelector('#st-feedback-pack').value=feedback.pack;
+    const saveFeedback=async()=>{const volume=Number(view.querySelector('#st-feedback-volume').value)/100;view.querySelector('#st-feedback-level').textContent=Math.round(volume*100)+'%';await api.setSettings({feedback:{enabled:view.querySelector('#st-feedback-enabled').checked,pack:view.querySelector('#st-feedback-pack').value,volume}});};
+    for(const id of ['enabled','pack','volume'])view.querySelector('#st-feedback-'+id).addEventListener('change',saveFeedback);
+    view.querySelector('#st-feedback-preview').onclick=async()=>{await saveFeedback();await api.feedbackPreview();};
     // 宠物选择
     const petGrid = view.querySelector('#st-pets');
     for (const p of pets) {
