@@ -9,10 +9,10 @@
   const motion=now<until,full=now<fullUntil||!shell.classList.contains('collapsed');
   // SetWindowRgn clips pixels as well as input. Keep one region throughout a
   // morph, and let the rounded CSS shell clip its own animated contents.
-  const rect=box(shell);
-  if(motion){const width=full?panel.offsetWidth:Math.min(420,innerWidth-16),height=full?panel.offsetHeight:66;rect.x=(innerWidth-width)/2;rect.y=2;rect.width=width;rect.height=height;}
+  const sprite=document.getElementById('top-sprite'),spriteMode=document.body.dataset.topState==='sprite',rect=box(spriteMode?sprite:shell);
+  if(motion&&!spriteMode){const width=full?panel.offsetWidth:Math.min(420,innerWidth-16),height=full?panel.offsetHeight:66;rect.x=(innerWidth-width)/2;rect.y=2;rect.width=width;rect.height=height;}
   const rects=[rect];
-  if(!hidden&&!(motion&&full)){
+  if(!hidden&&!(motion&&full&&!spriteMode)){
    for(const n of document.querySelectorAll('#compact-hide,#quick-pills:not([hidden]),#island-cards:not([hidden]) .island-pop-card:not([hidden]),dialog[open]'))if(visible(n))rects.push(box(n));
    for(const [id,gap]of [['quick-pills',20],['island-cards',8]]){const n=document.getElementById(id);if(visible(n)){const r=box(n);rects.unshift({x:r.x,y:r.y-gap,width:r.width,height:gap});}}
   }

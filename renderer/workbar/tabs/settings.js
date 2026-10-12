@@ -19,7 +19,7 @@
     const notion = settings.notion || {};
     const cal = settings.calendar || {};
     const pet = settings.pet || {};
-    const feedback={enabled:true,volume:.24,pack:'soft',...settings.feedback};
+    const feedback={enabled:true,volume:.24,...settings.feedback,pack:'mochi'};
     const system = await api.systemState();
 
     view.innerHTML = `
@@ -31,10 +31,10 @@
       <div class="settings-section">
         <h4><span data-icon="Volume" data-size="16"></span> 伙伴提示音</h4>
         <div class="card">
-          <div class="switch"><span class="lbl">状态提示音<span class="sub">轻声提示开始、完成和提醒；语音输入期间自动安静</span></span><label class="toggle"><input type="checkbox" id="st-feedback-enabled" ${feedback.enabled?'checked':''}/><span class="track"></span><span class="knob"></span></label></div>
-          <div class="field"><label>声音风格</label><select id="st-feedback-pack"><option value="soft">柔和 · Soft</option><option value="minimal">简洁 · Minimal</option><option value="zen">静谧 · Zen</option></select></div>
+          <div class="switch"><span class="lbl">状态提示音<span class="sub">开始前弹泡、完成后金币；语音采集期间安静</span></span><label class="toggle"><input type="checkbox" id="st-feedback-enabled" ${feedback.enabled?'checked':''}/><span class="track"></span><span class="knob"></span></label></div>
+          <div class="field"><label>声音风格</label><select id="st-feedback-pack"><option value="mochi">Mochi · 氛围音效</option></select></div>
           <div class="field"><label>提示音音量 <span id="st-feedback-level">${Math.round(feedback.volume*100)}%</span></label><input id="st-feedback-volume" type="range" min="0" max="100" value="${Math.round(feedback.volume*100)}"/></div>
-          <button class="btn small" id="st-feedback-preview">试听</button><span class="hint">音效来自 uisfx</span>
+          <button class="btn small" id="st-feedback-preview">试听</button><span class="hint">能量 · 弹泡 · 金币</span>
         </div>
       </div>
       <div class="settings-section">

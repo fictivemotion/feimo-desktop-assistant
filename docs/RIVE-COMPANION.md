@@ -12,13 +12,13 @@
 | 提醒 / 需要输入 | 感叹号轻弹 |
 | 完成 | 开心眼睛、轻跳、勾号 |
 | 失败 | 轻摇、失落眼睛、错误标记 |
-| 语音 | 聆听波形；暂停时休息 |
+| 语音 | 快速双手敲键盘；暂停时休息 |
 | 流式回答 | 轻微律动与波形 |
 | 招呼 / 点击 | 眯眼、摇摆回应 |
 | 拖动 | 轻拉伸与回摆 |
 | 工作台 | 轻微点缀与呼吸 |
 
-Rive 状态机 `Feimo` 绑定 ViewModel `Feimo.mode`。23 个模式（14 个情境、9 个随机待机动作）编号见 `assets/pets/feimo-rive/modes.json`。动画以 60 fps 创作，状态间使用 320 ms 混合；系统减少动态效果时，过渡后暂停为静态画面。隐藏窗口暂停渲染。运行时、WASM 与素材均随应用本地分发，无 CDN 依赖。
+Rive 状态机 `Feimo` 绑定 ViewModel `Feimo.mode`。24 个模式（15 个情境、9 个随机待机动作）编号见 `assets/pets/feimo-rive/modes.json`。动画以 60 fps 创作，状态间使用 320 ms 混合；系统减少动态效果时，过渡后暂停为静态画面。隐藏窗口暂停渲染。运行时、WASM 与素材均随应用本地分发，无 CDN 依赖。
 
 待机动作间隔随机为 8–18 秒，连续两次不会相同。每次动作结束回到正面；打盹需至少闲置一分钟。提醒、录音和任务立即打断待机动作，随机待机不发提示音。系统减少动态效果设置会禁用随机待机。
 
@@ -31,12 +31,10 @@ Rive 状态机 `Feimo` 绑定 ViewModel `Feimo.mode`。23 个模式（14 个情�
 
 本资产未嵌入 Rive Scripts，不需要在线签名才能播放。保留 RML 源文件供后续调整动作。
 
-## 提示音
+## 提示音与顶部精灵
 
-采用 [romainsimon/uisfx](https://github.com/romainsimon/uisfx)，在本地 Web Audio 中合成短提示音。设置 → 常规 → 伙伴提示音可关闭、调音量或选 Soft / Minimal / Zen。
-
-全应用只运行一个提示音播放器，重复状态不重播，同类事件有冷却。录音准备、聆听、暂停、结束与校对阶段停止提示音，避免影响语音。不会为每次眨眼、鼠标经过或每一秒倒计时发声。
+采用 Mochi UI Sounds 氛围音效：能量、弹泡、金币。设置可调整音量与关闭。全应用唯一播放器，本地 Web Audio 合成。语音开始提示在麦克风采集前完成，录音及校对期间停止音效；整理结束后金币提示。完整交互见 [顶部精灵说明](TOP-SPRITE.md)。
 
 ## 许可
 
-原创角色、RML、状态映射与构建脚本沿用本项目 MIT 许可。Rive Web runtime 使用 MIT 许可（`assets/vendor/rive/LICENSE`）；uisfx 代码 MIT、音频 CC0，见 `assets/vendor/uisfx/`。角色仅参考简洁机器人表达方式，未复制 Grok 或 OpenAI 的图形资产。
+原创角色、RML、状态映射与构建脚本沿用本项目 MIT 许可。Rive Web runtime 使用 MIT（assets/vendor/rive/LICENSE）。Mochi 来源及复制说明见 assets/vendor/mochi/UPSTREAM.md，上游模块没有被改标为本项目的原创代码。角色未复制 Grok 或 OpenAI 的图形资产。

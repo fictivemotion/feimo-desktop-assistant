@@ -1,15 +1,16 @@
-import {createUISFX} from 'uisfx';
-// Exactly one player for the application, independent of mascot iframe count.
-const player=createUISFX({pack:'soft',volume:.24,maxVoices:2,cooldownMs:1600});
-let blocked=false,enabled=true,revision=0;
-window.soundscapePlayer.onFeedback(async message=>{
- if(message.type==='config'){
-  revision++;blocked=message.blocked===true;enabled=message.config.enabled;
-  player.setPack(message.config.pack);player.setVolume(message.config.volume);player.setEnabled(enabled&&!blocked);
-  if(blocked||!enabled)player.stopAll();return;
+import {sounds,playWhenReady,setSoundVolume,stopSounds} from './mochi-sounds';
+// One application-wide Web Audio player. No iframe can emit its own sound.
+let blocked=false,enabled=true,revision=0,prelude=null;
+function finishPrelude(id){if(prelude?.id!==id)return;clearTimeout(prelude.timer);prelude=null;stopSounds();window.soundscapePlayer.feedbackDone(id);}
+window.soundscapePlayer.onFeedback(message=>{
+ if(message.type==='config'){revision++;blocked=message.blocked===true;enabled=message.config.enabled;setSoundVolume(enabled?message.config.volume:0);if(blocked||!enabled)stopSounds();return;}
+ if(message.type==='cancelPrelude'){if(prelude?.id===message.id)finishPrelude(message.id);return;}
+ if(message.type==='prelude'){
+  if(!enabled||Date.now()+160>message.expiresAt){window.soundscapePlayer.feedbackDone(message.id);return;}
+  if(prelude)finishPrelude(prelude.id);stopSounds();prelude={id:message.id,timer:setTimeout(()=>finishPrelude(message.id),Math.max(1,message.expiresAt-Date.now()))};
+  playWhenReady(()=>{if(prelude?.id!==message.id||Date.now()+160>message.expiresAt){finishPrelude(message.id);return;}clearTimeout(prelude.timer);prelude.timer=setTimeout(()=>finishPrelude(message.id),160);sounds.pop();});return;
  }
- if(message.type!=='play'||blocked||!enabled)return;
- const current=revision;
- if(await player.unlock()&&current===revision&&!blocked&&enabled)player.play(message.cue,{loop:false,retrigger:'ignore'});
+ if(message.type!=='play'||blocked||!enabled||!Object.hasOwn(sounds,message.cue))return;
+ const current=revision;playWhenReady(()=>{if(current!==revision||blocked||!enabled)return;stopSounds();sounds[message.cue]();});
 });
-addEventListener('pagehide',()=>void player.destroy(),{once:true});
+addEventListener('pagehide',()=>{if(prelude)finishPrelude(prelude.id);stopSounds();},{once:true});

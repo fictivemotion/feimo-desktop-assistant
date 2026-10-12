@@ -185,7 +185,7 @@ function bootstrap() {
   let userProcessing = false;   // 本产品自身任务（问答/OCR）
   let processingMode = 'thinking', workbarTab = 'voice';
   const feedback=new Feedback({settings,send:message=>{if(alive(soundscapeWin))soundscapeWin.webContents.send('feedback:command',message);}});
-  function playBloub(scene){petWin?.webContents.send('pet:activity',{scene});sendWorkbar('pet:activity',{scene});feedback.event(scene);}
+  function playBloub(scene,{sound=scene}={}){petWin?.webContents.send('pet:activity',{scene});sendWorkbar('pet:activity',{scene});island?.hint(scene);feedback.event(sound);}
   let flashUntil = 0;           // 完成/失败闪烁窗口
   let flashKind = null;
   const chatAbort = { controller: null };
@@ -218,7 +218,7 @@ function bootstrap() {
     voiceWin.setBounds(placeVoice(display.workArea),false);
   }
   function voiceChanged(state){
-    if(!state)return;feedback.voice(state.phase);island?.changed();const changed=state.phase!==voicePhase;voicePhase=state.phase;
+    if(!state)return;feedback.voice(state.phase);island?.activity();island?.changed();const changed=state.phase!==voicePhase;voicePhase=state.phase;
     voiceWin?.webContents.send('voice:changed',state);
     if(changed||Date.now()-voiceStateSentAt>160){sendWorkbar('voice:changed',state);voiceStateSentAt=Date.now();}
     if(changed){
@@ -227,8 +227,8 @@ function bootstrap() {
       if(state.active){dismissSpeech();if(!quickWin?.isFocused()&&!voiceInput.owns(quickWin?.webContents)){quickExpanded=false;quickPanel='none';quickWin?.webContents.send('quick:expanded',false);quickWin?.hide();}positionVoice();voiceWin?.showInactive();}
       else if(state.phase==='completed'||state.phase==='error'){positionVoice();voiceWin?.showInactive();if(state.phase==='completed'){voiceDismissTimer=setTimeout(()=>voiceWin?.webContents.send('voice:exit'),320);}else voiceDismissTimer=setTimeout(()=>voiceWin?.hide(),10000);}
       else voiceWin?.hide();
-      broadcastPetState();
-      if(state.phase==='completed')playBloub('completed');
+      broadcastPetState(state.phase==='completed'?'textReady':undefined);
+      if(state.phase==='completed')playBloub('completed',{sound:'textReady'});
       if(state.phase==='error')playBloub('failed');
     }
   }
@@ -635,13 +635,13 @@ function bootstrap() {
   }
 
   let stateTimer = null;
-  function broadcastPetState() {
+  function broadcastPetState(soundScene) {
     const [state, detail] = computePetState();
     const scene=petScene({state,voicePhase:voice?.state().phase,processingMode,focus:focus.active,soundscape:soundscape.state,music:island?.music.state,workbarVisible:workbarWin?.isVisible()||(settings.get('ui',{}).mode==='island'&&island?.expanded),workbarTab});
     if (state !== currentPet.state || detail !== currentPet.detail || scene !== currentPet.scene) {
       const previousState = currentPet.state;
       currentPet = { state, detail, scene, stateSince: Date.now() };
-      feedback.state(scene);
+      feedback.state(scene,typeof soundScene==='string'?soundScene:scene);
       petWin?.webContents.send('pet:state', { state, detail, scene });
       sendWorkbar('pet:state', { state, detail, scene });
       island?.win?.webContents.send('pet:state',{state,detail,scene});
@@ -651,10 +651,10 @@ function bootstrap() {
     }
   }
 
-  function flash(kind, ms = 4000) {
+  function flash(kind, ms = 4000,sound=kind) {
     flashKind = kind; flashUntil = Date.now() + ms;
-    broadcastPetState();
-    if(kind==='completed'||kind==='failed')playBloub(kind);
+    broadcastPetState(sound);
+    if(kind==='completed'||kind==='failed')playBloub(kind,{sound});
     setTimeout(broadcastPetState, ms + 50);
   }
 
@@ -889,7 +889,7 @@ function bootstrap() {
       await writeTextVerified(clipboard, cleaned);
       clipboardJobStatus.state = 'copied';
       clipboardJobStatus.resultLength = cleaned.length;
-      flash('completed');
+      flash('completed',4000,'textReady');
       speak(kind === 'image' ? '图片文字已经帮你提取到剪贴板啦' : '文字清理好啦', { force: true, priority: 4, duration: 6500 });
     } catch (err) {
       console.error('[clipboard job] failed:', err.message);
@@ -1029,6 +1029,7 @@ function bootstrap() {
   ipc.on('speech:cardOpen', (_e, tab) => { if (['agents', 'schedule', 'focus', 'usage'].includes(String(tab).split(':')[0])) { if (cardState) dismissSpeech(); showWorkbar(tab); } });
   ipc.handle('soundscape:state',()=>soundscape.view());
   ipc.handle('soundscape:command',(_e,data)=>soundscape.command(data||{}));
+  ipcMain.on('feedback:done',(e,id)=>{if(e.sender===soundscapeWin?.webContents)feedback.done(id);});
   ipcMain.on('soundscape:ready',e=>{if(e.sender===soundscapeWin?.webContents){feedback.configure();soundscapeWin.webContents.send('soundscape:player',{...soundscape.state,sounds:soundscapeCatalog.sounds});}});
   ipcMain.on('soundscape:report',(e,data)=>{if(e.sender===soundscapeWin?.webContents)soundscape.report(data||{})});
   ipc.handle('quick:quota', async () => {
@@ -1292,9 +1293,10 @@ function bootstrap() {
     try {
       const text = payload?.text;
       const rules = payload?.rules;
-      return await textCleaner.clean(text,{rules,source,signal:controller.signal,onDelta:output=>{
+      const result=await textCleaner.clean(text,{rules,source,signal:controller.signal,onDelta:output=>{
         if(!controller.signal.aborted&&!event.sender.isDestroyed())event.sender.send('text:delta',{id,source,output});
       }});
+      playBloub('completed',{sound:'textReady'});return result;
     } catch (e) {
       if(e.name!=='AbortError')console.error('[text:apply] failed:', e.message);
       throw e;
@@ -1381,7 +1383,7 @@ function bootstrap() {
     screen.on('display-metrics-changed',()=>{if(voiceWin?.isVisible())positionVoice()});
     screen.on('display-removed',()=>{if(voiceWin?.isVisible())positionVoice()});
     secretsCache = loadSecrets();
-    voice=new VoiceService({settings,getSecret,models:voiceModels,input:voiceInput,output:voiceOutput,fetcher:(url,options)=>net.fetch(url,options),connectOptions:async url=>{const resolved=await voiceWin.webContents.session.resolveProxy(url);const proxy=resolved.split(';').map(s=>s.trim()).find(s=>s.startsWith('PROXY ')||s.startsWith('HTTPS '));return proxy?{agent:new(require('https-proxy-agent').HttpsProxyAgent)('http://'+proxy.replace(/^\S+\s+/,''))}:{};},copy:text=>writeTextVerified(clipboard,text),onChange:voiceChanged,onComplete:(id,text,seconds)=>{voiceStats.record(id,text,seconds);sendWorkbar('voice:statsChanged',voiceStats.view());},capture:command=>{if(!voiceReady)pendingVoiceCapture=command;else voiceWin?.webContents.send('voice:capture',command);}});
+    voice=new VoiceService({settings,getSecret,models:voiceModels,input:voiceInput,output:voiceOutput,fetcher:(url,options)=>net.fetch(url,options),connectOptions:async url=>{const resolved=await voiceWin.webContents.session.resolveProxy(url);const proxy=resolved.split(';').map(s=>s.trim()).find(s=>s.startsWith('PROXY ')||s.startsWith('HTTPS '));return proxy?{agent:new(require('https-proxy-agent').HttpsProxyAgent)('http://'+proxy.replace(/^\S+\s+/,''))}:{};},copy:text=>writeTextVerified(clipboard,text),onChange:voiceChanged,onBeforeCapture:()=>feedback.beforeVoice(),onComplete:(id,text,seconds)=>{voiceStats.record(id,text,seconds);sendWorkbar('voice:statsChanged',voiceStats.view());},capture:command=>{if(!voiceReady)pendingVoiceCapture=command;else voiceWin?.webContents.send('voice:capture',command);}});
     try {
       if (!safeStorage.isEncryptionAvailable()) throw new Error('系统加密暂不可用，工具箱记录尚未启用');
       toolbox = new Toolbox(path.join(paths.dataDir(), 'toolbox.bin'), { encrypt: v => safeStorage.encryptString(v), decrypt: v => safeStorage.decryptString(v) });
@@ -1395,7 +1397,7 @@ function bootstrap() {
     createSoundscapeWindow();
     void captureRuntime.ensure(captureConfig(settings.get('capture',{}))).catch(()=>{});
     createVoiceWindow();
-    captureHost=new CaptureHost({electron:require('electron'),dir:paths.dataDir(),settings,vision:captureVision,toolbox:requireToolbox,changed:toolboxChanged,overlays:()=>[petWin,workbarWin,speechWin,quickWin,soundscapeWin,voiceWin,island?.win]});captureHost.register();captureHost.startPointer();void captureHost.prewarm().catch(e=>console.warn("[capture] prewarm:",e.message));
+    captureHost=new CaptureHost({electron:require('electron'),dir:paths.dataDir(),settings,vision:captureVision,onResult:scene=>playBloub('completed',{sound:scene}),toolbox:requireToolbox,changed:toolboxChanged,overlays:()=>[petWin,workbarWin,speechWin,quickWin,soundscapeWin,voiceWin,island?.win]});captureHost.register();captureHost.startPointer();void captureHost.prewarm().catch(e=>console.warn("[capture] prewarm:",e.message));
     // Warm up the tiny input helper without capturing a target or requesting microphone access.
     voiceInput.prepare().catch(()=>{});voiceOutput.prepare().catch(()=>{});
     if (focus.active) quickWin.webContents.once('did-finish-load', () => {
