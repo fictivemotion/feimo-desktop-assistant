@@ -8,6 +8,7 @@ window.UI = (() => {
   }
 
   function toast(msg, isErr = false) {
+    if(document.body.dataset.topState&&document.body.dataset.topState!=='workbench'&&window.api?.islandNotify){void api.islandNotify(String(msg),isErr).catch(()=>{});return;}
     let el = document.querySelector('.toast');
     if (!el) {
       el = document.createElement('div');

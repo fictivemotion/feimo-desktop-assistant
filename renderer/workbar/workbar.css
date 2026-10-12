@@ -662,3 +662,5 @@ body.embedded #brand,body.embedded #workspace-header>.feimo-header-art{display:n
 body.embedded #titlebar{display:none}body.embedded #tabs{margin-top:4px}body.embedded.primary-module #page-header{padding-top:12px}body.embedded #view-files>.file-heading{justify-content:flex-end;margin-bottom:8px}
 
 .settings-connections-panel .connection-settings{display:grid;gap:16px}.settings-connections-panel .mode-options,.settings-connections-panel .pill-options{display:flex;gap:12px;flex-wrap:wrap}.settings-connections-panel .pill-options label{display:flex;align-items:center;gap:6px}.settings-connections-panel .card h3{font-size:15px;margin:0 0 12px}.settings-connections-panel .integration-settings{display:grid;gap:16px}.settings-connections-panel .integration-switch{display:flex;align-items:center;gap:8px;margin:12px 0}
+
+.settings-section>.card .pill-options{display:flex;flex-wrap:wrap;gap:12px}.settings-section>.card .pill-options label{display:flex;align-items:center;gap:6px}

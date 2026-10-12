@@ -206,10 +206,10 @@
     }));
     const categories = [['general','常规'],['model','模型'],['shortcuts','快捷键'],['connections','连接'],['privacy','隐私'],['support','赞赏']];
     const nav = document.createElement('nav'); nav.className = 'settings-nav'; nav.setAttribute('aria-label', '设置分类');
-    const connectionSection=document.createElement('section');connectionSection.className='settings-section';connectionSection.innerHTML='<h4>顶部与服务连接</h4><div class="settings-connections-panel"></div>';view.append(connectionSection);await FeimoConnections.mount(connectionSection.lastElementChild);const sections = [...view.querySelectorAll('.settings-section')];
+    const connectionSection=document.createElement('section');connectionSection.className='settings-section';connectionSection.innerHTML='<h4>顶部与服务连接</h4><div class="settings-connections-panel"></div>';view.append(connectionSection);await FeimoConnections.mount(connectionSection.lastElementChild);const topTools=connectionSection.querySelector('.connection-settings>.card'),topSection=document.createElement('section');topSection.className='settings-section';topSection.dataset.group='general';topSection.innerHTML='<h4>顶部状态与快捷工具</h4>';topTools.querySelector('h3')?.remove();topSection.append(topTools);view.append(topSection);const sections = [...view.querySelectorAll('.settings-section')];
     sections.forEach(section => {
       const title = section.querySelector('h4').textContent;
-      section.dataset.group = /支持开发者/.test(title) ? 'support' : /模型|AI 文字清洗/.test(title) ? 'model' : /全局热键/.test(title) ? 'shortcuts' : /Agent|Notion|日程同步/.test(title) ? 'connections' : /隐私/.test(title) ? 'privacy' : 'general';
+      section.dataset.group ||= /支持开发者/.test(title) ? 'support' : /模型|AI 文字清洗/.test(title) ? 'model' : /全局热键/.test(title) ? 'shortcuts' : /Agent|Notion|日程同步/.test(title) ? 'connections' : /隐私/.test(title) ? 'privacy' : 'general';
     });
     function showGroup(group) {
       sections.forEach(section => { section.hidden = section.dataset.group !== group; });
@@ -220,7 +220,7 @@
       const button = document.createElement('button'); button.type = 'button'; button.dataset.settingsGroup = id; button.textContent = label;
       button.addEventListener('click', () => showGroup(id)); nav.appendChild(button);
     }
-    view.prepend(nav); showGroup('general');
+    const order=['顶部精灵','顶部状态与快捷工具','伙伴提示音','小助手的声音','Windows 启动'];sections.sort((a,b)=>{const x=order.indexOf(a.querySelector('h4').textContent.trim()),y=order.indexOf(b.querySelector('h4').textContent.trim());return (x<0?order.length:x)-(y<0?order.length:y);});sections.forEach(section=>view.append(section));view.querySelector('.settings-top').after(nav);showGroup('general');
     view.querySelector('#st-back').addEventListener('click', () => window.switchTab('chat'));
 
     view.querySelector('#st-feedback-pack').value=feedback.pack;

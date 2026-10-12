@@ -229,9 +229,7 @@ function bootstrap() {
     if(changed){
       if(state.phase==='starting')voiceDisplayId=screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).id;
       clearTimeout(voiceDismissTimer);
-      if(state.active){dismissSpeech();if(!quickWin?.isFocused()&&!voiceInput.owns(quickWin?.webContents)){quickExpanded=false;quickPanel='none';quickWin?.webContents.send('quick:expanded',false);quickWin?.hide();}positionVoice();voiceWin?.showInactive();}
-      else if(state.phase==='completed'||state.phase==='error'){positionVoice();voiceWin?.showInactive();if(state.phase==='completed'){voiceDismissTimer=setTimeout(()=>voiceWin?.webContents.send('voice:exit'),320);}else voiceDismissTimer=setTimeout(()=>voiceWin?.hide(),10000);}
-      else voiceWin?.hide();
+      voiceWin?.hide();if(state.active){dismissSpeech();quickWin?.hide();}else if(state.phase==='completed'||state.phase==='error')island?.notice({title:'语音输入',text:state.message||(state.phase==='completed'?'语音输入完成👌':'语音输入失败'),scene:state.phase==='error'?'failed':'completed'});
       broadcastPetState(state.phase==='completed'?'textReady':undefined);
       if(state.phase==='completed')playBloub('completed',{sound:'textReady'});
       if(state.phase==='error')playBloub('failed');
@@ -247,7 +245,7 @@ function bootstrap() {
     voiceWin.webContents.on('render-process-gone',()=>{voiceReady=false;void voice?.cancel();});
     voiceWin.on('closed',()=>{voiceReady=false;voiceWin=null;void voice?.cancel();});
   }
-  const soundscape=new Soundscape({settings,send:state=>soundscapeWin?.webContents.send('soundscape:player',{...state,sounds:soundscapeCatalog.sounds}),onChange:value=>{sendWorkbar('soundscape:changed',value);quickWin?.webContents.send('soundscape:changed',value);broadcastPetState();if(value.error)playBloub('failed')}});
+  const soundscape=new Soundscape({settings,send:state=>soundscapeWin?.webContents.send('soundscape:player',{...state,sounds:soundscapeCatalog.sounds}),onChange:value=>{sendWorkbar('soundscape:changed',value);quickWin?.webContents.send('soundscape:changed',value);broadcastPetState();if(value.error){island?.notice({title:'白噪音',text:value.error,scene:'failed'});playBloub('failed')}}});
   function createSoundscapeWindow(){
     soundscapeWin=new BrowserWindow({show:false,width:200,height:100,webPreferences:{preload:path.join(__dirname,'preload','soundscape-preload.js'),autoplayPolicy:'no-user-gesture-required',sandbox:true,nodeIntegration:false,contextIsolation:true,backgroundThrottling:false}});
     soundscapeWin.webContents.setWindowOpenHandler(()=>({action:'deny'}));soundscapeWin.webContents.on('will-navigate',e=>e.preventDefault());
