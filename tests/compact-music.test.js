@@ -19,7 +19,7 @@ test('music calibrates fallback lyrics, resets for changed artists, and exposes 
  reply={...reply,artist:'乙',position:0};assert.equal((await m.command('poll')).position,0);
  reply={available:false,error:'播放器未响应'};const failed=await m.command('toggle');assert.equal(failed.title,'测试歌曲');assert.equal(failed.error,'播放器未响应');
  assert.throws(()=>m.command({command:'lyrics-sync',seconds:NaN}),/无效/);
- reply={available:true,title:'测试歌曲',artist:'乙',position:110,duration:200,timelineExact:true,canSeek:true,playing:true};
+ reply={available:true,title:'测试歌曲',artist:'乙',position:110,duration:200,timelineExact:true,source:'smtc',canSeek:true,playing:true};
  await m.command('poll');assert.equal(m.state.position,110);assert.throws(()=>m.command({command:'lyrics-sync',seconds:12}),/无需/);
  assert.throws(()=>m.command({command:'seek',seconds:201}),/不支持/);assert.throws(()=>m.command({command:'seek',seconds:NaN}),/不支持/);
  reply={...reply,position:40};assert.equal((await m.command({command:'seek',seconds:40})).position,40);

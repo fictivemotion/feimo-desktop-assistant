@@ -3,7 +3,7 @@
  const api=window.api,$=s=>document.querySelector(s),{safe,esc,icon}=IslandWidgets;
  const dock=$('#quick-pills'),pill=$('#compact'),title=pill.querySelector('.compact-copy strong'),status=$('#compact-status');let state,hideTimer,cardType='',hover=false;
  const controls=document.createElement('span');controls.className='compact-controls';pill.insertBefore(controls,$('#compact-open'));
- const quick=[['ChatDots','问答','chat'],['CalendarDays','日程','schedule'],['Timer','倒计时','focus'],['Music','白噪音','noise'],['ClipboardText','剪贴板','clipboard'],['NoteText','速记','notes'],['Palette','配色','palette'],['Broom','清洗文字','clean'],['Image','区域截图','screenshot'],['ChartBar','Codex额度','quota'],['Folder','存入文件','files']];
+ const quick=[['ChatDots','问答','chat'],['Translate','翻译','translate'],['CalendarDays','日程','schedule'],['Timer','倒计时','focus'],['Music','白噪音','noise'],['ClipboardText','剪贴板','clipboard'],['NoteText','速记','notes'],['Palette','配色','palette'],['Broom','清洗文字','clean'],['Image','区域截图','screenshot'],['ChartBar','Codex额度','quota'],['Folder','存入文件','files']];
  const row=document.createElement('div');row.className='quick-pill-row';const card=document.createElement('section');card.className='quick-card';card.hidden=true;dock.append(row,card);
  for(const [glyph,name,type]of quick){const b=document.createElement('button');b.className='quick-pill';b.innerHTML=icon(glyph,16)+' '+esc(name);b.onclick=()=>safe(()=>open(type));row.append(b);}
  row.onwheel=e=>{e.preventDefault();row.scrollBy({left:e.deltaY||e.deltaX,behavior:'smooth'});};
@@ -11,15 +11,16 @@
  function reveal(){clearTimeout(hideTimer);if(!$('#island').classList.contains('collapsed'))return;dock.hidden=false;void api.islandReveal();}
  function enter(source='capsule'){clearTimeout(hideTimer);hover=true;api.islandHover(true,source);}
  function leave(e){if(e?.relatedTarget&&(document.getElementById('island-cards')?.contains(e.relatedTarget)||document.getElementById('island-bubble')?.contains(e.relatedTarget))){enter('card');return;}if(e?.relatedTarget&&(dock.contains(e.relatedTarget)||pill.contains(e.relatedTarget)||document.getElementById('top-sprite')?.contains(e.relatedTarget)||document.getElementById('island-cards')?.contains(e.relatedTarget)||document.getElementById('island-bubble')?.contains(e.relatedTarget))){enter();return;}clearTimeout(hideTimer);hideTimer=setTimeout(()=>{if(dock.matches(':hover')||pill.matches(':hover')||document.getElementById('island-cards')?.matches(':hover')||document.getElementById('island-bubble')?.matches(':hover')||dock.contains(document.activeElement))return;hover=false;api.islandHover(false);api.islandLeave();close();},450);}
- window.IslandQuickHover={enter,leave};
+ window.IslandQuickHover={enter,leave};api.onIslandResetHover(()=>{hover=false;clearTimeout(hideTimer);close();});api.onIslandPresentation(value=>{if(value==='sprite'){hover=false;close();}});
  pill.onmouseenter=()=>{enter();reveal();};pill.onmouseleave=leave;dock.onmouseenter=()=>enter('quick');dock.onmouseleave=leave;const sprite=document.getElementById('top-sprite');sprite.onmouseenter=()=>{enter('sprite');reveal();};sprite.onmouseleave=leave;sprite.onclick=()=>sprite.querySelector('iframe')?.contentWindow?.postMessage({type:'feimo:orb-event',scene:'interaction'},'*');sprite.oncontextmenu=e=>{e.preventDefault();close();safe(()=>api.islandHide());};
  $('#compact-open').onclick=e=>{e.stopPropagation();close();safe(()=>api.islandWorkbar('voice'));};
  setInterval(()=>{if(!dock.hidden&&(hover||dock.contains(document.activeElement)))void api.islandReveal();},1000);
  function head(text){card.hidden=false;card.innerHTML=`<div class="quick-card-heading"><strong>${esc(text)}</strong><button class="icon-btn" aria-label="关闭快捷卡片">${icon('CloseCircle',16)}</button></div><div class="quick-card-body"></div>`;card.querySelector('.quick-card-heading button').onclick=()=>{card.hidden=true;cardType='';};return card.querySelector('.quick-card-body');}
  const action=(root,text,fn,primary=false)=>{const b=document.createElement('button');b.className='btn small'+(primary?' primary':'');b.textContent=text;b.onclick=()=>safe(fn);root.append(b);return b;};
  async function open(type){cardType=type;await api.islandReveal();
+  if(type==='translate'){close();await api.translationStart();await api.islandSprite();return;}
   if(type==='screenshot'){close();await api.screenshot();return;}
-  if(type==='clean'||type==='ocr'){const r=head(type==='clean'?'正在清洗文字…':'正在提取图片文字…');await api.clipboardRunQuick(type==='clean'?'text':'image');r.textContent='已开始处理，完成后自动复制。';return;}
+  if(type==='clean'||type==='ocr'){close();await api.islandSprite();await api.clipboardRunQuick(type==='clean'?'text':'image');return;}
   if(type==='chat'){const body=head('问斐墨'),form=document.createElement('form'),input=document.createElement('textarea'),send=document.createElement('button');input.placeholder='想问什么？';input.rows=3;input.setAttribute('aria-label','快捷问答问题');send.className='btn primary';send.textContent='发送';send.type='submit';form.append(input,send);body.append(form);form.onsubmit=e=>{e.preventDefault();const text=input.value.trim();if(!text)return;close();safe(()=>api.islandQuickChat(text));};input.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();form.requestSubmit();}};input.focus();return;}
     if(type==='files'){await api.fileSelect();return;}
   const root=head(({focus:'专注一会儿',noise:'白噪音',schedule:'新建日程',clipboard:'剪贴板',notes:'记下一个想法',palette:'精选配色',quota:'Codex 额度'})[type]);

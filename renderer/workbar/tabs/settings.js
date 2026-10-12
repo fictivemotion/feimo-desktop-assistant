@@ -1,5 +1,5 @@
 'use strict';
-/** 设置页（齿轮入口，非页签）：模型服务、宠物形象、热键、Agent 监控、日程同步、隐私。 */
+/** 设置页（齿轮入口，非页签）：模型服务、顶部精灵、热键、Agent 监控、日程同步、隐私。 */
 (() => {
   const api = window.api;
   const view = document.getElementById('view-settings');
@@ -43,7 +43,6 @@
           <div class="switch"><span class="lbl">开机自启动<span class="sub">登录 Windows 后，让斐墨在桌面陪着你</span></span>
             <label class="toggle"><input type="checkbox" id="st-startup" ${system.openAtLogin ? 'checked' : ''}/><span class="track"></span><span class="knob"></span></label></div>
           <button class="btn" id="st-shortcut">创建桌面快捷方式</button>
-          <button class="btn" id="st-connections">顶部模式 · 会话桥接 · 服务连接</button>
         </div>
       </div>
 
@@ -102,26 +101,16 @@
       <div class="settings-section">
         <h4><span data-icon="Paw" data-size="16"></span> 宠物形象</h4>
         <div class="card">
-          <div class="pet-grid" id="st-pets"></div>
+          <p class="muted">斐墨 · Rive · 黑色圆形伙伴</p>
           <div class="field" style="margin-top:16px"><label for="st-top-sprite-size">顶部精灵尺寸 <output id="st-top-sprite-size-value">${Math.max(48,Math.min(180,Number(settings.ui?.topSpriteSize)||90))} px</output></label><input id="st-top-sprite-size" type="range" min="48" max="180" step="1" value="${Math.max(48,Math.min(180,Number(settings.ui?.topSpriteSize)||90))}"><p class="hint">拖动即可调整，消息气泡随精灵一起缩放，并按视觉高度收紧。</p></div>
-          <div style="margin-top:10px;display:flex;align-items:center;gap:10px">
-            <span class="muted">尺寸</span>
-            <select id="st-size" class="btn" style="padding:5px 8px">
-              <option value="56" ${pet.size == 56 ? 'selected' : ''}>小 (56)</option>
-              <option value="72" ${pet.size == 72 ? 'selected' : ''}>标准 (72)</option>
-              <option value="96" ${pet.size == 96 ? 'selected' : ''}>大 (96)</option>
-            </select>
-            <div class="switch" style="flex:1"><span class="lbl">始终置顶</span>
-              <label class="toggle"><input type="checkbox" id="st-top" ${pet.alwaysOnTop !== false ? 'checked' : ''}/><span class="track"></span><span class="knob"></span></label>
-            </div>
-          </div>
+
         </div>
       </div>
 
       <div class="settings-section">
         <h4><span data-icon="ChatDots" data-size="16"></span> 小助手的声音</h4>
         <div class="card">
-          <div class="switch"><span class="lbl">悬浮对话<span class="sub">靠近宠物时打招呼，日程和 Coding 更新时主动说话</span></span>
+          <div class="switch"><span class="lbl">悬浮对话<span class="sub">通过顶部气泡提醒，日程和 Coding 更新时主动说话</span></span>
             <label class="toggle"><input type="checkbox" id="st-speech" ${settings.ui?.companionSpeech !== false ? 'checked' : ''}/><span class="track"></span><span class="knob"></span></label></div>
           <div class="switch"><span class="lbl">偶尔问候与休息提示<span class="sub">仅在白天且你正在使用电脑时出现</span></span>
             <label class="toggle"><input type="checkbox" id="st-ambient" ${settings.ui?.ambientSpeech !== false ? 'checked' : ''}/><span class="track"></span><span class="knob"></span></label></div>
@@ -217,7 +206,7 @@
     }));
     const categories = [['general','常规'],['model','模型'],['shortcuts','快捷键'],['connections','连接'],['privacy','隐私'],['support','赞赏']];
     const nav = document.createElement('nav'); nav.className = 'settings-nav'; nav.setAttribute('aria-label', '设置分类');
-    const sections = [...view.querySelectorAll('.settings-section')];
+    const connectionSection=document.createElement('section');connectionSection.className='settings-section';connectionSection.innerHTML='<h4>顶部与服务连接</h4><div class="settings-connections-panel"></div>';view.append(connectionSection);await FeimoConnections.mount(connectionSection.lastElementChild);const sections = [...view.querySelectorAll('.settings-section')];
     sections.forEach(section => {
       const title = section.querySelector('h4').textContent;
       section.dataset.group = /支持开发者/.test(title) ? 'support' : /模型|AI 文字清洗/.test(title) ? 'model' : /全局热键/.test(title) ? 'shortcuts' : /Agent|Notion|日程同步/.test(title) ? 'connections' : /隐私/.test(title) ? 'privacy' : 'general';
@@ -238,35 +227,6 @@
     const saveFeedback=async()=>{const volume=Number(view.querySelector('#st-feedback-volume').value)/100;view.querySelector('#st-feedback-level').textContent=Math.round(volume*100)+'%';await api.setSettings({feedback:{enabled:view.querySelector('#st-feedback-enabled').checked,pack:view.querySelector('#st-feedback-pack').value,volume}});};
     for(const id of ['enabled','pack','volume'])view.querySelector('#st-feedback-'+id).addEventListener('change',saveFeedback);
     view.querySelector('#st-feedback-preview').onclick=async()=>{await saveFeedback();await api.feedbackPreview();};
-    // 宠物选择
-    const petGrid = view.querySelector('#st-pets');
-    for (const p of pets) {
-      const c = document.createElement('div');
-      c.className = 'pet-card' + (pet.style === p.id ? ' sel' : '');
-      c.innerHTML = `<div class="pet-preview"></div><div class="nm">${UI.esc(p.name)}</div>`;
-      const preview = c.querySelector('.pet-preview');
-      if (p.type === 'orb') {
-        const frame = document.createElement('iframe');
-          frame.src = `../../${p.orb}${p.id==='bloub'?'?preview=1':''}`;
-        frame.title = p.name;
-        frame.tabIndex = -1;
-        preview.appendChild(frame);
-      } else preview.appendChild(window.PetAvatar.eous(72));
-      c.title = p.description;
-      c.addEventListener('click', async () => {
-        petGrid.querySelectorAll('.pet-card').forEach((x) => x.classList.remove('sel'));
-        c.classList.add('sel');
-        settings = await api.setSettings({ pet: { ...petRef(), style: p.id } });
-        UI.toast(`已切换为「${p.name}」`);
-      });
-      petGrid.appendChild(c);
-    }
-    view.querySelector('#st-size').addEventListener('change', async (e) => {
-      settings = await api.setSettings({ pet: { ...petRef(), size: parseInt(e.target.value, 10) } });
-    });
-    view.querySelector('#st-top').addEventListener('change', async (e) => {
-      settings = await api.setSettings({ pet: { ...petRef(), alwaysOnTop: e.target.checked } });
-    });
     const spriteSizeControl=view.querySelector('#st-top-sprite-size');let spriteSave=Promise.resolve(),spriteSaveTimer;
     spriteSizeControl.oninput=()=>{const topSpriteSize=Number(spriteSizeControl.value);view.querySelector('#st-top-sprite-size-value').textContent=topSpriteSize+' px';clearTimeout(spriteSaveTimer);spriteSaveTimer=setTimeout(()=>{spriteSave=spriteSave.catch(()=>{}).then(async()=>{settings=await api.setSettings({ui:{topSpriteSize}});}).catch(e=>UI.toast(e.message,true));},80);};
     function petRef() { return { ...(settings.pet || {}) }; }
@@ -283,7 +243,6 @@
       try { settings = await api.setSettings({ system: { openAtLogin: e.target.checked } }); UI.toast(e.target.checked ? '已开启开机自启动' : '已关闭开机自启动'); }
       catch (error) { e.target.checked = !e.target.checked; UI.toast(error.message, true); }
     });
-    view.querySelector('#st-connections').onclick=()=>window.switchTab('connections');
     view.querySelector('#st-shortcut').addEventListener('click', async () => {
       try { await api.createDesktopShortcut(); UI.toast('已添加到桌面'); }
       catch (error) { UI.toast(error.message, true); }

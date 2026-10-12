@@ -13,7 +13,7 @@
   if(motion&&!spriteMode){const width=full?panel.offsetWidth:Math.min(420,innerWidth-16),height=full?panel.offsetHeight:66;rect.x=(innerWidth-width)/2;rect.y=2;rect.width=width;rect.height=height;}
   const rects=[rect];
   if(!hidden&&!(motion&&full&&!spriteMode)){
-   for(const n of document.querySelectorAll('#top-sprite,#compact-hide,#quick-pills:not([hidden]),#island-bubble:not([hidden]),#island-cards:not([hidden]) .island-pop-card:not([hidden]),dialog[open]'))if(visible(n))rects.push(box(n));
+   for(const n of document.querySelectorAll('#top-sprite,#compact-hide,#quick-pills:not([hidden]),#island-bubble:not([hidden]),#island-bubble-stack:not([hidden]) .stacked-bubble,#island-cards:not([hidden]) .island-pop-card:not([hidden]),dialog[open]'))if(visible(n))rects.push(box(n));
    for(const [id,gap]of [['quick-pills',20],['island-cards',8]]){const n=document.getElementById(id);if(visible(n)){const r=box(n);rects.unshift({x:r.x,y:r.y-gap,width:r.width,height:gap});}}
   }
   if(!hidden&&spriteMode){for(const id of ['island-bubble','island-cards']){const node=document.getElementById(id);if(visible(node)){const r=box(node);if(r.y<=rect.y+rect.height&&r.x>=rect.x+rect.width)rects.push({x:rect.x+rect.width,y:rect.y,width:r.x-rect.x-rect.width,height:rect.height});}}}

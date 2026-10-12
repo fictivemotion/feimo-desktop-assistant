@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 /** 工作栏桥：仅白名单方法，参数在主进程校验。 */
 contextBridge.exposeInMainWorld('api', {
+  translationStart:()=>ipcRenderer.invoke('translation:start'),translationStop:()=>ipcRenderer.invoke('translation:stop'),translationState:()=>ipcRenderer.invoke('translation:state'),islandSprite:()=>ipcRenderer.invoke('island:sprite'),onIslandResetHover:cb=>ipcRenderer.on('island:resetHover',()=>cb()),
   screenshot:()=>ipcRenderer.invoke('screenshot:start'),captureStatus:()=>ipcRenderer.invoke('screenshot:status'),captureGuide:()=>ipcRenderer.invoke('screenshot:guide'),
   fileSearch:q=>ipcRenderer.invoke('files:search',q),fileContext:ids=>ipcRenderer.invoke('files:context',ids),fileDrag:id=>ipcRenderer.send('files:drag',id),
   fileLibrary:()=>ipcRenderer.invoke('files:state'),fileCreate:data=>ipcRenderer.invoke('files:create',data),fileResolve:data=>ipcRenderer.invoke('files:resolve',data),fileImport:files=>ipcRenderer.invoke('files:import',files),fileImportDrop:data=>ipcRenderer.invoke('files:importDrop',data),fileSelect:()=>ipcRenderer.invoke('files:select'),fileOpen:id=>ipcRenderer.invoke('files:open',id),fileRoot:()=>ipcRenderer.invoke('files:root'),filePath:file=>webUtils.getPathForFile(file),

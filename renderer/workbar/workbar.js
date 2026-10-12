@@ -34,7 +34,7 @@
 
   function switchTab(name) {
     let [route, sub] = String(name || 'voice').split(':');
-    if(['clipboard','notes','palette'].includes(route)){sub=route;route='tools';}
+    if(route==='connections')route='settings';if(['clipboard','notes','palette'].includes(route)){sub=route;route='tools';}
     const dockRoute=route==='tools'?(sub||'clipboard'):route;document.body.dataset.toolSection=route==='tools'?dockRoute:'';
     if (route === 'soundscape') { route = 'focus'; sub = 'soundscape'; } name = route==='usage'?'agents':route;
     if (!views[name]) name = 'chat';
@@ -172,14 +172,14 @@
   api.onPetActivity?.(value=>brandAvatar.querySelector('iframe')?.contentWindow?.postMessage({type:'feimo:orb-event',scene:value.scene},'*'));
   function setBrandAvatar(style) {
     brandAvatar.replaceChildren();
-    if (['forest-flow','iridescent-opal','bloub','feimo-rive'].includes(style)) {
+    if (style==='feimo-rive') {
       const frame = document.createElement('iframe');
-      frame.src = style==='feimo-rive'?'../../assets/pets/feimo-rive/feimo.html':style==='bloub'?'../../assets/pets/bloub/bloub.html?preview=1':`../../assets/orb/${style}.html`;
+      frame.src = '../../assets/pets/feimo-rive/feimo.html';
       frame.title = style; frame.tabIndex = -1;
       frame.onload=()=>api.getPetState().then(s=>frame.contentWindow?.postMessage({type:'feimo:orb-state',state:s.scene||s.state},'*'));
       brandAvatar.appendChild(frame);
     } else {
-      brandAvatar.appendChild(window.PetAvatar.eous(34));
+      const frame=document.createElement('iframe');frame.src='../../assets/pets/feimo-rive/feimo.html';frame.title='斐墨 · Rive';brandAvatar.appendChild(frame);
     }
   }
   api.getSettings().then((settings) => setBrandAvatar(settings.pet?.style));

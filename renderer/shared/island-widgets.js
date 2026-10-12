@@ -22,7 +22,7 @@
   }
   function serviceCard(root,item){
     root.innerHTML=`<div class="service-heading"><h3>${icon(item.icon)} ${esc(item.name)}</h3><button class="btn small service-refresh">刷新</button></div><p class="hint">${esc(item.error||item.data?.summary||(item.config?.enabled?'正在连接…':'尚未连接，可在设置 → 连接中配置'))}</p><div class="service-items"></div><button class="btn service-home">打开服务</button>`;
-    root.querySelector('.service-refresh').disabled=!item.config?.enabled||item.loading;root.querySelector('.service-refresh').onclick=()=>safe(()=>api.integrationsRefresh(item.id));root.querySelector('.service-home').onclick=()=>safe(()=>api.openExternal(item.id==='n8n'?item.config.baseUrl:item.url));
+    root.querySelector('.service-refresh').disabled=!item.config?.enabled||item.loading;root.querySelector('.service-refresh').onclick=()=>safe(()=>api.integrationsRefresh(item.id));root.querySelector('.service-home').onclick=()=>safe(()=>api.openExternal(item.url));
     const list=root.querySelector('.service-items');for(const x of item.data?.items||[]){const b=document.createElement('button');b.className='service-item';b.innerHTML=`<span><strong>${esc(x.title)}</strong><small>${esc(x.detail||x.updated?.slice(0,16).replace('T',' ')||'')}</small></span><span class="badge">${esc(x.status)}</span>`;b.onclick=()=>safe(()=>api.openExternal(x.url));list.append(b);}
   }
   function musicCard(root,m){

@@ -13,20 +13,14 @@ try{$manager=Await-Operation ([Windows.Media.Control.GlobalSystemMediaTransportC
 while($null -ne ($line=[Console]::ReadLine())){
   try{
     $request=$line | ConvertFrom-Json
+    if(!$manager){try{$manager=Await-Operation ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager]::RequestAsync()) ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager])}catch{}}
     $sessions=@();if($manager){$sessions=@($manager.GetSessions())};$session=$sessions | Where-Object { $_.SourceAppUserModelId -match '(?i)cloudmusic|netease|orpheus' } | Select-Object -First 1
     if(!$session -and $request.player -eq 'system' -and $manager){$session=$manager.GetCurrentSession()}
     if(!$session){
       $track=[FeimoMediaNative]::Track()
       if(!$track){$result=@{available=$false;message='打开网易云音乐并播放歌曲后，音乐药丸会自动连接'}}
       else{
-        if($request.command -eq 'seek'){
-          if($request.track -ne $track[0] -or $request.artist -ne $track[1]){throw '歌曲已切换，请重试'}
-          $duration=[double]$request.duration;$seconds=[double]$request.seconds
-          if($duration -le 0 -or $seconds -lt 0 -or $seconds -gt $duration -or [FeimoNeteaseProgress]::Read() -lt 0){throw '未连接歌曲进度'}
-          if(![FeimoMediaNative]::Seek([long]$track[2],$seconds/$duration)){throw '当前窗口不支持进度控制，请展开网易云完整播放器后重试'}
-          Start-Sleep -Milliseconds 120
-          if([Math]::Abs([FeimoNeteaseProgress]::Read()-$seconds) -gt 2){throw '网易云未确认进度跳转，请重试'}
-        }
+        if($request.command -eq 'seek'){throw '当前播放器未提供 SMTC 进度控制'}
         elseif($request.command -ne 'poll'){
           $code=@{toggle=14;next=11;previous=12}[$request.command]
           if(!$code){throw '未知音乐控制'}
@@ -41,7 +35,7 @@ while($null -ne ($line=[Console]::ReadLine())){
         $playing=[FeimoMediaNative]::Playing();if([FeimoMediaNative]::Peak -gt 0.00001){$lastSound=$now};if($null -ne $playing){$playing=$playing -and (($now-$lastSound).TotalSeconds -lt 3)};if($request.command -eq 'toggle'){$playing=!$legacyPlaying;if($playing){$lastSound=$now}else{$lastSound=[DateTimeOffset]::MinValue}};if($null -eq $playing){$playing=$legacyPlaying;if($request.command -eq 'toggle'){$playing=!$playing}}
         $realPosition=[FeimoNeteaseProgress]::Read();$exact=$realPosition -ge 0;if($exact){$legacyPosition=$realPosition}
         $legacyPlaying=[bool]$playing;$legacyAt=$now
-        $result=@{available=$true;title=$track[0];artist=$track[1];album='';player='cloudmusic';playing=$legacyPlaying;position=$legacyPosition;duration=0;canToggle=$true;canNext=$true;canPrevious=$true;source='netease-desktop';timelineExact=$exact;canSeek=$exact;message=($(if($exact){'已连接网易云真实播放进度'}else{'当前版本未提供播放进度，歌词从接入时起估算'}))}
+        $result=@{available=$true;title=$track[0];artist=$track[1];album='';player='cloudmusic';playing=$legacyPlaying;position=$legacyPosition;duration=0;canToggle=$true;canNext=$true;canPrevious=$true;source='netease-desktop';timelineExact=$exact;canSeek=$false;message=($(if($exact){'已连接网易云真实播放进度'}else{'当前版本未提供播放进度，歌词从接入时起估算'}))}
       }
     }
     else{
@@ -53,8 +47,11 @@ while($null -ne ($line=[Console]::ReadLine())){
       }
       $properties=Await-Operation ($session.TryGetMediaPropertiesAsync()) ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties])
       $playback=$session.GetPlaybackInfo();$timeline=$session.GetTimelineProperties()
-      $position=$timeline.Position.TotalSeconds;if($playback.PlaybackStatus.ToString() -eq 'Playing'){$position+=[Math]::Max(0,([DateTimeOffset]::Now-$timeline.LastUpdatedTime).TotalSeconds)}
-      $result=@{available=$true;title=$properties.Title;artist=$properties.Artist;album=$properties.AlbumTitle;player=$session.SourceAppUserModelId;playing=($playback.PlaybackStatus.ToString() -eq 'Playing');position=$position;source='smtc';timelineExact=$true;duration=$timeline.EndTime.TotalSeconds;canSeek=$playback.Controls.IsPlaybackPositionEnabled;canToggle=$playback.Controls.IsPlayPauseToggleEnabled;canNext=$playback.Controls.IsNextEnabled;canPrevious=$playback.Controls.IsPreviousEnabled}
+      $now=[DateTimeOffset]::Now;$playing=$playback.PlaybackStatus.ToString() -eq 'Playing';$duration=$timeline.EndTime.TotalSeconds;$exact=$duration -gt 0;$position=$timeline.Position.TotalSeconds
+      if($exact -and $playing -and $timeline.LastUpdatedTime.Year -gt 2000){$position+=[Math]::Max(0,($now-$timeline.LastUpdatedTime).TotalSeconds);$position=[Math]::Min($duration,$position)}
+      if(!$exact){$real=if($session.SourceAppUserModelId -match '(?i)cloudmusic|netease|orpheus'){[FeimoNeteaseProgress]::Read()}else{-1};if($real -ge 0){$position=$real;$exact=$true}else{$key=$properties.Title+'|'+$properties.Artist;if($legacyTrack -ne $key){$legacyPosition=0;$legacyTrack=$key}elseif($legacyPlaying){$legacyPosition+=[Math]::Max(0,($now-$legacyAt).TotalSeconds)};$position=$legacyPosition}}
+      $legacyPosition=$position;$legacyPlaying=$playing;$legacyAt=$now
+      $result=@{available=$true;title=$properties.Title;artist=$properties.Artist;album=$properties.AlbumTitle;player=$session.SourceAppUserModelId;playing=($playback.PlaybackStatus.ToString() -eq 'Playing');position=$position;source='smtc';timelineExact=$exact;duration=$duration;canSeek=($playback.Controls.IsPlaybackPositionEnabled -and $duration -gt 0);canToggle=$playback.Controls.IsPlayPauseToggleEnabled;canNext=$playback.Controls.IsNextEnabled;canPrevious=$playback.Controls.IsPreviousEnabled}
     }
     @{id=$request.id;data=$result}|ConvertTo-Json -Depth 5 -Compress | ForEach-Object {[Console]::WriteLine($_)}
   }catch{@{id=$request.id;data=@{available=$false;error=$_.Exception.Message}}|ConvertTo-Json -Compress | ForEach-Object {[Console]::WriteLine($_)}}

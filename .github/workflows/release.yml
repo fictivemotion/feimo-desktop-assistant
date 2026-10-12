@@ -28,23 +28,11 @@ jobs:
       - name: Run functional tests
         run: npm test
 
-      - name: Verify 伊埃斯 fan-art pack and non-commercial license
+      - name: Verify Rive companion assets
         shell: pwsh
         run: |
-          $required = @(
-            'assets/pets/eous/spritesheet.webp',
-            'assets/pets/eous/edge-peek.png',
-            'assets/pets/eous/rest-side.png',
-            'assets/pets/eous/LICENSE.txt'
-          )
-          $missing = $required | Where-Object { -not (Test-Path $_) }
-          if ($missing) {
-            throw 'Release stopped: 伊埃斯 fan art and its separate license must ship together.'
-          }
-          $license = Get-Content -Raw 'assets/pets/eous/LICENSE.txt'
-          if ($license -notmatch 'CC BY-NC-SA 4\.0' -or $license -notmatch 'HoYoverse|miHoYo') {
-            throw 'Release stopped: verify the non-commercial fan-art license and original IP notice.'
-          }
+          $required = @('assets/pets/feimo-rive/feimo.riv', 'assets/pets/feimo-rive/feimo.html', 'assets/vendor/rive/LICENSE')
+          foreach ($file in $required) { if (-not (Test-Path $file)) { throw 'Rive companion asset missing.' } }
 
       - name: Package installer and portable app
         run: npm run dist:win -- --publish never
