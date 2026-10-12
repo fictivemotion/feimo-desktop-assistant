@@ -1,7 +1,9 @@
 'use strict';
 (()=>{
  let current='hidden';
- function apply(surface){if(!['hidden','sprite','capsule','workbench'].includes(surface))return;current=surface;document.body.dataset.topState=surface;document.body.classList.toggle('capsule-hidden',surface==='hidden');document.getElementById('island').classList.toggle('idle-dot',surface==='hidden');if(surface==='hidden'||surface==='sprite')document.getElementById('quick-pills').hidden=true;for(const [selector,show]of [['.sprite-avatar iframe',surface==='sprite'],['.compact-avatar iframe',surface==='capsule'],['.brand-avatar iframe',surface==='workbench']])document.querySelectorAll(selector).forEach(f=>f.contentWindow?.postMessage({type:'feimo:orb-visibility',visible:show},'*'));window.IslandCards?.place();window.IslandHit?.();}
- window.IslandPresentation={apply,get:()=>current};
- api.onIslandPresentation(apply);
+ function anchor(){const avatar=document.querySelector('.compact-avatar'),r=avatar?.getBoundingClientRect();if(r?.width){document.documentElement.style.setProperty('--capsule-avatar-x',(r.x+r.width/2)+'px');document.documentElement.style.setProperty('--capsule-avatar-y',r.y+'px');}}
+ function apply(surface){if(!['hidden','sprite','capsule','workbench'].includes(surface))return;const old=current;current=surface;anchor();document.body.dataset.topState=surface;document.body.classList.toggle('capsule-hidden',surface==='hidden');document.getElementById('island').classList.toggle('idle-dot',surface==='hidden');if(surface==='hidden'||surface==='sprite')document.getElementById('quick-pills').hidden=true;for(const [selector,show]of [['.sprite-avatar iframe',surface==='sprite'||surface==='capsule'],['.compact-avatar iframe',false],['.brand-avatar iframe',surface==='workbench']])document.querySelectorAll(selector).forEach(f=>f.contentWindow?.postMessage({type:'feimo:orb-visibility',visible:show},'*'));if(old!==surface&&['sprite','capsule'].includes(old)&&['sprite','capsule'].includes(surface))window.IslandSpriteMotion?.();requestAnimationFrame(anchor);window.IslandCards?.place();window.IslandHit?.();}
+ function size(value){const n=Number(value),px=Number.isFinite(n)?Math.max(48,Math.min(180,Math.round(n))):90;document.documentElement.style.setProperty('--top-sprite-size',px+'px');window.IslandCards?.place();window.IslandHit?.();}
+ const geometry=new ResizeObserver(anchor);geometry.observe(document.getElementById('compact'));window.addEventListener('resize',anchor);
+ window.IslandPresentation={apply,size,get:()=>current};api.onIslandPresentation(apply);
 })();

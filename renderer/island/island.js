@@ -11,7 +11,7 @@
   $('#settings').onclick=()=>safe(()=>api.islandWorkbar('connections'));$('#workbench').onclick=()=>safe(()=>api.islandWorkbar('voice'));$('#chat-workbench').onclick=()=>safe(()=>api.islandWorkbar('chat'));
   $('#content').onscroll=()=>$('#content').classList.toggle('is-scrolled',$('#content').scrollTop>2);
   function update(s){
-    state=s;IslandPresentation.apply(s.presentation||(s.expanded?'workbench':s.idle?'hidden':'capsule'));$('#island').classList.toggle('idle-dot',!!s.idle);document.body.classList.toggle('capsule-hidden',!!s.idle);expand(s.expanded);const attention=s.bridge.requests.length;const live=s.agents.sessions.filter(x=>x.status==='running');
+    state=s;IslandPresentation.size(s.spriteSize);IslandPresentation.apply(s.presentation||(s.expanded?'workbench':s.idle?'hidden':'capsule'));$('#island').classList.toggle('idle-dot',!!s.idle);document.body.classList.toggle('capsule-hidden',!!s.idle);expand(s.expanded);const attention=s.bridge.requests.length;const live=s.agents.sessions.filter(x=>x.status==='running');
     $('#compact-count').hidden=!attention;$('#compact-count').textContent=String(attention);
     $('#island-status').textContent=attention?'有任务需要你的决定。':live.length?`${live.length} 个 Agent 会话进行中`:'专注眼前，让事情顺畅推进。';
     const q=s.agents.limits?.codex;$('#quota').hidden=!q;$('#quota').textContent=q?`Codex · ${q.primary?`短时剩余 ${Math.max(0,100-q.primary.usedPercent).toFixed(0)}%`:''} ${q.secondary?`· 周剩余 ${Math.max(0,100-q.secondary.usedPercent).toFixed(0)}%`:''}`:'';

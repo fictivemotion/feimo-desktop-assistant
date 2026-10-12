@@ -8,9 +8,19 @@
 
 在任意位置按住鼠标中键 **0.5 秒**，显示剪贴板浮窗。点击图片缩略图或文字记录进行复制；点击外部区域或 × 关闭。移动超过 8 像素不会触发，避免打断中键拖动。工作台剪贴板可关闭中键入口。该检测不安装拦截式键盘/鼠标钩子，不阻止其他程序接收输入。
 
-## 本机 Xiaomi-OCR-0
+## 快速本机 OCR（默认）
 
-默认选用本机 Xiaomi-OCR-0，选区图片不会上传。推荐 Windows Ollama：
+默认使用 RapidOCR 轻量文字识别、SLANet-plus 表格结构识别、LaTeX-OCR 公式识别，均通过 CPU ONNX Runtime 在本机运行。文字输出正文，表格输出 HTML 保留行列 / 合并，公式输出 LaTeX。选区不会上传；清洗 / 翻译只发送已识别的文字。
+
+需要 Python 3.11 / 3.12。从源码运行 powershell -ExecutionPolicy Bypass -File scripts/install-fast-ocr.ps1，下载依赖及约 200 MB 模型。安装后在设置中选择“快速本机 OCR”。运行环境和模型位于 %LOCALAPPDATA%/Feimo/model-runtime/rapid；若经 MSIX 工具部署，可通过 capture.fastRuntime 保留实际运行目录。模型不随安装包发布。启动时预热，后续使用同一工作进程，退出时关闭。超时 / 失败会显示原因，可取消，不静默等待。
+
+本机样例实测：文字 1.35 秒、表格 1.02 秒、公式 0.28 秒，模型缓存后的初始化约 3.3 秒。这些是样例耗时，完整页面和复杂公式的耗时会更高。
+
+来源：[RapidOCR](https://github.com/RapidAI/RapidOCR)、[RapidTable](https://github.com/RapidAI/RapidTable)、[RapidLaTeXOCR](https://github.com/RapidAI/RapidLaTeXOCR)。依赖和权重的许可保留在独立本机环境中。
+
+## 本机 Xiaomi-OCR-0（备选）
+
+Xiaomi-OCR-0 仍可选用，选区图片不会上传。推荐 Windows Ollama：
 
 1. 从 [Ollama 官方网站](https://ollama.com/download/windows) 安装 Windows 运行环境并启动本机服务。
 2. 在终端运行 `ollama pull longwayxu/xiaomi-ocr-0:bf16` 下载约 1.8 GB 的社区 BF16 转换模型（含视觉投影）。

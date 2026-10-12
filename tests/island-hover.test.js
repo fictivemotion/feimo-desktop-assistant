@@ -8,7 +8,7 @@ test('entering a reminder cancels toolbar collapse; quick controls and reminder 
  const pill=w.document.getElementById('compact'),dock=w.document.getElementById('quick-pills');pill.onmouseenter();assert.equal(dock.hidden,false);
  w.IslandCards.update({notices:[{id:1,at:Date.now(),text:'测试提醒'}],reply:null});const cards=w.document.getElementById('island-cards');
  dock.onmouseleave({relatedTarget:null});assert.equal(pending.size,1);cards.onmouseenter();assert.equal(pending.size,0);assert.equal(dock.hidden,false);assert.equal(leaves,0);
- cards.querySelector('.pop-actions button').click();assert.equal(copies,1);cards.querySelector('.pop-heading button').click();assert.equal(closes,1);assert.equal(dock.hidden,false);
+ cards.querySelector('.pop-actions button').click();assert.equal(copies,1);cards.querySelector('.pop-heading button:last-child').click();assert.equal(closes,1);assert.equal(dock.hidden,false);
  dock.querySelectorAll('.quick-pill')[2].click();await new Promise(setImmediate);assert.ok(dock.querySelector('input[aria-label="快捷计时分钟"]'));assert.equal(closes,1);
  const matches=w.Element.prototype.matches;w.Element.prototype.matches=function(s){return s===':hover'?false:matches.call(this,s);};cards.onmouseleave({relatedTarget:null});for(const fn of pending.values())fn();assert.equal(dock.hidden,true);assert.equal(leaves,1);dom.window.close();
 });

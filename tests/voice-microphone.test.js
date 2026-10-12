@@ -15,3 +15,7 @@ test('explicit playback recording source is rejected; no hidden alternate captur
  const mixed=stream('CABLE Output (VB-Audio)');await assert.rejects(open({getUserMedia:async()=>mixed},'cable'),/电脑播放录音源/);assert.equal(mixed.stops,1);
  assert.equal(loopback('Microphone Array (Realtek)'),false);assert.equal(loopback('WASAPI loopback'),true);
 });
+test('isolated output disables playback-reference cancellation without switching to a desktop audio source',async()=>{
+ let options;const mic=stream('Microphone Array (Realtek)');await open({getUserMedia:async c=>(options=c,mic)},'',{outputMuted:true});
+ assert.equal(options.audio.echoCancellation,false);assert.equal(options.audio.noiseSuppression,true);assert.equal(options.video,false);assert.equal(mic.stops,0);
+});

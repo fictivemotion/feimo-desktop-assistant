@@ -86,11 +86,11 @@
         <h4><span data-icon="Image" data-size="16"></span> 区域截图与识别</h4>
         <div class="card">
           <p>Ctrl + Shift + A 选区截图 · 标注、马赛克、取色、保存和复制</p>
-          <div class="field"><label>识别服务</label><select id="st-capture-backend"><option value="xiaomi" ${capture.backend!=='qwen'?'selected':''}>本机 Xiaomi-OCR-0</option><option value="qwen" ${capture.backend==='qwen'?'selected':''}>在线 Qwen 视觉模型</option></select></div>
-          <div class="field"><label>本机运行方式</label><select id="st-capture-transport"><option value="ollama" ${capture.transport!=='openai'?'selected':''}>Ollama</option><option value="openai" ${capture.transport==='openai'?'selected':''}>SGLang / vLLM（OpenAI 兼容）</option></select></div>
+          <div class="field"><label>识别服务</label><select id="st-capture-backend"><option value="rapid" ${!capture.backend||capture.backend==='rapid'?'selected':''}>快速本机 OCR · 文字 / 表格 / 公式</option><option value="xiaomi" ${capture.backend==='xiaomi'?'selected':''}>本机 Xiaomi-OCR-0（备选）</option><option value="qwen" ${capture.backend==='qwen'?'selected':''}>在线 Qwen 视觉模型</option></select></div>
+          <div id="st-capture-xiaomi"><div class="field"><label>本机运行方式</label><select id="st-capture-transport"><option value="ollama" ${capture.transport!=='openai'?'selected':''}>Ollama</option><option value="openai" ${capture.transport==='openai'?'selected':''}>SGLang / vLLM（OpenAI 兼容）</option></select></div>
           <div class="field"><label>本机服务地址</label><input id="st-capture-local-url" value="${UI.esc(capture.localUrl||'http://127.0.0.1:11434')}"></div>
           <div class="field"><label>本机模型名称</label><input id="st-capture-local-model" value="${UI.esc(capture.localModel||'longwayxu/xiaomi-ocr-0:bf16')}"></div>
-          <div class="field"><label>在线服务地址</label><input id="st-capture-url" value="${UI.esc(capture.url||'https://dashscope.aliyuncs.com/compatible-mode/v1')}"></div>
+          </div><div class="field"><label>在线服务地址</label><input id="st-capture-url" value="${UI.esc(capture.url||'https://dashscope.aliyuncs.com/compatible-mode/v1')}"></div>
           <div class="field"><label>在线模型名称</label><input id="st-capture-model" value="${UI.esc(capture.model||'qwen3-vl-plus')}"></div>
           <div class="field"><label>在线 Qwen 密钥（可选，留空复用语音识别密钥）</label><input type="password" autocomplete="new-password" id="st-capture-key" placeholder="留空保留已保存的密钥"></div>
           <p class="muted">本机模式不上传图片。提取并清洗、图片翻译只发送识别文字到已配置的 DeepSeek；在线模式发送选区图片到 Qwen。首次加载本机模型会稍慢。</p>
@@ -103,6 +103,7 @@
         <h4><span data-icon="Paw" data-size="16"></span> 宠物形象</h4>
         <div class="card">
           <div class="pet-grid" id="st-pets"></div>
+          <div class="field" style="margin-top:16px"><label for="st-top-sprite-size">顶部精灵尺寸 <output id="st-top-sprite-size-value">${Math.max(48,Math.min(180,Number(settings.ui?.topSpriteSize)||90))} px</output></label><input id="st-top-sprite-size" type="range" min="48" max="180" step="1" value="${Math.max(48,Math.min(180,Number(settings.ui?.topSpriteSize)||90))}"><p class="hint">拖动即可调整，消息气泡随精灵一起缩放，并按视觉高度收紧。</p></div>
           <div style="margin-top:10px;display:flex;align-items:center;gap:10px">
             <span class="muted">尺寸</span>
             <select id="st-size" class="btn" style="padding:5px 8px">
@@ -266,6 +267,8 @@
     view.querySelector('#st-top').addEventListener('change', async (e) => {
       settings = await api.setSettings({ pet: { ...petRef(), alwaysOnTop: e.target.checked } });
     });
+    const spriteSizeControl=view.querySelector('#st-top-sprite-size');let spriteSave=Promise.resolve(),spriteSaveTimer;
+    spriteSizeControl.oninput=()=>{const topSpriteSize=Number(spriteSizeControl.value);view.querySelector('#st-top-sprite-size-value').textContent=topSpriteSize+' px';clearTimeout(spriteSaveTimer);spriteSaveTimer=setTimeout(()=>{spriteSave=spriteSave.catch(()=>{}).then(async()=>{settings=await api.setSettings({ui:{topSpriteSize}});}).catch(e=>UI.toast(e.message,true));},80);};
     function petRef() { return { ...(settings.pet || {}) }; }
 
     for (const [id, key] of [['#st-speech', 'companionSpeech'], ['#st-ambient', 'ambientSpeech']]) {
@@ -331,8 +334,8 @@
       settings=await api.setSettings({capture:{backend:view.querySelector('#st-capture-backend').value,transport:view.querySelector('#st-capture-transport').value,localUrl:view.querySelector('#st-capture-local-url').value.trim(),localModel:view.querySelector('#st-capture-local-model').value.trim(),url:view.querySelector('#st-capture-url').value.trim(),model:view.querySelector('#st-capture-model').value.trim()}});
       const key=view.querySelector('#st-capture-key');if(key.value.trim()){await api.setSecret('captureApiKey',key.value.trim());key.value='';}UI.toast('截图配置已保存');
     }catch(e){UI.toast(e.message,true);}};
-    view.querySelector('#st-capture-check').onclick=async()=>{const output=view.querySelector('#st-capture-status');output.textContent='正在检查…';try{const r=await api.captureStatus();output.textContent=r.ready?'本机模型已就绪':r.connected?'服务已启动，模型尚未下载':r.installed?'运行环境已安装，点击提取时自动启动':'本机服务未启动，请按部署指引准备模型';}catch(e){output.textContent=e.message;}};
-    view.querySelector('#st-capture-guide').onclick=()=>api.captureGuide();
+    view.querySelector('#st-capture-check').onclick=async()=>{const output=view.querySelector('#st-capture-status');output.textContent='正在检查…';try{const r=await api.captureStatus();output.textContent=r.ready?'本机模型已就绪：'+r.model:r.error?r.error:r.connected?'服务已启动，模型尚未下载':r.installed?'运行环境已安装，点击提取时自动启动':'本机服务未启动，请按部署指引准备模型';}catch(e){output.textContent=e.message;}};
+    view.querySelector('#st-capture-guide').onclick=()=>api.captureGuide();const captureBackend=view.querySelector('#st-capture-backend'),xiaomiOptions=view.querySelector('#st-capture-xiaomi');const showXiaomi=()=>xiaomiOptions.hidden=captureBackend.value!=='xiaomi';captureBackend.addEventListener('change',showXiaomi);showXiaomi();
     // 热键
     view.querySelector('#st-save-hk').addEventListener('click', async () => {
       settings = await api.setSettings({

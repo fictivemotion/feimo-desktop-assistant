@@ -10,7 +10,7 @@ function release(){if(!session)return;session.stream?.getTracks().forEach(t=>t.s
 async function start(command){
   const token=++generation;release();session={id:command.id,paused:false,sampleIndex:0,nextOutput:0,lastValue:0,output:[],lastReport:0};const current=session;
   try{
-    const stream=await window.FeimoMicrophone.open(navigator.mediaDevices,command.deviceId);if(token!==generation){stream.getTracks().forEach(t=>t.stop());return;}current.stream=stream;
+    const stream=await window.FeimoMicrophone.open(navigator.mediaDevices,command.deviceId,{outputMuted:command.outputMuted===true});if(token!==generation){stream.getTracks().forEach(t=>t.stop());return;}current.stream=stream;
     stream.getAudioTracks()[0]?.addEventListener('ended',()=>{if(session===current)api.report(current.id,'error','麦克风已断开，请重新选择设备');});
     const context=await prepareAudio();if(token!==generation)return;current.context=context;
     const source=context.createMediaStreamSource(stream),node=new AudioWorkletNode(context,'voice-frames');current.source=source;current.node=node;

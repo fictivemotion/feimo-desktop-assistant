@@ -3,8 +3,10 @@
 // microphones; output-device mute does not make their source a microphone.
 (function(root){
  const loopback=label=>/stereo\s*mix|立体声混音|what\s*u\s*hear|您听到的声音|wave\s*out|loopback|回环|回放录音|cable\s*(?:output|out)|system\s*audio/i.test(String(label||''));
- async function open(media,deviceId){
-  const constraints=id=>({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true,latency:{ideal:.01},...(id?{deviceId:{exact:id}}:{})},video:false});
+ async function open(media,deviceId,{outputMuted=false}={}){
+  // With output isolated, its render reference is unnecessary for dictation.
+  // Keep AEC when isolation failed; noise suppression and level control remain.
+  const constraints=id=>({audio:{channelCount:1,echoCancellation:!outputMuted,noiseSuppression:true,autoGainControl:true,latency:{ideal:.01},...(id?{deviceId:{exact:id}}:{})},video:false});
   let stream=await media.getUserMedia(constraints(deviceId));const track=stream.getAudioTracks()[0];
   if(loopback(track?.label)){
    stream.getTracks().forEach(t=>t.stop());
