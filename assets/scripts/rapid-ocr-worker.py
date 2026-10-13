@@ -3,8 +3,14 @@ import os
 os.environ.setdefault("OMP_NUM_THREADS", "4")
 import sys, json, base64, time, contextlib, io
 
+# PyInstaller's embedded interpreter does not necessarily honor the parent's
+# PYTHONIOENCODING. Enforce it here and make JSON ASCII-safe for every locale.
+for stream in (sys.stdin, sys.stdout):
+    if hasattr(stream, "reconfigure"):
+        stream.reconfigure(encoding="utf-8", errors="strict")
+
 def emit(value):
-    sys.stdout.write(json.dumps(value, ensure_ascii=False) + "\n")
+    sys.stdout.write(json.dumps(value, ensure_ascii=True) + "\n")
     sys.stdout.flush()
 
 def load_engines():
@@ -29,7 +35,7 @@ def load_engines():
 try:
     with contextlib.redirect_stdout(sys.stderr):
         ocr, table, formula = load_engines()
-    emit({"ready": True, "models": ["RapidOCR", "SLANet-plus", "LaTeX-OCR"], "provider": "CPU"})
+    emit({"ready": True, "protocol": "json-ascii-v1", "encoding": "utf-8", "models": ["RapidOCR", "SLANet-plus", "LaTeX-OCR"], "provider": "CPU"})
 except Exception as error:
     emit({"ready": False, "error": str(error)[:500]})
     sys.exit(1)
