@@ -44,6 +44,19 @@ test('missing or failed target capture still listens, polishes and copies withou
 test('output mute surrounds microphone capture and restores before slow AI polishing',async()=>{
  const f=fixture({polish:true}),v=f.service,events=[];v.output={begin:async()=>events.push('mute'),end:async()=>events.push('restore')};v.capture=c=>{events.push(c.type);f.commands.push(c);};v.settings={get:name=>name==='llm'?{baseUrl:'https://fixture.invalid',model:'fixture'}:{...DEFAULTS,polish:true,useGlobalLlm:true}};v.fetcher=async()=>{events.push('polish');return new Response(JSON.stringify({choices:[{message:{content:'校对正文。'}}]}),{headers:{'content-type':'application/json'}});};await v.start();v.micReady(v.state().id);assert.deepEqual(events.slice(0,2),['mute','start']);assert.equal(v.state().outputMuted,true);await v.finish();assert.ok(events.indexOf('stop')<events.indexOf('restore'));assert.ok(events.indexOf('restore')<events.indexOf('polish'));assert.equal(v.state().outputMuted,false);
 });
+test('finish waits for the capture release acknowledgement before restoring output',async()=>{
+ const f=fixture(),v=f.service,events=[];let stopped;
+ v.output={begin:async()=>events.push('mute'),end:async()=>events.push('restore')};
+ v.capture=c=>{events.push(c.type);if(c.type==='stop')return new Promise(resolve=>stopped=resolve);};
+ await v.start();v.micReady(v.state().id);const finishing=v.finish();await new Promise(setImmediate);assert.ok(events.includes('stop'));assert.ok(!events.includes('restore'));
+ stopped();await finishing;assert.ok(events.indexOf('restore')>events.indexOf('stop'));
+});
+test('rapid pause/resume waits for the pause restore before taking the next mute lease',async()=>{
+ const f=fixture(),v=f.service,events=[];let stopped;
+ v.output={begin:async()=>events.push('mute'),end:async()=>events.push('restore')};v.capture=c=>{if(c.type==='pause')return new Promise(resolve=>stopped=resolve);events.push(c.type);};
+ await v.start();v.micReady(v.state().id);v.pause();v.pause();await new Promise(setImmediate);assert.equal(events.filter(e=>e==='mute').length,1);assert.ok(!events.includes('restore'));
+ stopped();await new Promise(setImmediate);assert.ok(events.indexOf('restore')<events.lastIndexOf('mute'));assert.equal(events.filter(e=>e==='mute').length,2);await v.cancel();
+});
 test('pause, cancellation, microphone failure and ASR startup failure restore output state',async()=>{
  for(const mode of ['pause','cancel','microphone','asr']){const f=fixture(),v=f.service,events=[];v.output={begin:async()=>events.push('mute'),end:async()=>events.push('restore')};if(mode==='asr')v.asrFactory=()=>({start:async()=>{throw Error('offline');},close(){}});await v.start();if(mode!=='asr'){v.micReady(v.state().id);if(mode==='pause'){v.pause();await new Promise(r=>setImmediate(r));assert.ok(events.includes('restore'));v.pause();await new Promise(r=>setImmediate(r));assert.equal(events.at(-1),'mute');await v.cancel();}else if(mode==='cancel')await v.cancel();else {v.micError(v.state().id,'denied');await new Promise(r=>setImmediate(r));}}assert.equal(events.at(-1),'restore');}
 });

@@ -81,7 +81,7 @@ function bootstrap() {
     usage: { pruneDays: 365 },
     ui: { theme: 'glass', companionSpeech: true, ambientSpeech: true },
     feedback:{...FEEDBACK_DEFAULTS},
-    system: { openAtLogin: false },
+    system: { openAtLogin: true },
     toolbox: { autoCapture: false, middleHold:true },
     capture:{...CAPTURE_DEFAULTS},
     voice:{...VOICE_DEFAULTS},
@@ -217,6 +217,13 @@ function bootstrap() {
   const voiceStats=new VoiceStats(path.join(paths.dataDir(),'voice-stats.json'));
   const modifierShortcut=new ModifierShortcut(path.join(paths.dataDir(),'voice-input'),()=>{void voice?.toggle().catch(()=>{});});
   const voiceShortcutRegistered=()=>isModifierShortcut(voice?.config().shortcut)?modifierShortcut.ready:globalShortcut.isRegistered(voice?.config().shortcut||VOICE_DEFAULTS.shortcut);
+  const voiceStopWaiters=new Map();
+  function confirmVoiceStopped(id){const waiters=voiceStopWaiters.get(id)||[];voiceStopWaiters.delete(id);for(const waiter of waiters){clearTimeout(waiter.timer);waiter.resolve();}}
+  function captureVoice(command){
+    if(!voiceReady){pendingVoiceCapture=command;return;}
+    let stopped;if(['stop','pause'].includes(command.type))stopped=new Promise(resolve=>{const waiter={resolve,timer:setTimeout(()=>confirmVoiceStopped(command.id),750)},waiters=voiceStopWaiters.get(command.id)||[];waiters.push(waiter);voiceStopWaiters.set(command.id,waiters);});
+    voiceWin?.webContents.send('voice:capture',command);return stopped;
+  }
   function positionVoice(){
     if(!voiceWin)return;
     const display=screen.getAllDisplays().find(d=>d.id===voiceDisplayId)||screen.getPrimaryDisplay();
@@ -963,7 +970,7 @@ function bootstrap() {
   });
   ipc.on('voice:ready',e=>{if(e.sender!==voiceWin?.webContents)return;voiceReady=true;voiceWin.webContents.send('voice:changed',voice.state());if(pendingVoiceCapture){voiceWin.webContents.send('voice:capture',pendingVoiceCapture);pendingVoiceCapture=null;}});
   ipc.on('voice:audio',(e,data)=>{if(e.sender===voiceWin?.webContents)voice?.audio(data?.id,data?.samples,data?.level);});
-  ipc.on('voice:report',(e,data)=>{if(e.sender!==voiceWin?.webContents)return;if(data?.type==='ready'){const info=data.info||{};voice?.micReady(data.id,{label:String(info.label||'').slice(0,200),sampleRate:Number(info.sampleRate)||0,echoCancellation:info.echoCancellation===true,noiseSuppression:info.noiseSuppression===true,autoGainControl:info.autoGainControl===true});}else if(data?.type==='error')voice?.micError(data.id,String(data.message||'').slice(0,200));});
+  ipc.on('voice:report',(e,data)=>{if(e.sender!==voiceWin?.webContents)return;if(data?.type==='ready'){const info=data.info||{};voice?.micReady(data.id,{label:String(info.label||'').slice(0,200),sampleRate:Number(info.sampleRate)||0,echoCancellation:info.echoCancellation===true,noiseSuppression:info.noiseSuppression===true,autoGainControl:info.autoGainControl===true});}else if(data?.type==='stopped')confirmVoiceStopped(data.id);else if(data?.type==='error')voice?.micError(data.id,String(data.message||'').slice(0,200));});
   ipc.on('voice:dismiss',()=>{if(!voice?.active())voiceWin?.hide();});
   ipc.handle('translation:start',async()=>{if(!await textCleaner.credential())throw Error('请在设置中配置 DeepSeek 密钥');return translator.start();});ipc.handle('translation:stop',()=>translator.stop());ipc.handle('translation:state',()=>translator.state());
   ipc.handle('settings:get', () => settings.get());
@@ -1384,7 +1391,7 @@ function bootstrap() {
     screen.on('display-metrics-changed',()=>{if(voiceWin?.isVisible())positionVoice()});
     screen.on('display-removed',()=>{if(voiceWin?.isVisible())positionVoice()});
     secretsCache = loadSecrets();
-    voice=new VoiceService({settings,getSecret,models:voiceModels,input:voiceInput,output:new(require('./lib/voice/audio-isolation').AudioIsolation)({output:voiceOutput,soundscape}),fetcher:(url,options)=>net.fetch(url,options),connectOptions:async url=>{const resolved=await voiceWin.webContents.session.resolveProxy(url);const proxy=resolved.split(';').map(s=>s.trim()).find(s=>s.startsWith('PROXY ')||s.startsWith('HTTPS '));return proxy?{agent:new(require('https-proxy-agent').HttpsProxyAgent)('http://'+proxy.replace(/^\S+\s+/,''))}:{};},copy:text=>writeTextVerified(clipboard,text),onChange:voiceChanged,onBeforeCapture:()=>feedback.beforeVoice(),onComplete:(id,text,seconds)=>{voiceStats.record(id,text,seconds);sendWorkbar('voice:statsChanged',voiceStats.view());},capture:command=>{if(!voiceReady)pendingVoiceCapture=command;else voiceWin?.webContents.send('voice:capture',command);}});
+    voice=new VoiceService({settings,getSecret,models:voiceModels,input:voiceInput,output:new(require('./lib/voice/audio-isolation').AudioIsolation)({output:voiceOutput,soundscape}),fetcher:(url,options)=>net.fetch(url,options),connectOptions:async url=>{const resolved=await voiceWin.webContents.session.resolveProxy(url);const proxy=resolved.split(';').map(s=>s.trim()).find(s=>s.startsWith('PROXY ')||s.startsWith('HTTPS '));return proxy?{agent:new(require('https-proxy-agent').HttpsProxyAgent)('http://'+proxy.replace(/^\S+\s+/,''))}:{};},copy:text=>writeTextVerified(clipboard,text),onChange:voiceChanged,onBeforeCapture:()=>feedback.beforeVoice(),onComplete:(id,text,seconds)=>{voiceStats.record(id,text,seconds);sendWorkbar('voice:statsChanged',voiceStats.view());},capture:captureVoice});
     try {
       if (!safeStorage.isEncryptionAvailable()) throw new Error('系统加密暂不可用，工具箱记录尚未启用');
       toolbox = new Toolbox(path.join(paths.dataDir(), 'toolbox.bin'), { encrypt: v => safeStorage.encryptString(v), decrypt: v => safeStorage.decryptString(v) });

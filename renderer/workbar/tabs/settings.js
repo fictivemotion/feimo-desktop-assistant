@@ -40,7 +40,7 @@
       <div class="settings-section">
         <h4><span data-icon="Widget" data-size="16"></span> Windows 启动</h4>
         <div class="card">
-          <div class="switch"><span class="lbl">开机自启动<span class="sub">登录 Windows 后，让斐墨在桌面陪着你</span></span>
+          <div class="switch"><span class="lbl">开机自启动<span class="sub">新安装默认开启；可随时关闭，登录 Windows 后自动启动</span></span>
             <label class="toggle"><input type="checkbox" id="st-startup" ${system.openAtLogin ? 'checked' : ''}/><span class="track"></span><span class="knob"></span></label></div>
           <button class="btn" id="st-shortcut">创建桌面快捷方式</button>
         </div>

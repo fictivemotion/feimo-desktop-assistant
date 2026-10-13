@@ -1,14 +1,14 @@
 'use strict';
-const api=window.voiceApi,$=id=>document.getElementById(id);let session=null,generation=0,phase='idle',level=0,stopRequested=false;
+const api=window.voiceApi,$=id=>document.getElementById(id);let session=null,generation=0,phase='idle',level=0,stopRequested=false,releaseTask=Promise.resolve(),startTask=Promise.resolve();
 for(let i=0;i<7;i++)$('wave').appendChild(document.createElement('i'));
 window.ReiconFilled.hydrate?.();
 let prepared=null;
 function prepareAudio(){if(!prepared)prepared=(async()=>{const context=new AudioContext({sampleRate:16000,latencyHint:'interactive'});try{await context.audioWorklet.addModule('audio-worklet.js');await context.suspend();return context;}catch(e){await context.close();prepared=null;throw e;}})();return prepared;}
 // Warm only the processing graph, never an input stream or recognition service.
 void prepareAudio().catch(()=>{});
-function release(){if(!session)return;session.stream?.getTracks().forEach(t=>t.stop());session.node?.disconnect();session.source?.disconnect();session.context?.suspend().catch(()=>{});session=null;}
-async function start(command){
-  const token=++generation;release();session={id:command.id,paused:false,sampleIndex:0,nextOutput:0,lastValue:0,output:[],lastReport:0};const current=session;
+function release(keepSession=false){if(!session)return releaseTask;session.stream?.getTracks().forEach(t=>t.stop());session.node?.disconnect();session.source?.disconnect();releaseTask=Promise.all([releaseTask,session.context?.suspend().catch(()=>{})]);session.stream=null;session.node=null;session.source=null;if(!keepSession)session=null;return releaseTask;}
+async function start(command,token){
+  await release();if(token!==generation)return;session={id:command.id,command:{...command},paused:false,sampleIndex:0,nextOutput:0,lastValue:0,output:[],lastReport:0};const current=session;
   try{
     const stream=await window.FeimoMicrophone.open(navigator.mediaDevices,command.deviceId,{outputMuted:command.outputMuted===true});if(token!==generation){stream.getTracks().forEach(t=>t.stop());return;}current.stream=stream;
     stream.getAudioTracks()[0]?.addEventListener('ended',()=>{if(session===current)api.report(current.id,'error','麦克风已断开，请重新选择设备');});
@@ -27,7 +27,9 @@ async function start(command){
     await context.resume();if(token===generation){const track=stream.getAudioTracks()[0],settings=track?.getSettings?.()||{};api.report(command.id,'ready','',{label:track?.label||'',sampleRate:settings.sampleRate||context.sampleRate,echoCancellation:settings.echoCancellation===true,noiseSuppression:settings.noiseSuppression===true,autoGainControl:settings.autoGainControl===true});current.ready=true;}else await context.suspend();
   }catch(e){if(token!==generation)return;release();api.report(command.id,'error',/录音源|麦克风$/.test(e.message)?e.message:e.name==='NotAllowedError'?'麦克风权限未开启，请在 Windows 设置中允许桌面应用访问麦克风':e.name==='NotFoundError'||e.name==='OverconstrainedError'?'未找到所选麦克风，请在斐墨语音中重新选择': '麦克风初始化失败，请检查设备是否被独占');}
 }
-api.onCommand(command=>{if(command.type==='start')void start(command);else if(session?.id===command.id){if(command.type==='pause')session.paused=true;if(command.type==='resume')session.paused=false;if(command.type==='stop'){generation++;release();}}});
+function queueStart(command){const token=++generation;startTask=startTask.then(()=>start(command,token));}
+function confirmStop(command,keep=false){generation++;void Promise.all([release(keep),startTask]).then(()=>release(keep)).then(()=>api.report(command.id,'stopped'));}
+api.onCommand(command=>{if(command.type==='stop')confirmStop(command);else if(command.type==='start')queueStart(command);else if(session?.id===command.id){if(command.type==='pause'){session.paused=true;confirmStop(command,true);}if(command.type==='resume')queueStart({...session.command,...command,type:'start'});}});
 api.onState(state=>{
   if(stopRequested&&['starting','listening','paused'].includes(state.phase))return;
   stopRequested=false;

@@ -4,7 +4,7 @@ const {open,loopback}=require('../renderer/voice/microphone');
 const stream=label=>{let stops=0;const track={label,stop:()=>stops++};return {getAudioTracks:()=>[track],getTracks:()=>[track],get stops(){return stops}};};
 test('normal microphone uses input-only capture, low latency and echo/noise processing',async()=>{
  let constraints;const mic=stream('Microphone (USB Audio)');assert.equal(await open({getUserMedia:async c=>(constraints=c,mic)},'usb'),mic);
- assert.equal(constraints.video,false);assert.deepEqual(constraints.audio.deviceId,{exact:'usb'});assert.equal(constraints.audio.echoCancellation,true);assert.equal(mic.stops,0);
+ assert.equal(constraints.video,false);assert.deepEqual(constraints.audio.deviceId,{exact:'usb'});assert.equal(constraints.audio.echoCancellation,true);assert.equal(constraints.audio.autoGainControl,false);assert.equal(mic.stops,0);
 });
 test('default stereo mix stops immediately and is replaced by an identifiable physical microphone',async()=>{
  const mixed=stream('立体声混音 (Realtek)'),mic=stream('麦克风 (USB)');const ids=[];
