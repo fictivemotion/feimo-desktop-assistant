@@ -112,7 +112,7 @@
         <div class="card">
           <div class="switch"><span class="lbl">悬浮对话<span class="sub">通过顶部气泡提醒，日程和 Coding 更新时主动说话</span></span>
             <label class="toggle"><input type="checkbox" id="st-speech" ${settings.ui?.companionSpeech !== false ? 'checked' : ''}/><span class="track"></span><span class="knob"></span></label></div>
-          <div class="switch"><span class="lbl">偶尔问候与休息提示<span class="sub">仅在白天且你正在使用电脑时出现</span></span>
+          <div class="switch"><span class="lbl">生活问候与小技巧<span class="sub">按时段随机问候、穿插快捷键技巧；午夜和凌晨两点提醒休息</span></span>
             <label class="toggle"><input type="checkbox" id="st-ambient" ${settings.ui?.ambientSpeech !== false ? 'checked' : ''}/><span class="track"></span><span class="knob"></span></label></div>
         </div>
       </div>
@@ -237,6 +237,11 @@
         UI.toast(e.target.checked ? '已开启' : '已关闭');
       });
     }
+
+    const frequencySelect=document.createElement('select');frequencySelect.id='st-ambient-frequency';frequencySelect.setAttribute('aria-label','主动提示频率');
+    for(const [value,label]of [['frequent','更频繁 · 10–15 分钟'],['normal','日常陪伴 · 15–25 分钟'],['quiet','更安静 · 30–45 分钟']]){const option=document.createElement('option');option.value=value;option.textContent=label;frequencySelect.append(option);}
+    frequencySelect.value=settings.ui?.ambientFrequency||'normal';const frequencyField=document.createElement('div');frequencyField.className='field';frequencyField.innerHTML='<label for="st-ambient-frequency">主动提示频率</label><p class="hint">仅在使用电脑时出现；录音、截图和阅读回答期间暂缓，短消息自动收起。</p>';frequencyField.insertBefore(frequencySelect,frequencyField.lastElementChild);view.querySelector('#st-ambient').closest('.card').append(frequencyField);
+    frequencySelect.onchange=async()=>{settings=await api.setSettings({ui:{ambientFrequency:frequencySelect.value}});UI.toast('主动提示频率已更新');};
 
     // 模型服务
     view.querySelector('#st-startup').addEventListener('change', async e => {

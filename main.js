@@ -276,8 +276,7 @@ function bootstrap() {
   let speechLayout = { width: 140, height: 62 };
   let messageState = null;
   let lastHoverSpeech = 0;
-  let lastAmbientSpeech = Date.now();
-  let lastBreakSpeech = Date.now();
+  let companionTimer=null,screenLocked=false;
   let lastProgressSpeech = 0;
   const petSizePx = () => Math.max(48,Math.min(160,Number(settings.get('pet',{}).size)||72));
 
@@ -1429,29 +1428,24 @@ function bootstrap() {
     stateTimer = setInterval(broadcastPetState, 5000);
     stateTimer.unref?.();
 
-    const companionTimer = setInterval(() => {
-      const now = Date.now();
-      const hour = new Date().getHours();
-      if (hour < 8 || hour >= 22 || !petWin?.isVisible() || workbarWin?.isVisible()) return;
-      if (settings.get('ui', {}).ambientSpeech === false || settings.get('ui', {}).companionSpeech === false || scheduler.isPaused()) return;
-      const idle = powerMonitor.getSystemIdleTime();
-      if (idle > 5 * 60) return;
-      if (now - lastBreakSpeech >= 55 * 60 * 1000) {
-        speak(pickLine('break'), { duration: 8500 });
-        lastBreakSpeech = now;
-        lastAmbientSpeech = now;
-      } else if (now - lastAmbientSpeech >= 40 * 60 * 1000) {
-        speak(pickLine('ambient'), { duration: 6500 });
-        lastAmbientSpeech = now;
-      }
-    }, 60 * 1000);
-    companionTimer.unref?.();
+    const companion=new(require('./lib/ambient-companion').AmbientCompanion)({file:path.join(paths.dataDir(),'companion-prompts.json')});
+    const tickCompanion=()=>{
+      const ui=settings.get('ui',{}),now=Date.now();
+      const activeNotice=island?.notices.some(n=>now-(n.at||0)<60000&&(!n.expiresAt||now<n.expiresAt));
+      const message=companion.next({enabled:ui.ambientSpeech!==false&&ui.companionSpeech!==false&&!scheduler.isPaused(),frequency:ui.ambientFrequency||'normal',
+        available:!screenLocked&&powerMonitor.getSystemIdleTime()<=300&&!!island?.win&&!island.win.isDestroyed(),
+        busy:!!(workbarWin?.isVisible()||island?.expanded||island?.reply||replyState||voice?.active()||captureHost?.active||translator.state().busy||activeNotice),
+        settings:{hotkeys:settings.get('hotkeys',{}),voice:voice?.config()||settings.get('voice',{}),toolbox:settings.get('toolbox',{})}});
+      if(message)island.notice({...message,expiresAt:now+(message.kind==='bedtime'?45000:20000)});
+    };
+    companionTimer=setInterval(tickCompanion,1000);companionTimer.unref?.();tickCompanion();
 
     powerMonitor.on('resume', () => {
-      scheduler.onWake();
+      scheduler.onWake();tickCompanion();
       broadcastPetState();
     });
-    powerMonitor.on('lock-screen', () => { void voice?.cancel(); });
+    powerMonitor.on('lock-screen', () => {screenLocked=true;void voice?.cancel();});
+    powerMonitor.on('unlock-screen',()=>{screenLocked=false;tickCompanion();});
     powerMonitor.on('suspend',()=>{void voice?.cancel();});
 
     app.on('activate',restoreAssistant);
@@ -1473,7 +1467,7 @@ function bootstrap() {
     scheduler.stop();
     if (notionTimer) clearInterval(notionTimer);
     if (stateTimer) clearInterval(stateTimer);
-    clearInterval(focusTicker);
+    clearInterval(focusTicker);clearInterval(companionTimer);
   });
 
   app.on('window-all-closed', () => {
