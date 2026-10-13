@@ -30,6 +30,7 @@ const names = [
   "Pause",
   "Paw",
   "Play",
+  "Next",
   "Send",
   "Setting",
   "ShieldLock",

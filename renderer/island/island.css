@@ -83,3 +83,5 @@ body[data-top-state=capsule] #island-bubble{display:none}
 .focus-widget .bubble-text{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 .bubble-music-controls{display:flex;gap:4px;flex:none;align-items:center}.bubble-music-controls[hidden],.bubble-music-tail[hidden],#island-bubble .bubble-translation-exit[hidden]{display:none}#island-bubble .bubble-music-button{position:static;width:24px;min-width:24px;height:24px;border-radius:8px;background:#eaf0f4}#island-bubble .bubble-music-button:disabled{opacity:.4;cursor:default}#island-bubble button:hover:not(:disabled){background:#dfe8ee}#island-bubble button:focus-visible,.pop-heading .btn:focus-visible{outline:2px solid #748d9e;outline-offset:2px}
+
+#island-bubble.voice-transcript .bubble-text{display:block;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:clip;font-size:13px;font-weight:400;line-height:1.45}.voice-transcript-line{display:inline-block;white-space:nowrap;will-change:transform}
