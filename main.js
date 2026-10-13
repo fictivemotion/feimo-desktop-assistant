@@ -229,7 +229,12 @@ function bootstrap() {
     if(changed){
       if(state.phase==='starting')voiceDisplayId=screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).id;
       clearTimeout(voiceDismissTimer);
-      voiceWin?.hide();if(state.active){dismissSpeech();quickWin?.hide();}else if(state.phase==='completed'||state.phase==='error')island?.notice({title:'语音输入',text:state.message||(state.phase==='completed'?'语音输入完成👌':'语音输入失败'),scene:state.phase==='error'?'failed':'completed'});
+      if(state.active){positionVoice();voiceWin?.showInactive();dismissSpeech();quickWin?.hide();}
+      else if(state.phase==='completed'||state.phase==='error'){
+        positionVoice();voiceWin?.showInactive();
+        island?.notice({title:'语音输入',text:state.message||(state.phase==='completed'?'语音输入完成👌':'语音输入失败'),scene:state.phase==='error'?'failed':'completed'});
+        voiceDismissTimer=setTimeout(()=>{if(voicePhase!==state.phase)return;if(state.phase==='completed')voiceWin?.webContents.send('voice:exit');else voiceWin?.hide();},state.phase==='completed'?1200:10000);
+      }else voiceWin?.hide();
       broadcastPetState(state.phase==='completed'?'textReady':undefined);
       if(state.phase==='completed')playBloub('completed',{sound:'textReady'});
       if(state.phase==='error')playBloub('failed');
