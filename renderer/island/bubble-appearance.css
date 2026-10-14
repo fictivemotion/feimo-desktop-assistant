@@ -1,0 +1,18 @@
+:root{--bubble-surface:#fff;--bubble-control:#eaf0f4;--bubble-ink:#1b242d;--bubble-edge:rgba(99,112,123,.12)}
+#island-bubble,#island-bubble-stack .stacked-bubble,#island-cards .island-pop-card{background:var(--bubble-surface);color:var(--bubble-ink);border:0}
+#island-bubble .bubble-text,#island-bubble .bubble-music-tail,#island-cards .pop-heading strong,#island-cards .pop-body,#island-cards .pop-body *{color:var(--bubble-ink)}
+#island-bubble button,#island-bubble .bubble-music-button,#island-cards button{background:var(--bubble-control);color:var(--bubble-ink);border:0}
+#island-bubble button:hover:not(:disabled),#island-cards button:hover{background:var(--bubble-control);filter:brightness(.94)}
+#island-bubble .bubble-close,#island-bubble .bubble-expand{background:transparent}
+/* Halo remains within the sprite's native hit/clipping rectangle. */
+.bubble-night #top-sprite::before{content:"";position:absolute;inset:9%;border-radius:50%;background:radial-gradient(ellipse,rgba(170,195,255,.05) 30%,rgba(168,193,255,.28) 49%,rgba(155,187,255,.13) 58%,transparent 72%);pointer-events:none;z-index:-1}
+#top-sprite{isolation:isolate}
+#island-bubble:focus,#island-bubble:focus-visible{outline:none}
+#bubble-appearance{position:fixed;z-index:90;box-sizing:border-box;padding:10px 12px;background:var(--bubble-surface);color:var(--bubble-ink);border:0;border-radius:16px;pointer-events:auto;font:12px/1.4 'HarmonyOS Sans SC','HarmonyOS Sans',sans-serif}
+#bubble-appearance[hidden],#bubble-color-panel[hidden]{display:none}
+.appearance-row{display:flex;align-items:center;gap:8px;min-height:28px}.appearance-row label{white-space:nowrap}.appearance-row input{min-width:30px;flex:1;width:90px}.appearance-row output{font-variant-numeric:tabular-nums;min-width:28px}
+#bubble-appearance button{display:inline-flex;align-items:center;justify-content:center;flex:none;min-width:28px;height:28px;padding:4px;border-radius:8px;border:0;background:var(--bubble-control);color:var(--bubble-ink);cursor:pointer;font:600 12px/1 inherit}
+#bubble-appearance input[type=range]{accent-color:#889ab0;cursor:pointer}#bubble-appearance button:focus-visible,#bubble-appearance input:focus-visible{outline:2px solid #7c9bca;outline-offset:2px}
+#bubble-color-panel{padding-top:12px;display:grid;gap:10px}#bubble-color-panel label{display:flex;align-items:center;justify-content:space-between;gap:8px}#bubble-color-panel input[type=color]{width:70px;height:28px;padding:1px;border:0;background:transparent}#bubble-color-hex{width:80px;border:1px solid var(--bubble-edge);border-radius:8px;padding:5px;background:var(--bubble-control);color:var(--bubble-ink);font:inherit}#bubble-color-panel input[type=range]{width:100px}.appearance-status:empty{display:none}.appearance-status{display:block;padding-top:6px}
+body:not([data-top-state=sprite]) #bubble-appearance{display:none}
+@media(prefers-reduced-transparency:reduce){#bubble-appearance{background:#fff}.bubble-night #bubble-appearance{background:#11151c}}

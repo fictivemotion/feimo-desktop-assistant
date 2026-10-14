@@ -6,29 +6,25 @@ using System.Runtime.InteropServices;
 using System.Collections.Generic;
 using System.Web.Script.Serialization;
 
-// Mute shared render sessions before the device output. Device mute alone may be
-// downstream of an audio-engine mix / virtual loopback / echo-reference tap.
-// A pipe-scoped lease restores both layers, including on parent-process exit.
+// Silence the application mix before any loopback / echo-reference tap.
+// Never write endpoint mute or master volume: device changes can surface an OSD
+// and propagate to hardware volume. The pipe-scoped lease restores sessions.
 class FeimoOutputAudio {
  static readonly object gate=new object();
- internal class EndpointLease {public bool muted,output;public float level;}
- static readonly Dictionary<string,EndpointLease> saved=new Dictionary<string,EndpointLease>();
  internal class SessionLease {public IAudioSessionControl2 control;public bool muted;public float level;}
  static readonly Dictionary<string,SessionLease> savedSessions=new Dictionary<string,SessionLease>();
  static bool active=false;
  static readonly Guid context=new Guid("26841874-2ac0-4e29-9d42-49154cad535a");
  static IAudioEndpointVolume Volume(IMMDevice device){object obj;Guid id=typeof(IAudioEndpointVolume).GUID;Marshal.ThrowExceptionForHR(device.Activate(ref id,23,IntPtr.Zero,out obj));return (IAudioEndpointVolume)obj;}
  static void Free(object obj){if(obj!=null&&Marshal.IsComObject(obj))Marshal.ReleaseComObject(obj);}
- internal static EndpointLease RememberEndpoint(string id,bool muted,float level,bool output){EndpointLease lease;if(!saved.TryGetValue(id,out lease)){lease=new EndpointLease{muted=muted,level=level,output=output};saved[id]=lease;}return lease;}
- internal static void RestoreEndpoint(IAudioEndpointVolume volume,EndpointLease lease){Guid c=context;float current;Marshal.ThrowExceptionForHR(volume.GetMasterVolumeLevelScalar(out current));if(Math.Abs(current-lease.level)>.0001f)Marshal.ThrowExceptionForHR(volume.SetMasterVolumeLevelScalar(lease.level,ref c));if(lease.output)Marshal.ThrowExceptionForHR(volume.SetMute(lease.muted,ref c));}
  internal static void RestoreSession(ISimpleAudioVolume volume,SessionLease lease){Guid c=context;float current;Marshal.ThrowExceptionForHR(volume.GetMasterVolume(out current));if(Math.Abs(current-lease.level)>.0001f)Marshal.ThrowExceptionForHR(volume.SetMasterVolume(lease.level,ref c));Marshal.ThrowExceptionForHR(volume.SetMute(lease.muted,ref c));}
- static void RememberMicrophones(){IMMDeviceEnumerator e=null;IMMDeviceCollection list=null;try{e=(IMMDeviceEnumerator)new MMDeviceEnumerator();Marshal.ThrowExceptionForHR(e.EnumAudioEndpoints(1,1,out list));uint count;Marshal.ThrowExceptionForHR(list.GetCount(out count));for(uint i=0;i<count;i++){IMMDevice device=null;IAudioEndpointVolume volume=null;try{Marshal.ThrowExceptionForHR(list.Item(i,out device));string id;Marshal.ThrowExceptionForHR(device.GetId(out id));volume=Volume(device);bool muted;float level;Marshal.ThrowExceptionForHR(volume.GetMute(out muted));Marshal.ThrowExceptionForHR(volume.GetMasterVolumeLevelScalar(out level));RememberEndpoint(id,muted,level,false);}catch{}finally{Free(volume);Free(device);}}}catch{}finally{Free(list);Free(e);}}
+ internal static void MuteSession(ISimpleAudioVolume volume){bool muted;Marshal.ThrowExceptionForHR(volume.GetMute(out muted));if(!muted){Guid c=context;Marshal.ThrowExceptionForHR(volume.SetMute(true,ref c));}}
  static object Sessions(IMMDevice device,string endpoint,bool mute){object managerObject=null;IAudioSessionEnumerator list=null;var rows=new List<object>();
   try{Guid iid=typeof(IAudioSessionManager2).GUID;Marshal.ThrowExceptionForHR(device.Activate(ref iid,23,IntPtr.Zero,out managerObject));Marshal.ThrowExceptionForHR(((IAudioSessionManager2)managerObject).GetSessionEnumerator(out list));int count;Marshal.ThrowExceptionForHR(list.GetCount(out count));
    for(int i=0;i<count;i++){IAudioSessionControl2 control=null;try{Marshal.ThrowExceptionForHR(list.GetSession(i,out control));int state;Marshal.ThrowExceptionForHR(control.GetState(out state));if(state==2)continue;
     IntPtr p;Marshal.ThrowExceptionForHR(control.GetSessionInstanceIdentifier(out p));string key;try{key=endpoint+"|"+Marshal.PtrToStringUni(p);}finally{Marshal.FreeCoTaskMem(p);}
     var volume=(ISimpleAudioVolume)control;bool original;float level;Marshal.ThrowExceptionForHR(volume.GetMute(out original));Marshal.ThrowExceptionForHR(volume.GetMasterVolume(out level));uint pid;Marshal.ThrowExceptionForHR(control.GetProcessId(out pid));
-    if(mute){if(!savedSessions.ContainsKey(key)){savedSessions[key]=new SessionLease{control=control,muted=original,level=level};control=null;}Guid c=context;Marshal.ThrowExceptionForHR(volume.SetMute(true,ref c));}
+    if(mute){if(!savedSessions.ContainsKey(key)){savedSessions[key]=new SessionLease{control=control,muted=original,level=level};control=null;}MuteSession(volume);}
     rows.Add(new {id=key,pid=pid,muted=mute||original,level=level});
    }finally{Free(control);}}
   }finally{Free(list);Free(managerObject);}return rows;
@@ -36,13 +32,13 @@ class FeimoOutputAudio {
  static object Read(bool mute){var rows=new List<object>();IMMDeviceEnumerator e=null;IMMDeviceCollection list=null;
   try{e=(IMMDeviceEnumerator)new MMDeviceEnumerator();Marshal.ThrowExceptionForHR(e.EnumAudioEndpoints(0,1,out list));uint count;Marshal.ThrowExceptionForHR(list.GetCount(out count));
    for(uint i=0;i<count;i++){IMMDevice d=null;IAudioEndpointVolume v=null;try{Marshal.ThrowExceptionForHR(list.Item(i,out d));string id;Marshal.ThrowExceptionForHR(d.GetId(out id));v=Volume(d);bool original;float level;Marshal.ThrowExceptionForHR(v.GetMute(out original));Marshal.ThrowExceptionForHR(v.GetMasterVolumeLevelScalar(out level));
-    var sessions=Sessions(d,id,mute);if(mute){RememberEndpoint(id,original,level,true);Guid c=context;Marshal.ThrowExceptionForHR(v.SetMute(true,ref c));}rows.Add(new {id=id,muted=mute||original,level=level,sessions=sessions});
+    var sessions=Sessions(d,id,mute);rows.Add(new {id=id,muted=original,isolated=mute,level=level,sessions=sessions});
    }finally{Free(v);Free(d);}}
-  }finally{Free(list);Free(e);}if(mute)RememberMicrophones();return rows;
+  }finally{Free(list);Free(e);}return rows;
  }
  static bool Restore(){active=false;
   foreach(string id in new List<string>(savedSessions.Keys)){var lease=savedSessions[id];try{int state;Marshal.ThrowExceptionForHR(lease.control.GetState(out state));if(state!=2)RestoreSession((ISimpleAudioVolume)lease.control,lease);savedSessions.Remove(id);Free(lease.control);}catch{}}
-  IMMDeviceEnumerator e=null;try{e=(IMMDeviceEnumerator)new MMDeviceEnumerator();foreach(string id in new List<string>(saved.Keys)){IMMDevice d=null;IAudioEndpointVolume v=null;try{Marshal.ThrowExceptionForHR(e.GetDevice(id,out d));v=Volume(d);RestoreEndpoint(v,saved[id]);saved.Remove(id);}catch{}finally{Free(v);Free(d);}}}finally{Free(e);}return saved.Count==0&&savedSessions.Count==0;}
+  return savedSessions.Count==0;}
  [MTAThread] static void Main(){Console.InputEncoding=Encoding.UTF8;Console.OutputEncoding=new UTF8Encoding(false);var json=new JavaScriptSerializer();
   // New output devices connected during dictation are covered as well.
   var timer=new Timer(_=>{lock(gate){if(active)try{Read(true);}catch{}}},null,100,100);

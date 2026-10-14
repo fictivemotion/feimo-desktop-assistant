@@ -99,16 +99,16 @@
       </div>
 
       <div class="settings-section">
-        <h4><span data-icon="Paw" data-size="16"></span> 宠物形象</h4>
+        <h4><span data-icon="Paw" data-size="16"></span> 顶部精灵与气泡</h4>
         <div class="card">
           <p class="muted">斐墨 · Rive · 黑色圆形伙伴</p>
-          <div class="field" style="margin-top:16px"><label for="st-top-sprite-size">顶部精灵尺寸 <output id="st-top-sprite-size-value">${Math.max(48,Math.min(180,Number(settings.ui?.topSpriteSize)||90))} px</output></label><input id="st-top-sprite-size" type="range" min="48" max="180" step="1" value="${Math.max(48,Math.min(180,Number(settings.ui?.topSpriteSize)||90))}"><p class="hint">拖动即可调整，消息气泡随精灵一起缩放，并按视觉高度收紧。</p></div>
+          <div class="field" style="margin-top:16px"><label for="st-top-sprite-size">顶部精灵尺寸 <output id="st-top-sprite-size-value">${Math.max(48,Math.min(180,Number(settings.ui?.topSpriteSize)||90))} px</output></label><input id="st-top-sprite-size" type="range" min="48" max="180" step="1" value="${Math.max(48,Math.min(180,Number(settings.ui?.topSpriteSize)||90))}"><p class="hint">拖动即可调整精灵与气泡高度。双击顶部气泡空白处，可调整底色透明度、日夜模式与文字颜色。</p></div>
 
         </div>
       </div>
 
       <div class="settings-section">
-        <h4><span data-icon="ChatDots" data-size="16"></span> 小助手的声音</h4>
+        <h4><span data-icon="ChatDots" data-size="16"></span> 主动提醒</h4>
         <div class="card">
           <div class="switch"><span class="lbl">悬浮对话<span class="sub">通过顶部气泡提醒，日程和 Coding 更新时主动说话</span></span>
             <label class="toggle"><input type="checkbox" id="st-speech" ${settings.ui?.companionSpeech !== false ? 'checked' : ''}/><span class="track"></span><span class="knob"></span></label></div>
@@ -191,7 +191,7 @@
         <h4><span data-icon="InfoCircle" data-size="16"></span> 关于</h4>
         <div class="card muted">
           斐墨 v${UI.esc(system.version)} · Opal Desk<br/>
-            形象：斐墨 Rive、伊埃斯、Bloub、Forest Flow、Iridescent Opal；形象许可见项目文档<br/>
+            形象：斐墨 · Rive · 原创黑色圆形伙伴<br/>
           参考：Ping Island 状态优先级思路 · Token Monitor 用量信息层级（Apache-2.0 / MIT，未复制代码）
         </div>
       </div>`;
@@ -206,10 +206,10 @@
     }));
     const categories = [['general','常规'],['model','模型'],['shortcuts','快捷键'],['connections','连接'],['privacy','隐私'],['support','赞赏']];
     const nav = document.createElement('nav'); nav.className = 'settings-nav'; nav.setAttribute('aria-label', '设置分类');
-    const connectionSection=document.createElement('section');connectionSection.className='settings-section';connectionSection.innerHTML='<h4>顶部与服务连接</h4><div class="settings-connections-panel"></div>';view.append(connectionSection);await FeimoConnections.mount(connectionSection.lastElementChild);const topTools=connectionSection.querySelector('.connection-settings>.card'),topSection=document.createElement('section');topSection.className='settings-section';topSection.dataset.group='general';topSection.innerHTML='<h4>顶部状态与快捷工具</h4>';topTools.querySelector('h3')?.remove();topSection.append(topTools);view.append(topSection);const sections = [...view.querySelectorAll('.settings-section')];
+    const connectionSection=document.createElement('section');connectionSection.className='settings-section';connectionSection.innerHTML='<h4>服务连接</h4><div class="settings-connections-panel"></div>';view.append(connectionSection);await FeimoConnections.mount(connectionSection.lastElementChild);const topTools=connectionSection.querySelector('.connection-settings>.card'),topSection=document.createElement('section');topSection.className='settings-section';topSection.dataset.group='general';topSection.innerHTML='<h4>工作台导航</h4><p class="hint">选择工作台中显示的栏目；语音、倒计时等活动仍会自动显示在顶部精灵旁。</p>';topTools.querySelector('h3')?.remove();topSection.append(topTools);topSection.className='settings-subsection';topSection.querySelector('h4').outerHTML='<h5>工作台栏目</h5>';view.querySelector('#st-top-sprite-size').closest('.settings-section').append(topSection);const sections = [...view.querySelectorAll('.settings-section')];
     sections.forEach(section => {
       const title = section.querySelector('h4').textContent;
-      section.dataset.group ||= /支持开发者/.test(title) ? 'support' : /模型|AI 文字清洗/.test(title) ? 'model' : /全局热键/.test(title) ? 'shortcuts' : /Agent|Notion|日程同步/.test(title) ? 'connections' : /隐私/.test(title) ? 'privacy' : 'general';
+      section.dataset.group ||= /支持开发者/.test(title) ? 'support' : /模型|AI 文字清洗|区域截图与识别/.test(title) ? 'model' : /全局热键/.test(title) ? 'shortcuts' : /Agent|Notion|日程同步|服务连接/.test(title) ? 'connections' : /隐私/.test(title) ? 'privacy' : 'general';
     });
     function showGroup(group) {
       sections.forEach(section => { section.hidden = section.dataset.group !== group; });
@@ -220,7 +220,7 @@
       const button = document.createElement('button'); button.type = 'button'; button.dataset.settingsGroup = id; button.textContent = label;
       button.addEventListener('click', () => showGroup(id)); nav.appendChild(button);
     }
-    const order=['顶部精灵','顶部状态与快捷工具','伙伴提示音','小助手的声音','Windows 启动'];sections.sort((a,b)=>{const x=order.indexOf(a.querySelector('h4').textContent.trim()),y=order.indexOf(b.querySelector('h4').textContent.trim());return (x<0?order.length:x)-(y<0?order.length:y);});sections.forEach(section=>view.append(section));view.querySelector('.settings-top').after(nav);showGroup('general');
+    const order=['顶部精灵与气泡','主动提醒','伙伴提示音','Windows 启动'];sections.sort((a,b)=>{const x=order.indexOf(a.querySelector('h4').textContent.trim()),y=order.indexOf(b.querySelector('h4').textContent.trim());return (x<0?order.length:x)-(y<0?order.length:y);});sections.forEach(section=>view.append(section));view.querySelector('.settings-top').after(nav);showGroup('general');
     view.querySelector('#st-back').addEventListener('click', () => window.switchTab('chat'));
 
     view.querySelector('#st-feedback-pack').value=feedback.pack;

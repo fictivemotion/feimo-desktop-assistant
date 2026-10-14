@@ -22,5 +22,10 @@
   "idle-nod",
   "idle-doze",
   "idle-stretch",
-  "typing"
+  "typing",
+  "coffee",
+  "water",
+  "sleepy",
+  "farewell",
+  "music-spin"
 ]
