@@ -4,11 +4,13 @@
   async function mount(root){
     const state=await api.islandState();
     root.innerHTML=`<div class="connection-settings"><div class="card"><h3>工作台导航</h3><div class="pill-options"></div></div><div class="card"><h3>会话桥接 · 批准与回复</h3><p class="hint">安装后，新会话可以直接批准、拒绝、回答问题和定位终端。仅观察旧日志的会话不会提供虚假的批准按钮。Codex 安装后需在原程序的 Hooks 设置中信任；不同客户端版本对问题回答的支持以客户端为准。</p><div class="actionbar"><button class="btn hook-preview" data-source="claude">配置 Claude Code</button><button class="btn hook-preview" data-source="codex">配置 Codex</button><button class="btn" id="bridge-clear">撤销记住的授权</button></div><div class="hook-status hint"></div></div><div class="card"><h3>音乐播放器</h3><p class="hint">通过 Windows 系统媒体会话读取与控制播放。网易云音乐需启用系统媒体控制；无媒体会话时显示未连接。</p><label class="field">播放器<select id="music-player"><option value="netease">网易云音乐</option><option value="system">系统当前播放器</option></select></label><button class="btn" id="music-open">打开网易云音乐</button></div><div class="integration-settings"></div></div>`;
-    const options=root.querySelector('.pill-options');const names=[['agents','Coding 会话'],['music','音乐'],['focus','倒计时'],['chat','问答'],['files','文件库'],...state.integrations.map(x=>[x.id,x.name])];
+    const options=root.querySelector('.pill-options');const names=[['agents','Coding 会话'],['music','音乐'],['focus','倒计时'],['chat','问答'],['files','文件库'],...state.integrations.map(x=>[x.id,x.name])].filter(([id])=>state.edition?.coding!==false||!['agents','github'].includes(id));
     for(const [id,name]of names){const label=document.createElement('label');label.innerHTML=`<input type="checkbox" value="${id}" ${state.pills.includes(id)?'checked':''}/> ${esc(name)}`;options.append(label);label.querySelector('input').onchange=()=>safe(()=>api.islandPills([...options.querySelectorAll('input:checked')].map(i=>i.value)));}
-    root.querySelector('.hook-status').textContent=state.bridge.error||`${state.bridge.requests.length} 项待处理请求 · ${state.bridge.rules.length} 项记住的授权`;
+    if(state.edition?.coding===false)root.querySelector('.hook-status')?.closest('.card')?.remove();
+    if(state.edition?.coding!==false){root.querySelector('.hook-status').textContent=state.bridge.error||`${state.bridge.requests.length} 项待处理请求 · ${state.bridge.rules.length} 项记住的授权`;
     root.querySelector('#bridge-clear').onclick=()=>safe(async()=>{await api.hooksClearRules();UI.toast('已撤销记住的授权');});
     root.querySelectorAll('.hook-preview').forEach(b=>b.onclick=()=>preview(b.dataset.source));
+    }
     const player=root.querySelector('#music-player');player.value=(await api.getSettings()).music?.player||'netease';player.onchange=()=>safe(()=>api.musicConfig({player:player.value,enabled:true}));root.querySelector('#music-open').onclick=()=>safe(()=>api.musicOpen());
 
     const list=root.querySelector('.integration-settings');

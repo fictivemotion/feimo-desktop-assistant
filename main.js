@@ -16,6 +16,7 @@ const {CaptureRuntime}=require('./lib/capture-runtime');
 const fs = require('fs');
 
 const paths = require('./lib/paths');
+const EDITION = require('./lib/edition');
 const { EventBus } = require('./lib/events');
 const { JsonStore } = require('./lib/store');
 const { PETS } = require('./lib/pets');
@@ -79,7 +80,7 @@ function bootstrap() {
     calendar: { notionAutoSync: true, syncIntervalMin: 30, defaultReminderOffsets: [15] },
     privacy: { saveChatHistory: true },
     usage: { pruneDays: 365 },
-    ui: { theme: 'glass', companionSpeech: true, ambientSpeech: true },
+    ui: { theme: 'glass', companionSpeech: true, ambientSpeech: true, ...(EDITION.id==='xiaowen'?{topSpriteSize:48,ambientFrequency:'frequent'}:{}) },
     feedback:{...FEEDBACK_DEFAULTS},
     system: { openAtLogin: true },
     toolbox: { autoCapture: false, middleHold:true },
@@ -150,13 +151,14 @@ function bootstrap() {
   const calendar = new CalendarStore(paths.remindersFile());
   const focus = new FocusTimer(paths.focusFile());
   const notion = new NotionCalendarConnector({ getSecret, settings });
-  const registry = new AgentRegistry({ bus, enabledSources: settings.get('agents', {}).sources });
+  const registry = new AgentRegistry({ bus, enabledSources: EDITION.coding?settings.get('agents', {}).sources:{codex:false,zcode:false,workbuddy:false} });
   let toolbox = null, toolboxError = '', clipboardPoll = null, clipboardPolling = false;
   const quotaAlerts = new QuotaAlerts();
   const codexLimits = new CodexLimitsClient();
   let limitsTimer=null,usageNotifyTimer=null;
   let limitsStatus={refreshing:false,lastAttemptAt:null,lastSuccessAt:null,error:null};
   async function refreshLimits() {
+    if(!EDITION.coding)return {snapshot:registry.snapshot(),status:{...limitsStatus,error:'此版本不提供 Coding 组件'}};
     limitsStatus={...limitsStatus,refreshing:true,lastAttemptAt:new Date().toISOString()};
     sendWorkbar('limits:status',limitsStatus);
     try {
@@ -803,7 +805,7 @@ function bootstrap() {
     const iconPath = path.join(__dirname, 'assets', 'icons', 'tray.png');
     const icon = fs.existsSync(iconPath) ? nativeImage.createFromPath(iconPath) : nativeImage.createEmpty();
     tray = new Tray(icon);
-    tray.setToolTip('斐墨');
+    tray.setToolTip(EDITION.name);
     const rebuild = () => {
       const paused = scheduler.isPaused();
       tray.setContextMenu(Menu.buildFromTemplate([
@@ -974,6 +976,7 @@ function bootstrap() {
   ipc.on('voice:dismiss',()=>{if(!voice?.active())voiceWin?.hide();});
   ipc.handle('translation:start',async()=>{if(!await textCleaner.credential())throw Error('请在设置中配置 DeepSeek 密钥');return translator.start();});ipc.handle('translation:stop',()=>translator.stop());ipc.handle('translation:state',()=>translator.state());
   ipc.handle('settings:get', () => settings.get());
+  ipc.handle('app:edition',()=>EDITION);
   ipc.handle('screenshot:start',()=>captureHost?.start());
   ipc.handle('screenshot:status',()=>captureRuntime.status(captureConfig(settings.get('capture',{}))));
   ipc.handle('screenshot:guide',()=>shell.openExternal('https://github.com/fictivemotion/feimo-desktop-assistant/blob/main/docs/SCREENSHOT.md'));
@@ -1419,9 +1422,9 @@ function bootstrap() {
     const t = createTray();
     trayRebuild = t.rebuild;
 
-    setImmediate(()=>{try{registry.start();}catch{console.error('[agents] startup unavailable');}});
+    setImmediate(()=>{try{if(EDITION.coding)registry.start();}catch{console.error('[agents] startup unavailable');}});
     usage.flushModelRepairs();
-    if(settings.get('agents',{}).sources?.codex!==false) {
+    if(EDITION.coding&&settings.get('agents',{}).sources?.codex!==false) {
       void refreshLimits();limitsTimer=setInterval(()=>void refreshLimits(),60000);limitsTimer.unref?.();
     }
     scheduler.start();

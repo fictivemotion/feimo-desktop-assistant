@@ -31,6 +31,8 @@ const names = [
   "Paw",
   "Play",
   "Next",
+  "Sun",
+  "Moon",
   "Send",
   "Setting",
   "ShieldLock",

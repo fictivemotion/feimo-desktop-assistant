@@ -5,7 +5,7 @@
  const controls=document.createElement('span');controls.className='compact-controls';pill.insertBefore(controls,$('#compact-open'));
  const quick=[['ChatDots','问答','chat'],['Translate','翻译','translate'],['CalendarDays','日程','schedule'],['Timer','倒计时','focus'],['Music','白噪音','noise'],['ClipboardText','剪贴板','clipboard'],['NoteText','速记','notes'],['Palette','配色','palette'],['Broom','清洗文字','clean'],['Image','区域截图','screenshot'],['ChartBar','Codex额度','quota'],['Folder','存入文件','files']];
  const row=document.createElement('div');row.className='quick-pill-row';const card=document.createElement('section');card.className='quick-card';card.hidden=true;dock.append(row,card);
- for(const [glyph,name,type]of quick){const b=document.createElement('button');b.className='quick-pill';b.innerHTML=icon(glyph,16)+' '+esc(name);b.onclick=()=>safe(()=>open(type));row.append(b);}
+ for(const [glyph,name,type]of quick){const b=document.createElement('button');b.className='quick-pill';b.dataset.tool=type;b.innerHTML=icon(glyph,16)+' '+esc(name);b.onclick=()=>safe(()=>open(type));row.append(b);}
  row.onwheel=e=>{e.preventDefault();row.scrollBy({left:e.deltaY||e.deltaX,behavior:'smooth'});};
  const close=()=>{dock.hidden=true;card.hidden=true;cardType='';window.IslandHit?.();};
  function reveal(){clearTimeout(hideTimer);if(!$('#island').classList.contains('collapsed'))return;dock.hidden=false;void api.islandReveal();}
@@ -35,7 +35,7 @@
  const selection=new CompactState.Selection();let controlKey='';
  const switcher=document.createElement('button');switcher.id='compact-switch';switcher.className='icon-btn';switcher.innerHTML=icon('SortDownUp',16);pill.insertBefore(switcher,$('#compact-open'));
  switcher.onclick=e=>{e.stopPropagation();selection.next();render();};
- function render(){if(!state)return;const rows=CompactState.activities(state),current=selection.update(rows),voice=state.voice||{},f=state.focus?.active,m=state.music||{};let buttons=[];
+ function render(){if(!state)return;const quota=row.querySelector('[data-tool=quota]');if(quota)quota.hidden=state.edition?.coding===false;const rows=CompactState.activities(state),current=selection.update(rows),voice=state.voice||{},f=state.focus?.active,m=state.music||{};let buttons=[];
   pill.dataset.activity=current.id;if(title.textContent!==current.name)title.textContent=current.name;if(status.textContent!==current.line)status.textContent=current.line;status.title=current.line;
   switcher.hidden=rows.length<2;switcher.setAttribute('aria-label','切换状态显示');switcher.title=rows.length>1?`切换状态（${rows.findIndex(r=>r.id===current.id)+1}/${rows.length}）：${rows.map(r=>r.name).join('、')}`:'';
   $('#compact-music').hidden=current.id!=='music';

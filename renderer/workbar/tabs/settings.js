@@ -6,12 +6,15 @@
   let settings = null;
   let pets = [];
 
-  async function build() {
+  let building=null;
+  function build(){if(building)return building;building=render().catch(error=>{view.replaceChildren();UI.toast('设置加载失败：'+error.message,true);}).finally(()=>{building=null;});return building;}
+  async function render() {
     settings = await api.getSettings();
     pets = await api.getPets();
     const hasKey = await api.hasSecret('llmApiKey');
     const clean = await api.textCleanStatus();
     const hasNotion = await api.hasSecret('notionToken');
+    const edition=await api.appEdition?.()||{coding:true};
     const hk = settings.hotkeys || {};
     const capture = settings.capture || {};
     const ag = settings.agents || {};
@@ -102,7 +105,7 @@
         <h4><span data-icon="Paw" data-size="16"></span> 顶部精灵与气泡</h4>
         <div class="card">
           <p class="muted">斐墨 · Rive · 黑色圆形伙伴</p>
-          <div class="field" style="margin-top:16px"><label for="st-top-sprite-size">顶部精灵尺寸 <output id="st-top-sprite-size-value">${Math.max(48,Math.min(180,Number(settings.ui?.topSpriteSize)||90))} px</output></label><input id="st-top-sprite-size" type="range" min="48" max="180" step="1" value="${Math.max(48,Math.min(180,Number(settings.ui?.topSpriteSize)||90))}"><p class="hint">拖动即可调整精灵与气泡高度。双击顶部气泡空白处，可调整底色透明度、日夜模式与文字颜色。</p></div>
+          <div class="field" style="margin-top:16px"><label for="st-top-sprite-size">顶部精灵尺寸 <output id="st-top-sprite-size-value">${Math.max(48,Math.min(180,Number(settings.ui?.topSpriteSize)||90))} px</output></label><input id="st-top-sprite-size" type="range" min="48" max="180" step="1" value="${Math.max(48,Math.min(180,Number(settings.ui?.topSpriteSize)||90))}"><p class="hint">拖动即可调整精灵与气泡高度。双击顶部气泡任意位置，可调整底色透明度、日夜模式与文字颜色。</p></div>
 
         </div>
       </div>
@@ -110,7 +113,7 @@
       <div class="settings-section">
         <h4><span data-icon="ChatDots" data-size="16"></span> 主动提醒</h4>
         <div class="card">
-          <div class="switch"><span class="lbl">悬浮对话<span class="sub">通过顶部气泡提醒，日程和 Coding 更新时主动说话</span></span>
+          <div class="switch"><span class="lbl">悬浮对话<span class="sub">通过顶部气泡提醒，${edition.coding===false?'日程更新时主动说话':'日程和 Coding 更新时主动说话'}</span></span>
             <label class="toggle"><input type="checkbox" id="st-speech" ${settings.ui?.companionSpeech !== false ? 'checked' : ''}/><span class="track"></span><span class="knob"></span></label></div>
           <div class="switch"><span class="lbl">生活问候与小技巧<span class="sub">按时段随机问候、穿插快捷键技巧；午夜和凌晨两点提醒休息</span></span>
             <label class="toggle"><input type="checkbox" id="st-ambient" ${settings.ui?.ambientSpeech !== false ? 'checked' : ''}/><span class="track"></span><span class="knob"></span></label></div>
@@ -204,6 +207,7 @@
       const close=document.createElement('button');close.type='button';close.className='btn';close.textContent='关闭大图';close.onclick=()=>preview.close();
       preview.append(image,close);document.body.append(preview);preview.addEventListener('close',()=>preview.remove());preview.addEventListener('click',e=>{if(e.target===preview)preview.close()});preview.showModal();
     }));
+    if(edition.coding===false)view.querySelector('#st-mute')?.closest('.settings-section')?.remove();
     const categories = [['general','常规'],['model','模型'],['shortcuts','快捷键'],['connections','连接'],['privacy','隐私'],['support','赞赏']];
     const nav = document.createElement('nav'); nav.className = 'settings-nav'; nav.setAttribute('aria-label', '设置分类');
     const connectionSection=document.createElement('section');connectionSection.className='settings-section';connectionSection.innerHTML='<h4>服务连接</h4><div class="settings-connections-panel"></div>';view.append(connectionSection);await FeimoConnections.mount(connectionSection.lastElementChild);const topTools=connectionSection.querySelector('.connection-settings>.card'),topSection=document.createElement('section');topSection.className='settings-section';topSection.dataset.group='general';topSection.innerHTML='<h4>工作台导航</h4><p class="hint">选择工作台中显示的栏目；语音、倒计时等活动仍会自动显示在顶部精灵旁。</p>';topTools.querySelector('h3')?.remove();topSection.append(topTools);topSection.className='settings-subsection';topSection.querySelector('h4').outerHTML='<h5>工作台栏目</h5>';view.querySelector('#st-top-sprite-size').closest('.settings-section').append(topSection);const sections = [...view.querySelectorAll('.settings-section')];
@@ -325,7 +329,7 @@
         UI.toast('已保存，重启应用后生效');
       });
     }
-    view.querySelector('#st-mute').addEventListener('change', async (e) => {
+    view.querySelector('#st-mute')?.addEventListener('change', async (e) => {
       await api.setSettings({ agents: { ...(settings.agents || {}), muteNotifications: !e.target.checked } });
       UI.toast(e.target.checked ? '已开启事件通知' : '已静音事件通知');
     });

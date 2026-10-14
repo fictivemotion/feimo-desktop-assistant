@@ -17,7 +17,7 @@
     v.classList.add('feimo-scroll-fade');
     v.addEventListener('scroll', () => v.classList.toggle('is-scrolled', v.scrollTop > 2), { passive:true });
   }
-  let active = 'voice';
+  let active = 'voice',edition={coding:true};
   const pageInfo = {
     chat: ['问答', '把眼前的问题，交给斐墨。', '回到最新'],
     process: ['快捷处理', '清理文字，或从图片中提取内容。', '读取剪贴板'],
@@ -33,7 +33,7 @@
   };
 
   function switchTab(name) {
-    let [route, sub] = String(name || 'voice').split(':');
+    let [route, sub] = String(name || 'voice').split(':');if(edition.coding===false&&['agents','usage'].includes(route))route='chat';
     if(route==='connections')route='settings';if(['clipboard','notes','palette'].includes(route)){sub=route;route='tools';}
     const dockRoute=route==='tools'?(sub||'clipboard'):route;document.body.dataset.toolSection=route==='tools'?dockRoute:'';
     if (route === 'soundscape') { route = 'focus'; sub = 'soundscape'; } name = route==='usage'?'agents':route;
@@ -86,7 +86,7 @@
     }
     if ((e.ctrlKey || e.metaKey) && e.key === 'Tab') {
       e.preventDefault();
-      const order = ['voice', 'chat', 'process', 'agents', 'schedule', 'focus'];
+      const order = ['voice', 'chat', 'process', 'agents', 'schedule', 'focus'].filter(tab=>edition.coding!==false||tab!=='agents');
       switchTab(order[(Math.max(0, order.indexOf(active)) + (e.shiftKey ? -1 : 1) + order.length) % order.length]);
     }
   });
@@ -231,7 +231,7 @@
   // ---------- 初始化 ----------
   // window.TABS 已在 lib/ui.js 初始化，各页签模块自行注册（此处不再重置）
   (async () => {
-    await Promise.resolve();
+    edition=await api.appEdition?.()||{coding:true};document.body.classList.toggle('without-coding',edition.coding===false);
     switchTab('voice');
     refreshNextEvent();
     setInterval(refreshNextEvent, 60000);
