@@ -9,6 +9,7 @@ const names = [
   "Broom",
   "CalendarAdd",
   "CalendarDays",
+  "Calculator",
   "ChartBar",
   "ChatDots",
   "ClipboardText",

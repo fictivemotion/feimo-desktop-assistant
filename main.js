@@ -804,12 +804,15 @@ function bootstrap() {
     }
   }
 
-  function calendarView() {
-    return {
-      today: calendar.today().map(withLocal),
-      upcoming: calendar.upcoming().slice(0, 30).map(withLocal),
-    };
+  function calendarView(range={}) {
+    const month=new Date();month.setDate(1);month.setHours(0,0,0,0);month.setDate(month.getDate()-(month.getDay()+6)%7);
+    const from=range.from?Date.parse(range.from):+month,to=range.to?Date.parse(range.to):from+42*86400000;
+    if(!Number.isFinite(from)||!Number.isFinite(to)||to<=from||to-from>370*86400000)throw Error('日历范围无效，最多查询370天');
+    return {today:calendar.today().map(withLocal),upcoming:calendar.upcoming().slice(0,100).map(withLocal),items:calendar.occurrences(from,to).map(withLocal),series:calendar.all(),revision:calendar.revision(),from:new Date(from).toISOString(),to:new Date(to).toISOString()};
   }
+  function calendarChanged(){sendWorkbar('calendar:changed',calendarView());scheduler.tick();}
+  const calendarPlanner=new(require('./lib/calendar/planner').CalendarPlanner)({calendar,settings,getSecret,fetcher:(url,options)=>net.fetch(url,options),onProgress:value=>sendWorkbar('calendar:plannerProgress',value),onApplied:()=>calendarChanged()});
+
   function withLocal(i) {
     return { ...i, startsLocal: formatLocal(i.startsAtUtc), endsLocal: i.endsAtUtc ? formatLocal(i.endsAtUtc) : null };
   }
@@ -1234,8 +1237,7 @@ function bootstrap() {
   ipc.handle('focus:stop', () => focus.stop());
   ipc.handle('quick:schedule', (_e, data) => {
     if (!data?.title || !data?.startsAtUtc) throw new Error('请填写日程和时间');
-    const startsAtUtc = new Date(data.startsAtUtc).toISOString();
-    calendar.upsert([{ source: 'local', externalId: 'local-' + Date.now(), title: String(data.title).trim().slice(0, 100), startsAtUtc, endsAtUtc: null, allDay: false, reminderOffsets: [15], syncStatus: 'ok' }]);
+    calendar.create({...data,reminderOffsets:data.reminderOffsets??[15]});
     sendWorkbar('calendar:changed', calendarView());
     speak('日程记好啦，到时提醒你。', { force: true, priority: 2 });
     return true;
@@ -1384,25 +1386,13 @@ function bootstrap() {
   });
 
   // 日程
-  ipc.handle('calendar:view', () => calendarView());
-  ipc.handle('calendar:addLocal', (_e, item) => {
-    if (!item?.title || !item?.startsAtUtc) throw new Error('缺少标题或时间');
-    calendar.upsert([{
-      source: 'local', externalId: 'local-' + Date.now(), title: item.title,
-      startsAtUtc: new Date(item.startsAtUtc).toISOString(),
-      endsAtUtc: item.endsAtUtc ? new Date(item.endsAtUtc).toISOString() : null,
-      allDay: !!item.allDay,
-      reminderOffsets: item.reminderOffsets || settings.get('calendar', {}).defaultReminderOffsets || [15],
-      syncStatus: 'ok',
-    }]);
-    sendWorkbar('calendar:changed', calendarView());
-    return calendarView();
-  });
-  ipc.handle('calendar:remove', (_e, { source, externalId }) => {
-    calendar.remove(source, externalId);
-    sendWorkbar('calendar:changed', calendarView());
-    return calendarView();
-  });
+  const calendarCaller=event=>{if(![workbarWin,island?.win,quickWin].some(win=>win?.webContents===event.sender))throw Error('此窗口不能修改日程');};
+  ipc.handle('calendar:view',(_e,range)=>calendarView(range));
+  ipc.handle('calendar:addLocal',(event,item)=>{calendarCaller(event);const value={...item,reminderOffsets:item?.reminderOffsets??settings.get('calendar',{}).defaultReminderOffsets??[15]};calendar.create(value);calendarChanged();return calendarView();});
+  ipc.handle('calendar:update',(event,{source,externalId,item,scope,recurrenceInstanceId}={})=>{calendarCaller(event);calendar.update(source,externalId,item,{scope,recurrenceInstanceId});calendarChanged();return calendarView();});
+  ipc.handle('calendar:remove',(event,{source,externalId,scope,recurrenceInstanceId}={})=>{calendarCaller(event);calendar.remove(source,externalId,{scope,recurrenceInstanceId});calendarChanged();return calendarView();});
+  ipc.handle('calendar:plan',(event,value)=>{calendarCaller(event);return calendarPlanner.plan(value);});
+  ipc.handle('calendar:planCancel',(event,id)=>{calendarCaller(event);calendarPlanner.cancel(id);return true;});
   ipc.handle('calendar:syncNotion', () => syncNotion(true));
   ipc.handle('calendar:notionStatus', () => ({ configured: notion.isConfigured(), lastSyncAt: notion.lastSyncAt }));
 
@@ -1502,7 +1492,7 @@ function bootstrap() {
 
   app.on('before-quit',()=>{translator.dispose();quitting=true;});
   app.on('will-quit', () => {
-    captureHost?.stop();captureRuntime.stop();
+    calendarPlanner.stop();captureHost?.stop();captureRuntime.stop();
     island?.stop();
     void conversation?.stop();conversationWin?.destroy();voice?.close();modifierShortcut.disable();clearTimeout(voiceDismissTimer);
     clearInterval(clipboardPoll);

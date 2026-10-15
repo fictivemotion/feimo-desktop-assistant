@@ -103,9 +103,10 @@ contextBridge.exposeInMainWorld('api', {
   usageExport: () => ipcRenderer.invoke('usage:export'),
   onUsageUpdated: (cb) => ipcRenderer.on('usage:updated', (_e, u) => cb(u)),
   // 日程
-  calendarView: () => ipcRenderer.invoke('calendar:view'),
+  calendarView: range => ipcRenderer.invoke('calendar:view',range),
   calendarAdd: (item) => ipcRenderer.invoke('calendar:addLocal', item),
-  calendarRemove: (source, externalId) => ipcRenderer.invoke('calendar:remove', { source, externalId }),
+  calendarRemove: (source, externalId,options={}) => ipcRenderer.invoke('calendar:remove', { source, externalId,...options }),
+  calendarUpdate:value=>ipcRenderer.invoke('calendar:update',value),calendarPlan:value=>ipcRenderer.invoke('calendar:plan',value),calendarPlanCancel:id=>ipcRenderer.invoke('calendar:planCancel',id),onCalendarPlannerProgress:cb=>{const listener=(_e,v)=>cb(v);ipcRenderer.on('calendar:plannerProgress',listener);return ()=>ipcRenderer.removeListener('calendar:plannerProgress',listener);},
   calendarSyncNotion: () => ipcRenderer.invoke('calendar:syncNotion'),
   calendarNotionStatus: () => ipcRenderer.invoke('calendar:notionStatus'),
   focusState: () => ipcRenderer.invoke('focus:state'),
@@ -118,7 +119,7 @@ contextBridge.exposeInMainWorld('api', {
   onFocusChanged: (cb) => ipcRenderer.on('focus:changed', (_e, value) => cb(value)),
   onFocusTick: (cb) => ipcRenderer.on('focus:tick', (_e, value) => cb(value)),
   onPetConfig: (cb) => ipcRenderer.on('pet:config', (_e, value) => cb(value)),
-  onCalendarChanged: (cb) => ipcRenderer.on('calendar:changed', (_e, v) => cb(v)),
+  onCalendarChanged:cb=>{const listener=(_e,v)=>cb(v);ipcRenderer.on('calendar:changed',listener);return ()=>ipcRenderer.removeListener('calendar:changed',listener);},
   onCalendarFired: (cb) => ipcRenderer.on('calendar:fired', (_e, v) => cb(v)),
   onCalendarSyncResult: (cb) => ipcRenderer.on('calendar:syncResult', (_e, v) => cb(v)),
   // 宠物状态（工作栏头部展示）
