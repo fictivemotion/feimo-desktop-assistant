@@ -106,6 +106,7 @@ contextBridge.exposeInMainWorld('api', {
   calendarView: range => ipcRenderer.invoke('calendar:view',range),
   calendarAdd: (item) => ipcRenderer.invoke('calendar:addLocal', item),
   calendarRemove: (source, externalId,options={}) => ipcRenderer.invoke('calendar:remove', { source, externalId,...options }),
+  calendarCategorySave:value=>ipcRenderer.invoke('calendar:categorySave',value),
   calendarUpdate:value=>ipcRenderer.invoke('calendar:update',value),calendarPlan:value=>ipcRenderer.invoke('calendar:plan',value),calendarPlanCancel:id=>ipcRenderer.invoke('calendar:planCancel',id),onCalendarPlannerProgress:cb=>{const listener=(_e,v)=>cb(v);ipcRenderer.on('calendar:plannerProgress',listener);return ()=>ipcRenderer.removeListener('calendar:plannerProgress',listener);},
   calendarSyncNotion: () => ipcRenderer.invoke('calendar:syncNotion'),
   calendarNotionStatus: () => ipcRenderer.invoke('calendar:notionStatus'),

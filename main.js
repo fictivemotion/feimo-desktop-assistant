@@ -808,10 +808,10 @@ function bootstrap() {
     const month=new Date();month.setDate(1);month.setHours(0,0,0,0);month.setDate(month.getDate()-(month.getDay()+6)%7);
     const from=range.from?Date.parse(range.from):+month,to=range.to?Date.parse(range.to):from+42*86400000;
     if(!Number.isFinite(from)||!Number.isFinite(to)||to<=from||to-from>370*86400000)throw Error('日历范围无效，最多查询370天');
-    return {today:calendar.today().map(withLocal),upcoming:calendar.upcoming().slice(0,100).map(withLocal),items:calendar.occurrences(from,to).map(withLocal),series:calendar.all(),revision:calendar.revision(),from:new Date(from).toISOString(),to:new Date(to).toISOString()};
+    return {today:calendar.today().map(withLocal),upcoming:calendar.upcoming().slice(0,100).map(withLocal),items:calendar.occurrences(from,to).map(withLocal),series:calendar.all(),categories:calendar.categories(),planner:calendarPlanner.state(),revision:calendar.revision(),from:new Date(from).toISOString(),to:new Date(to).toISOString()};
   }
   function calendarChanged(){sendWorkbar('calendar:changed',calendarView());scheduler.tick();}
-  const calendarPlanner=new(require('./lib/calendar/planner').CalendarPlanner)({calendar,settings,getSecret,fetcher:(url,options)=>net.fetch(url,options),onProgress:value=>sendWorkbar('calendar:plannerProgress',value),onApplied:()=>calendarChanged()});
+  const calendarPlanner=new(require('./lib/calendar/planner').CalendarPlanner)({calendar,settings,getSecret,fetcher:(url,options)=>net.fetch(url,options),onProgress:value=>{sendWorkbar('calendar:plannerProgress',value);const text=value.phase==='thinking'?'收到，正在规划中...✍️':value.phase==='completed'?'已帮你规划完成✅':value.phase==='error'?'规划未完成：'+value.message:value.phase==='cancelled'?'已停止规划':null;if(text)island?.notice({kind:'calendar-plan',text,summary:value.summary,scene:value.phase==='thinking'?'thinking':value.phase==='completed'?'completed':'attention',action:'schedule',actionLabel:'查看日程',expiresAt:Date.now()+(value.phase==='thinking'?90000:15000)});},onApplied:()=>calendarChanged()});
 
   function withLocal(i) {
     return { ...i, startsLocal: formatLocal(i.startsAtUtc), endsLocal: i.endsAtUtc ? formatLocal(i.endsAtUtc) : null };
@@ -1391,6 +1391,7 @@ function bootstrap() {
   ipc.handle('calendar:addLocal',(event,item)=>{calendarCaller(event);const value={...item,reminderOffsets:item?.reminderOffsets??settings.get('calendar',{}).defaultReminderOffsets??[15]};calendar.create(value);calendarChanged();return calendarView();});
   ipc.handle('calendar:update',(event,{source,externalId,item,scope,recurrenceInstanceId}={})=>{calendarCaller(event);calendar.update(source,externalId,item,{scope,recurrenceInstanceId});calendarChanged();return calendarView();});
   ipc.handle('calendar:remove',(event,{source,externalId,scope,recurrenceInstanceId}={})=>{calendarCaller(event);calendar.remove(source,externalId,{scope,recurrenceInstanceId});calendarChanged();return calendarView();});
+  ipc.handle('calendar:categorySave',(event,value)=>{calendarCaller(event);const item=calendar.saveCategory(value);calendarChanged();return item;});
   ipc.handle('calendar:plan',(event,value)=>{calendarCaller(event);return calendarPlanner.plan(value);});
   ipc.handle('calendar:planCancel',(event,id)=>{calendarCaller(event);calendarPlanner.cancel(id);return true;});
   ipc.handle('calendar:syncNotion', () => syncNotion(true));
