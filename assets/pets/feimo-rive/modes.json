@@ -27,5 +27,9 @@
   "water",
   "sleepy",
   "farewell",
-  "music-spin"
+  "music-spin",
+  "dialogue-idle",
+  "dialogue-listening",
+  "dialogue-thinking",
+  "dialogue-typing"
 ]

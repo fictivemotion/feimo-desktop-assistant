@@ -44,6 +44,7 @@ const { nearestDockSide, dockX, peekDockX } = require('./lib/pet-dock');
 const { ReminderScheduler } = require('./lib/calendar/scheduler');
 const { pickLine, noticeLine } = require('./lib/companion');
 const { VoiceService } = require('./lib/voice/service');
+const {Conversation,config:conversationConfig,VOICES:conversationVoices}=require('./lib/voice/conversation');
 const { VoiceModels } = require('./lib/voice/models');
 const { InputTarget } = require('./lib/voice/input-target');
 const {RendererTarget}=require('./lib/voice/renderer-target');
@@ -211,6 +212,7 @@ function bootstrap() {
 
   // ---------- 窗口 ----------
   let petWin = null, workbarWin = null, speechWin = null, quickWin = null, tray = null, soundscapeWin = null, voiceWin = null;
+  let conversation=null,conversationWin=null,conversationReady=false,pendingConversationCommand=null;const conversationStopWaiters=new Map();
   let voice=null,voiceDismissTimer=null,voicePhase='idle',voiceReady=false,pendingVoiceCapture=null,voiceStateSentAt=0,voiceDisplayId=null;
   const voiceModels=new VoiceModels(path.join(paths.dataDir(),'voice-models','paraformer-bilingual'),{fetcher:(url,options)=>net.fetch(url,options),onChange:()=>sendWorkbar('voice:changed',voice?.state())});
   const voiceNativeInput=new InputTarget(path.join(paths.dataDir(),'voice-input'));
@@ -232,7 +234,7 @@ function bootstrap() {
     voiceWin.setBounds(placeVoice(display.workArea),false);
   }
   function voiceChanged(state){
-    if(!state)return;feedback.voice(state.phase);island?.activity();island?.changed();const changed=state.phase!==voicePhase;voicePhase=state.phase;
+    if(!state)return;feedback.voice(conversation?.state().active?'listening':state.phase);island?.activity();island?.changed();const changed=state.phase!==voicePhase;voicePhase=state.phase;
     voiceWin?.webContents.send('voice:changed',state);
     if(changed||Date.now()-voiceStateSentAt>160){sendWorkbar('voice:changed',state);voiceStateSentAt=Date.now();}
     if(changed){
@@ -248,6 +250,21 @@ function bootstrap() {
       if(state.phase==='completed')playBloub('completed',{sound:'textReady'});
       if(state.phase==='error')playBloub('failed');
     }
+  }
+  function sendConversation(command){
+    if(!conversationReady){if(command.type==='start')pendingConversationCommand=command;else if(command.type==='stop')pendingConversationCommand=null;return;}
+    let stopped;if(command.type==='stop')stopped=new Promise(resolve=>{const timer=setTimeout(()=>{conversationStopWaiters.delete(command.id);resolve();},1000);conversationStopWaiters.set(command.id,{resolve,timer});});
+    conversationWin?.webContents.send('conversation:audioCommand',command);return stopped;
+  }
+  function createConversationWindow(){
+    conversationWin=new BrowserWindow({show:false,width:160,height:100,skipTaskbar:true,webPreferences:{preload:path.join(__dirname,'preload','conversation-preload.js'),contextIsolation:true,nodeIntegration:false,sandbox:true,backgroundThrottling:false,autoplayPolicy:'no-user-gesture-required',partition:'persist:feimo-conversation'}});
+    const ses=conversationWin.webContents.session;
+    ses.setPermissionRequestHandler((contents,permission,callback)=>callback(permission==='media'&&contents===conversationWin?.webContents&&!!conversation?.state().active));
+    ses.setPermissionCheckHandler((contents,permission)=>permission==='media'&&contents===conversationWin?.webContents&&!!conversation?.state().active);
+    conversationWin.webContents.setWindowOpenHandler(()=>({action:'deny'}));conversationWin.webContents.on('will-navigate',e=>e.preventDefault());
+    conversationWin.webContents.on('render-process-gone',()=>{conversationReady=false;void conversation?.fail('语音通道已退出，请重新开始');});
+    conversationWin.on('closed',()=>{conversationReady=false;conversationWin=null;void conversation?.stop();});
+    void conversationWin.loadFile(path.join(__dirname,'renderer','voice','conversation.html'));
   }
   function createVoiceWindow(){
     voiceWin=new BrowserWindow({width:300,height:60,show:false,frame:false,transparent:true,backgroundColor:'#00000000',resizable:false,movable:false,skipTaskbar:true,hasShadow:false,focusable:false,alwaysOnTop:true,webPreferences:{preload:path.join(__dirname,'preload','voice-preload.js'),contextIsolation:true,nodeIntegration:false,sandbox:true,backgroundThrottling:false,partition:'persist:feimo-voice'}});
@@ -939,6 +956,16 @@ function bootstrap() {
   const ipc = ipcMain;
 
   ipc.handle('app:ready', () => ({ ok: true }));
+  const conversationCaller=event=>{
+    if(event.sender!==island?.win?.webContents&&event.sender!==workbarWin?.webContents)throw Error('此窗口不能操作语音对话');
+  };
+  ipc.handle('conversation:start',async event=>{conversationCaller(event);if(voice?.active())throw Error('请先结束当前听写，再开始语音对话');if(!conversationWin)createConversationWindow();island.expanded=false;island.hoverCapsule=false;island.visibility.hover=false;island.visibility.reveal(true);island.win?.webContents.send('island:resetHover');island.win?.webContents.send('island:expanded',false);island.spriteLockUntil=Date.now()+400;return conversation.start();});
+  ipc.handle('conversation:stop',event=>{conversationCaller(event);return conversation?.stop();});
+  ipc.handle('conversation:config',async event=>{conversationCaller(event);return {...conversationConfig(settings.get('conversation',{})),voices:conversationVoices,configured:!!(await getSecret('conversationApiKey')||await getSecret('voiceAsrApiKey'))};});
+  ipc.handle('conversation:save',async(event,value)=>{conversationCaller(event);const c=conversationConfig(value);if(value?.key){if(typeof value.key!=='string'||value.key.length>4096)throw Error('密钥格式无效');await setSecret('conversationApiKey',value.key.trim());}settings.set('conversation',c);return {...c,voices:conversationVoices,configured:!!(await getSecret('conversationApiKey')||await getSecret('voiceAsrApiKey'))};});
+  ipc.on('conversation:ready',event=>{if(event.sender!==conversationWin?.webContents)return;conversationReady=true;if(pendingConversationCommand){sendConversation(pendingConversationCommand);pendingConversationCommand=null;}});
+  ipc.on('conversation:audio',(event,data)=>{if(event.sender===conversationWin?.webContents)conversation?.audio(data?.id,data?.samples);});
+  ipc.on('conversation:report',(event,data)=>{if(event.sender!==conversationWin?.webContents)return;if(data?.type==='stopped'){const waiter=conversationStopWaiters.get(data.id);if(waiter){clearTimeout(waiter.timer);conversationStopWaiters.delete(data.id);waiter.resolve();}}else conversation?.report(data);});
   ipc.handle('voice:state',()=>voice?.state());
   ipc.handle('voice:devices',()=>voiceWin?.webContents.executeJavaScript("navigator.mediaDevices.enumerateDevices().then(list=>list.filter(d=>d.kind==='audioinput').map(d=>({deviceId:d.deviceId,label:d.label,kind:d.kind})))"));
   ipc.handle('voice:stats',()=>voiceStats.view());
@@ -1075,7 +1102,7 @@ function bootstrap() {
     fs.writeFileSync(choice.filePath, notes.map(n => `# ${n.title}\n\n${n.text}\n`).join('\n---\n\n'), 'utf8'); return true;
   });
   ipc.handle('secrets:set', async (_e, { name, value }) => {
-    if (!['llmApiKey', 'notionToken','voiceAsrApiKey','voiceCapsApiKey','voiceLlmApiKey','textCleanApiKey','captureApiKey',...require('./lib/integrations').CATALOG.map(x=>x.secret)].includes(name)) throw new Error('未知密钥');
+    if (!['llmApiKey', 'notionToken','voiceAsrApiKey','voiceCapsApiKey','voiceLlmApiKey','textCleanApiKey','captureApiKey','conversationApiKey',...require('./lib/integrations').CATALOG.map(x=>x.secret)].includes(name)) throw new Error('未知密钥');
     await setSecret(name, value || null);
     return true;
   });
@@ -1398,6 +1425,12 @@ function bootstrap() {
     screen.on('display-removed',()=>{if(voiceWin?.isVisible())positionVoice()});
     secretsCache = loadSecrets();
     voice=new VoiceService({settings,getSecret,models:voiceModels,input:voiceInput,output:new(require('./lib/voice/audio-isolation').AudioIsolation)({output:voiceOutput,soundscape}),fetcher:(url,options)=>net.fetch(url,options),connectOptions:async url=>{const resolved=await voiceWin.webContents.session.resolveProxy(url);const proxy=resolved.split(';').map(s=>s.trim()).find(s=>s.startsWith('PROXY ')||s.startsWith('HTTPS '));return proxy?{agent:new(require('https-proxy-agent').HttpsProxyAgent)('http://'+proxy.replace(/^\S+\s+/,''))}:{};},copy:text=>writeTextVerified(clipboard,text),onChange:voiceChanged,onBeforeCapture:()=>feedback.beforeVoice(),onComplete:(id,text,seconds)=>{voiceStats.record(id,text,seconds);sendWorkbar('voice:statsChanged',voiceStats.view());},capture:captureVoice});
+    conversation=new Conversation({settings,getSecret,send:sendConversation,
+      connectOptions:async url=>{const resolved=await (conversationWin?.webContents.session||require('electron').session.defaultSession).resolveProxy(url);const proxy=resolved.split(';').map(x=>x.trim()).find(x=>/^(PROXY|HTTPS) /.test(x));return proxy?{agent:new(require('https-proxy-agent').HttpsProxyAgent)('http://'+proxy.replace(/^\S+\s+/,''))}:{};},
+      beforeStart:()=>soundscape.suspendForVoice(),afterStop:()=>soundscape.resumeAfterVoice(),
+      onChange:state=>{feedback.voice(state.active?'listening':voice?.state().phase||'idle');sendWorkbar('conversation:changed',state);island?.activity();island?.changed();},
+      onEnd:({text,error})=>island?.notice({text,scene:error?'failed':'farewell',expiresAt:Date.now()+6000})});
+    voice.conversationActive=()=>conversation?.state().active;
     try {
       if (!safeStorage.isEncryptionAvailable()) throw new Error('系统加密暂不可用，工具箱记录尚未启用');
       toolbox = new Toolbox(path.join(paths.dataDir(), 'toolbox.bin'), { encrypt: v => safeStorage.encryptString(v), decrypt: v => safeStorage.decryptString(v) });
@@ -1417,7 +1450,7 @@ function bootstrap() {
     if (focus.active) quickWin.webContents.once('did-finish-load', () => {
       positionQuick(); quickWin.showInactive(); quickExpanded = false; quickWin.webContents.send('quick:expanded', false);
     });
-    island=new IslandHost({electron:require('electron'),settings,dir:paths.dataDir(),getSecret,setSecret,registry,getPetState:()=>currentPet,getFocus:()=>focus.view(),getVoice:()=>voice?.state(),getSoundscape:()=>soundscape.view(),getTranslation:()=>translator.state(),ocr:file=>ocr.recognize(file),onArchive:r=>showPromptCard({kind:'archive',title:r.count>1?'这 '+r.count+' 个文件统一放在哪里？':'这份文件放在哪里？',text:r.name,subtitle:r.reason,archive:r},3),onSaved:text=>speak(text,{force:true}),showWorkbar,onUIChange:broadcastPetState,onMode:mode=>{if(mode==='island'){pendingWorkbarShow=false;workbarWin?.hide();petWin?.hide();speechWin?.hide();quickWin?.hide();}else if(alive(petWin))petWin.showInactive();}});
+    island=new IslandHost({electron:require('electron'),settings,dir:paths.dataDir(),getSecret,setSecret,registry,getPetState:()=>currentPet,getFocus:()=>focus.view(),getVoice:()=>voice?.state(),getConversation:()=>conversation?.state()||{active:false},getSoundscape:()=>soundscape.view(),getTranslation:()=>translator.state(),ocr:file=>ocr.recognize(file),onArchive:r=>showPromptCard({kind:'archive',title:r.count>1?'这 '+r.count+' 个文件统一放在哪里？':'这份文件放在哪里？',text:r.name,subtitle:r.reason,archive:r},3),onSaved:text=>speak(text,{force:true}),showWorkbar,onUIChange:broadcastPetState,onMode:mode=>{if(mode==='island'){pendingWorkbarShow=false;workbarWin?.hide();petWin?.hide();speechWin?.hide();quickWin?.hide();}else if(alive(petWin))petWin.showInactive();}});
     void island.start().catch(()=>console.error('[island] startup failed'));
     const t = createTray();
     trayRebuild = t.rebuild;
@@ -1447,7 +1480,7 @@ function bootstrap() {
       const activeNotice=island?.notices.some(n=>now-(n.at||0)<60000&&(!n.expiresAt||now<n.expiresAt));
       const message=companion.next({enabled:ui.ambientSpeech!==false&&ui.companionSpeech!==false&&!scheduler.isPaused(),frequency:ui.ambientFrequency||'normal',
         available:!screenLocked&&powerMonitor.getSystemIdleTime()<=300&&!!island?.win&&!island.win.isDestroyed(),
-        busy:!!(workbarWin?.isVisible()||island?.expanded||island?.reply||replyState||voice?.active()||captureHost?.active||translator.state().busy||activeNotice),
+        busy:!!(workbarWin?.isVisible()||island?.expanded||island?.reply||replyState||voice?.active()||conversation?.state().active||captureHost?.active||translator.state().busy||activeNotice),
         settings:{hotkeys:settings.get('hotkeys',{}),voice:voice?.config()||settings.get('voice',{}),toolbox:settings.get('toolbox',{})}});
       if(message)island.notice({...message,expiresAt:now+(message.kind==='bedtime'?45000:20000)});
     };
@@ -1457,9 +1490,9 @@ function bootstrap() {
       scheduler.onWake();tickCompanion();
       broadcastPetState();
     });
-    powerMonitor.on('lock-screen', () => {screenLocked=true;void voice?.cancel();});
+    powerMonitor.on('lock-screen', () => {screenLocked=true;void voice?.cancel();void conversation?.stop();});
     powerMonitor.on('unlock-screen',()=>{screenLocked=false;tickCompanion();});
-    powerMonitor.on('suspend',()=>{void voice?.cancel();});
+    powerMonitor.on('suspend',()=>{void voice?.cancel();void conversation?.stop();});
 
     app.on('activate',restoreAssistant);
     const recoverDisplay=()=>{restoreAssistant();if(workbarWin?.isVisible())positionWorkbar();island?.position();};
@@ -1471,7 +1504,7 @@ function bootstrap() {
   app.on('will-quit', () => {
     captureHost?.stop();captureRuntime.stop();
     island?.stop();
-    voice?.close();modifierShortcut.disable();clearTimeout(voiceDismissTimer);
+    void conversation?.stop();conversationWin?.destroy();voice?.close();modifierShortcut.disable();clearTimeout(voiceDismissTimer);
     clearInterval(clipboardPoll);
     if (speechTimer) clearTimeout(speechTimer);
     globalShortcut.unregisterAll();

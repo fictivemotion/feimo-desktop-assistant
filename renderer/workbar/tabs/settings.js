@@ -24,6 +24,7 @@
     const pet = settings.pet || {};
     const feedback={enabled:true,volume:.24,...settings.feedback,pack:'mochi'};
     const system = await api.systemState();
+    const conversation=await api.conversationConfig();
 
     view.innerHTML = `
       <div class="settings-top" style="align-items:center;justify-content:space-between;margin-bottom:12px">
@@ -67,6 +68,18 @@
           </div>
           <button class="btn primary" id="st-save-llm">保存模型配置</button>
           <button class="btn" id="st-test-llm">测试连接</button>
+        </div>
+      </div>
+
+      <div class="settings-section" data-group="model">
+        <h4><span data-icon="Microphone" data-size="16"></span> 实时语音对话</h4>
+        <div class="card">
+          <p>双击顶部精灵开始对话；单击进入胶囊。也可聚焦精灵后按 F2。</p>
+          <p class="muted">千问 Qwen-Audio 3.1 Realtime Plus · 智能双工 · 语义抗打断</p>
+          <div class="field"><label for="st-conversation-voice">对话音色</label><select id="st-conversation-voice">${conversation.voices.map(([id,name])=>`<option value="${UI.esc(id)}" ${conversation.voice===id?'selected':''}>${UI.esc(name)}</option>`).join('')}</select><p class="hint">保存后在下一次对话生效。</p></div>
+          <div class="field"><label for="st-conversation-key">千问 API 密钥 <span class="badge ${conversation.configured?'done':''}" id="st-conversation-status">${conversation.configured?'已配置':'未配置'}</span></label><input id="st-conversation-key" type="password" autocomplete="new-password" placeholder="留空保留；未单独配置时复用千问听写密钥"></div>
+          <p class="hint">开始后麦克风音频发送到千问平台；回答以文字和语音同步返回。回复气泡空闲 10 秒收起，展开阅读时保留；播报后 20 秒未继续发言则结束。</p>
+          <button class="btn primary" id="st-conversation-save">保存对话设置</button>
         </div>
       </div>
 
@@ -247,6 +260,7 @@
     frequencySelect.value=settings.ui?.ambientFrequency||'normal';const frequencyField=document.createElement('div');frequencyField.className='field';frequencyField.innerHTML='<label for="st-ambient-frequency">主动提示频率</label><p class="hint">仅在使用电脑时出现；录音、截图和阅读回答期间暂缓，短消息自动收起。</p>';frequencyField.insertBefore(frequencySelect,frequencyField.lastElementChild);view.querySelector('#st-ambient').closest('.card').append(frequencyField);
     frequencySelect.onchange=async()=>{settings=await api.setSettings({ui:{ambientFrequency:frequencySelect.value}});UI.toast('主动提示频率已更新');};
 
+    view.querySelector('#st-conversation-save').onclick=async()=>{try{const saved=await api.conversationSave({voice:view.querySelector('#st-conversation-voice').value,key:view.querySelector('#st-conversation-key').value});view.querySelector('#st-conversation-key').value='';view.querySelector('#st-conversation-status').textContent=saved.configured?'已配置':'未配置';UI.toast('对话音色已保存，下次对话生效');}catch(error){UI.toast(error.message,true);}};
     // 模型服务
     view.querySelector('#st-startup').addEventListener('change', async e => {
       try { settings = await api.setSettings({ system: { openAtLogin: e.target.checked } }); UI.toast(e.target.checked ? '已开启开机自启动' : '已关闭开机自启动'); }
