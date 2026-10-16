@@ -9,12 +9,16 @@
    s.context=new AudioContext({latencyHint:'interactive'});await s.context.resume();await s.context.audioWorklet.addModule('audio-worklet.js');await s.context.audioWorklet.addModule('conversation-worklet.js');if(epoch!==generation||current!==s){await release();return;}
    s.input=s.context.createMediaStreamSource(s.stream);s.mic=new AudioWorkletNode(s.context,'voice-frames');s.silence=s.context.createGain();s.silence.gain.value=0;s.input.connect(s.mic);s.mic.connect(s.silence).connect(s.context.destination);
    const down=resampler(s.context.sampleRate,16000);s.up=resampler(24000,s.context.sampleRate);s.player=new AudioWorkletNode(s.context,'conversation-pcm',{numberOfInputs:0,numberOfOutputs:1,outputChannelCount:[1]});s.player.connect(s.context.destination);
-   s.mic.port.onmessage=({data})=>{if(current===s&&epoch===generation)api.audio(s.id,down(data));};s.player.port.onmessage=({data})=>{if(current===s&&epoch===generation)api.report({id:s.id,...data});};
+   // Verify real input and output processing, including a silent microphone.
+   // Creating nodes alone does not prove that the audio device is running.
+   const ready=()=>{if(!s.ready&&s.graphReady&&s.inputReady&&s.outputReady&&s.context.state==='running'){s.ready=true;api.report({id:s.id,type:'ready'});}};
+   s.mic.port.onmessage=({data})=>{if(current!==s||epoch!==generation)return;const samples=down(data);if(samples.length&&samples.every(Number.isFinite)){s.inputReady=true;ready();if(s.ready)api.audio(s.id,samples);}};
+   s.player.port.onmessage=({data})=>{if(current!==s||epoch!==generation)return;if(data.type==='ready'){s.outputReady=true;ready();}else api.report({id:s.id,...data});};
    // A media/device focus change (including music/Bluetooth playback) may
    // suspend the shared audio context. Resume it without restarting the mic or
    // changing any system/player volume. Never run concurrent resume requests.
    const resume=async()=>{if(current!==s||epoch!==generation||s.resuming||s.context.state==='running'||s.context.state==='closed')return;s.resuming=true;try{await s.context.resume();}catch{}finally{s.resuming=false;}};s.context.onstatechange=()=>void resume();s.resumeTimer=setInterval(()=>void resume(),1000);
-   s.stream.getAudioTracks()[0].onended=()=>{if(current===s){api.report({id:s.id,type:'error',message:'麦克风已断开'});void release();}};api.report({id:s.id,type:'ready'});
+   s.stream.getAudioTracks()[0].onended=()=>{if(current===s){api.report({id:s.id,type:'error',message:'麦克风已断开'});void release();}};s.graphReady=true;ready();
   }catch{if(current===s){api.report({id:s.id,type:'error',message:'无法打开麦克风，请检查系统权限与输入设备'});await release();}}
  }
  api.onCommand(m=>{if(m.type==='start'){const epoch=++generation;queue=queue.then(()=>start(m,epoch)).catch(()=>{});return;}if(m.type==='stop'){generation++;queue=queue.then(async()=>{await release();api.report({id:m.id,type:'stopped'});}).catch(()=>{});return;}const s=current;if(!s?.player||s.id!==m.id)return;

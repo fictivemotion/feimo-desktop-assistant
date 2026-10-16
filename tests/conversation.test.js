@@ -1,13 +1,15 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),{EventEmitter}=require('node:events');
-const {Conversation,MODEL,URL,config,VOICES,GREETING,FAREWELL}=require('../lib/voice/conversation');
+const {Conversation,MODEL,URL,config,VOICES,CONNECTING,GREETING,FAREWELL}=require('../lib/voice/conversation');
 const tick=()=>new Promise(setImmediate);
-async function fixture(options={}){let ws;const commands=[],ended=[],changes=[];let restored=0;
+async function fixture({ready=true,...options}={}){let ws;const commands=[],ended=[],changes=[];let restored=0;
  const c=new Conversation({settings:{get:()=>({})},getSecret:async()=>'<test credential>',socketFactory:(url,opts)=>{ws=new EventEmitter();Object.assign(ws,{url,opts,readyState:1,bufferedAmount:0,sent:[],send:v=>ws.sent.push(JSON.parse(v)),terminate:()=>{ws.readyState=3;}});return ws;},send:m=>commands.push(m),onChange:s=>changes.push(s),onEnd:m=>ended.push(m),afterStop:()=>restored++,...options});
- await c.start();ws?.emit('open');return {c,ws,commands,ended,changes,restored:()=>restored};
+ await c.start();ws?.emit('open');if(ready)await makeReady(c);return {c,ws,commands,ended,changes,restored:()=>restored};
 }
-test('Qianwen Audio 3.1 uses smart_turn, the first-session voice and no workspace endpoint',async()=>{const {c,ws}=await fixture();assert.ok(ws.url.startsWith(URL));assert.ok(ws.url.endsWith(MODEL));const session=ws.sent[0].session;assert.deepEqual(session.turn_detection,{type:'smart_turn'});assert.equal(session.voice,'longanqian_v3.1');assert.equal(session.input_audio_format,'pcm');assert.equal(c.state().text,GREETING);assert.equal(VOICES.length,13);assert.throws(()=>config({voice:'unknown'}));await c.stop();});
-test('audio waits for session update and microphone readiness; wrong-session frames are rejected',async()=>{const {c,ws,commands}=await fixture();c.audio(c.state().id,[.1]);assert.equal(ws.sent.length,1);c.message({type:'session.updated'});await tick();assert.equal(commands.at(-1).type,'start');c.report({type:'ready',id:c.state().id});c.audio('stale',[.1]);c.audio(c.state().id,[NaN]);c.audio(c.state().id,[.1,-.1]);assert.equal(ws.sent.at(-1).type,'input_audio_buffer.append');assert.equal(Buffer.from(ws.sent.at(-1).audio,'base64').length,4);await c.stop();});
+async function makeReady(c){c.message({type:'session.updated'});await tick();c.report({type:'ready',id:c.state().id});}
+
+test('Qianwen Audio 3.1 uses smart_turn, the first-session voice and no workspace endpoint',async()=>{const {c,ws}=await fixture({ready:false});assert.ok(ws.url.startsWith(URL));assert.ok(ws.url.endsWith(MODEL));const session=ws.sent[0].session;assert.deepEqual(session.turn_detection,{type:'smart_turn'});assert.equal(session.voice,'longanqian_v3.1');assert.equal(session.input_audio_format,'pcm');assert.equal(c.state().text,CONNECTING);assert.equal(VOICES.length,13);assert.throws(()=>config({voice:'unknown'}));await c.stop();});
+test('audio waits for session update and microphone readiness; wrong-session frames are rejected',async()=>{const {c,ws,commands}=await fixture({ready:false});c.audio(c.state().id,[.1]);assert.equal(ws.sent.length,1);c.message({type:'session.updated'});await tick();assert.equal(commands.at(-1).type,'start');c.report({type:'ready',id:c.state().id});c.audio('stale',[.1]);c.audio(c.state().id,[NaN]);c.audio(c.state().id,[.1,-.1]);assert.equal(ws.sent.at(-1).type,'input_audio_buffer.append');assert.equal(Buffer.from(ws.sent.at(-1).audio,'base64').length,4);await c.stop();});
 test('streaming ASR replaces stash and late ASR final cannot overwrite assistant output',async()=>{const {c}=await fixture();c.message({type:'input_audio_buffer.speech_started',item_id:'u'});c.message({type:'conversation.item.input_audio_transcription.delta',item_id:'u',text:'你好',stash:'斐'});assert.equal(c.state().text,'你好斐');c.message({type:'conversation.item.input_audio_transcription.delta',item_id:'u',text:'你好斐墨',stash:''});assert.equal(c.state().text,'你好斐墨');c.message({type:'response.created',response:{id:'r'}});c.message({type:'response.audio_transcript.delta',response_id:'r',delta:'你好，我是斐墨'});c.message({type:'conversation.item.input_audio_transcription.completed',item_id:'u',transcript:'你好斐墨'});assert.equal(c.state().text,'你好，我是斐墨');assert.equal(c.state().userText,'你好斐墨');await c.stop();});
 test('semantic interruption flushes once and old response audio/text/done are ignored',async()=>{const {c,commands}=await fixture();c.message({type:'response.created',response:{id:'old'}});c.message({type:'response.audio.delta',response_id:'old',delta:'AAAA'});c.message({type:'input_audio_buffer.speech_started',item_id:'u2'});const count=commands.length;c.message({type:'response.audio.delta',response_id:'old',delta:'AAAA'});c.message({type:'response.audio_transcript.delta',response_id:'old',delta:'stale'});c.message({type:'response.done',response:{id:'old',status:'cancelled'}});assert.equal(commands.length,count);assert.equal(c.state().phase,'listening');assert.equal(commands.at(-1).type,'flush');c.message({type:'response.created',response:{id:'new'}});assert.equal(c.state().replyId,'new');await c.stop();});
 test('ambient/backchannel transcription does not interrupt active playback or reset idle',async()=>{const {c,commands}=await fixture();c.message({type:'response.created',response:{id:'r'}});c.message({type:'response.audio.delta',response_id:'r',delta:'AAAA'});const count=commands.length;c.message({type:'conversation.item.ambient_audio_transcription.delta',text:'嗯'});c.message({type:'conversation.item.ambient_audio_transcription.completed',transcript:'啊'});assert.equal(c.state().phase,'speaking');assert.equal(commands.length,count);await c.stop();});
@@ -16,3 +18,43 @@ test('stop disposes socket/capture, restores once and rejects late callbacks',as
 test('stop during credential/proxy await cannot create a late connection',async()=>{let resolveKey,connected=0;const c=new Conversation({settings:{get:()=>({})},getSecret:()=>new Promise(r=>resolveKey=r),socketFactory:()=>{connected++;}});const starting=c.start();await tick();await c.stop();resolveKey('test');await starting;assert.equal(connected,0);assert.equal(c.state().active,false);});
 test('network backpressure and malformed microphone frames stay bounded',async()=>{const {c,ws,ended}=await fixture();c.report({id:c.state().id,type:'ready'});ws.bufferedAmount=2*1024*1024;c.audio(c.state().id,[.1]);await tick();assert.equal(c.state().active,false);assert.match(ended[0].text,/积压/);assert.equal(ended[0].error,true);});
 test('long playback refreshes the watchdog; the memory limit preserves the session and text',async()=>{const {c,commands}=await fixture();const id=c.state().id;c.report({id,type:'ready'});c.message({type:'response.created',response:{id:'r'}});c.message({type:'response.audio.delta',response_id:'r',delta:'AAAA'});const timer=c.turnTimer;c.report({id,type:'progress',responseId:'old'});assert.equal(c.turnTimer,timer);c.report({id,type:'progress',responseId:'r'});assert.notEqual(c.turnTimer,timer);c.report({id,type:'limited',responseId:'r'});const count=commands.length;c.message({type:'response.audio.delta',response_id:'r',delta:'AAAA'});assert.equal(commands.length,count);c.message({type:'response.audio_transcript.delta',response_id:'r',delta:'保留完整的文字回答'});c.message({type:'response.done',response:{id:'r',status:'completed'}});assert.equal(c.state().active,true);assert.equal(c.state().phase,'waiting');assert.equal(c.state().text,'保留完整的文字回答');c.message({type:'response.created',response:{id:'r2'}});c.message({type:'response.audio.delta',response_id:'r2',delta:'AAAA'});assert.equal(c.playing,true);await c.stop();});
+
+
+test('greeting waits for server acknowledgement and a running audio graph, once only',async()=>{
+ const {c,ws,commands,changes}=await fixture({ready:false});const id=c.state().id;
+ c.report({id,type:'ready'});c.message({type:'response.created',response:{id:'too-early'}});
+ assert.equal(c.state().phase,'connecting');assert.equal(c.state().text,CONNECTING);assert.equal(c.state().connectionStage,'session');
+ c.message({type:'session.updated'});c.message({type:'session.updated'});await tick();
+ assert.equal(commands.filter(m=>m.type==='start').length,1);assert.equal(c.state().connectionStage,'audio');assert.equal(c.state().text,CONNECTING);
+ c.report({id:'stale',type:'ready'});assert.equal(c.ready,false);
+ c.report({id,type:'ready'});assert.equal(c.state().text,GREETING);assert.equal(c.state().phase,'waiting');assert.equal(c.state().connectionStage,'ready');
+ const timer=c.idleTimer;c.message({type:'input_audio_buffer.speech_started'});c.report({id,type:'ready'});c.message({type:'session.updated'});
+ assert.equal(c.state().phase,'listening');assert.equal(c.state().text,'正在听你说…');assert.equal(commands.filter(m=>m.type==='start').length,1);
+ assert.equal(changes.filter(s=>s.role==='greeting').length,1);assert.ok(timer);await c.stop();assert.equal(ws.readyState,3);
+});
+
+test('repeated starts while connecting share the same session and do not request another device',async()=>{
+ const {c,commands}=await fixture({ready:false});const id=c.state().id;
+ await Promise.all([c.start(),c.start()]);assert.equal(c.state().id,id);await makeReady(c);assert.equal(commands.filter(m=>m.type==='start').length,1);await c.stop();
+});
+
+test('connection stages time out with specific failures and never show the service greeting',async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});
+ const stages=[['network',false,false,/连接超时/],['session',true,false,/会话未响应/],['audio',true,true,/播放通道未就绪/]];
+ for(const [stage,opened,acknowledged,error] of stages){
+  let ws;const changes=[];const c=new Conversation({settings:{get:()=>({})},getSecret:async()=>'<test>',connectTimeoutMs:100,sessionTimeoutMs:100,deviceTimeoutMs:100,onChange:s=>changes.push(s),socketFactory:()=>{ws=new EventEmitter();Object.assign(ws,{readyState:1,bufferedAmount:0,send:()=>{},terminate:()=>{ws.readyState=3;}});return ws;}});
+  await c.start();if(opened)ws.emit('open');if(acknowledged){c.message({type:'session.updated'});await tick();}
+  assert.equal(c.state().connectionStage,stage);t.mock.timers.tick(101);await tick();assert.equal(c.state().active,false);assert.match(c.state().error,error);assert.equal(changes.some(s=>s.text===GREETING),false);assert.equal(ws.readyState,3);
+ }
+});
+
+test('waiting does not consume idle time, and stopping rejects late preparation and readiness',async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});let prepared;
+ const {c,commands}=await fixture({ready:false,idleMs:20,beforeStart:()=>new Promise(r=>prepared=r)});const id=c.state().id;
+ t.mock.timers.tick(100);assert.equal(c.state().active,true);c.message({type:'session.updated'});await tick();
+ await c.stop();prepared();await tick();c.report({id,type:'ready'});assert.equal(c.state().active,false);assert.equal(c.state().text,FAREWELL);assert.equal(commands.some(m=>m.type==='start'),false);
+});
+
+test('a socket closing or failing during setup cannot announce readiness',async()=>{
+ const {c,ws,changes}=await fixture({ready:false});c.message({type:'session.updated'});await tick();ws.readyState=3;ws.emit('close');c.report({id:c.state().id,type:'ready'});await tick();assert.equal(c.state().phase,'error');assert.equal(changes.some(s=>s.text===GREETING),false);
+});

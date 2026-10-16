@@ -4,7 +4,7 @@
   const clock = ms => {const n=Math.ceil(Math.max(0,ms||0)/1000);return `${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`;};
   function activities(s,now=Date.now()) {
     const rows=[],v=s.voice||{},f=s.focus?.active,m=s.music||{},requests=s.bridge?.requests||[];
-    if(s.conversation?.active)rows.push({id:'conversation',name:'语音对话',line:s.conversation.text||'天才斐墨，为您服务🌹'});
+    if(s.conversation?.active)rows.push({id:'conversation',name:'语音对话',line:s.conversation.text||(s.conversation.phase==='connecting'?'稍等稍等，容我戴个耳机🎧':'天才斐墨，为您服务🌹')});
     if(v.active)rows.push({id:'voice',name:'斐墨语音',line:v.message||'正在听写'});
     if(requests.length)rows.push({id:'attention',name:'等待你的决定',line:`${requests.length} 项工具操作 / 问题`});
     if(f)rows.push({id:'focus',name:s.focus.labels?.find(l=>l.id===f.labelId)?.name||'专注计时',line:clock(f.remainingMs)+(f.status==='paused'?' · 已暂停':' · 专注中')});
