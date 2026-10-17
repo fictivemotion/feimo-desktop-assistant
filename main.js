@@ -69,8 +69,8 @@ if (!gotLock) {
 function bootstrap() {
   paths.init(app);
   const bus = new EventBus();
-  let island=null,quitting=false,pendingWorkbarShow=false;
-  function sendWorkbar(channel,data){for(const win of [workbarWin,island?.win])if(alive(win))win.webContents.send(channel,data);}
+  let island=null,desktopWidgets=null,quitting=false,pendingWorkbarShow=false;
+  function sendWorkbar(channel,data){desktopWidgets?.broadcast(channel,data);for(const win of [workbarWin,island?.win])if(alive(win))win.webContents.send(channel,data);}
 
   // ---------- 设置与密钥 ----------
   const settings = new JsonStore(paths.settingsFile(), {
@@ -836,6 +836,11 @@ function bootstrap() {
         { label: paused ? `提醒已暂停（${Math.ceil((scheduler.pausedUntil - Date.now()) / 60000)} 分钟后恢复）` : '提醒运行中', enabled: false },
         { label: '暂停提醒 1 小时', enabled: !paused, click: () => { scheduler.pause(60); rebuild(); } },
         { type: 'separator' },
+        { label: '桌面卡片', submenu:[
+          ...Object.entries(require('./lib/desktop-widgets').TYPES).map(([kind,type])=>({label:'新建'+type.title,click:()=>{try{desktopWidgets.create(kind);}catch(error){island?.notice({text:error.message,scene:'attention'});}}})),
+          {type:'separator'},{label:'显示卡片',click:()=>desktopWidgets?.showAll(true)},{label:'隐藏全部卡片',click:()=>desktopWidgets?.showAll(false)},
+          {label:'管理桌面卡片',click:()=>{showWorkbar('settings');sendWorkbar('widgets:openSettings');}},
+        ] },
         { label: '收起顶部助手', click:()=>island?.hide() },
         { label: '设置', click: () => showWorkbar('settings') },
         { type: 'separator' },
@@ -1443,6 +1448,16 @@ function bootstrap() {
     });
     island=new IslandHost({electron:require('electron'),settings,dir:paths.dataDir(),getSecret,setSecret,registry,getPetState:()=>currentPet,getFocus:()=>focus.view(),getVoice:()=>voice?.state(),getConversation:()=>conversation?.state()||{active:false},getSoundscape:()=>soundscape.view(),getTranslation:()=>translator.state(),ocr:file=>ocr.recognize(file),onArchive:r=>showPromptCard({kind:'archive',title:r.count>1?'这 '+r.count+' 个文件统一放在哪里？':'这份文件放在哪里？',text:r.name,subtitle:r.reason,archive:r},3),onSaved:text=>speak(text,{force:true}),showWorkbar,onUIChange:broadcastPetState,onMode:mode=>{if(mode==='island'){pendingWorkbarShow=false;workbarWin?.hide();petWin?.hide();speechWin?.hide();quickWin?.hide();}else if(alive(petWin))petWin.showInactive();}});
     void island.start().catch(()=>console.error('[island] startup failed'));
+    desktopWidgets=new(require('./lib/desktop-widgets').DesktopWidgets)({electron:require('electron'),dir:paths.dataDir(),managerAllowed:sender=>[workbarWin,island?.win].some(w=>w?.webContents===sender),onChange:value=>sendWorkbar('widgets:listChanged',value),actions:{
+      calendarView,calendarAdd:item=>{calendar.create({...item,reminderOffsets:item?.reminderOffsets??settings.get('calendar',{}).defaultReminderOffsets??[15]});calendarChanged();return calendarView();},
+      calendarUpdate:({source,externalId,item,scope,recurrenceInstanceId}={})=>{calendar.update(source,externalId,item,{scope,recurrenceInstanceId});calendarChanged();return calendarView();},
+      calendarRemove:({source,externalId,scope,recurrenceInstanceId}={})=>{calendar.remove(source,externalId,{scope,recurrenceInstanceId});calendarChanged();return calendarView();},
+      calendarCategorySave:value=>{const result=calendar.saveCategory(value);calendarChanged();return result;},calendarPlan:value=>calendarPlanner.plan(value),calendarPlanCancel:id=>{calendarPlanner.cancel(id);return true;},
+      files:()=>island.files.view(),fileOpen:id=>{shell.showItemInFolder(island.files.pathFor(id));return true;},openFiles:()=>showWorkbar('files'),openSchedule:()=>showWorkbar('schedule'),
+      notes:()=>structuredClone(requireToolbox().data.notes),noteSave:value=>{const note=requireToolbox().saveNote(value);toolboxChanged();return note;},noteDelete:id=>{requireToolbox().deleteNote(id);toolboxChanged();return true;},
+    }});
+    const originalFilesChanged=island.files.onChange;island.files.onChange=()=>{originalFilesChanged();desktopWidgets.broadcast('files:changed');};desktopWidgets.start();
+
     const t = createTray();
     trayRebuild = t.rebuild;
 
@@ -1491,7 +1506,7 @@ function bootstrap() {
     powerMonitor.on('unlock-screen',restoreAssistant);
   });
 
-  app.on('before-quit',()=>{translator.dispose();quitting=true;});
+  app.on('before-quit',()=>{translator.dispose();quitting=true;desktopWidgets?.stop();});
   app.on('will-quit', () => {
     calendarPlanner.stop();captureHost?.stop();captureRuntime.stop();
     island?.stop();

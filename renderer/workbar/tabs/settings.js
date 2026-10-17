@@ -6,9 +6,10 @@
   let settings = null;
   let pets = [];
 
-  let building=null;
+  let building=null,desktopPanel=null,selectGroup=null;
   function build(){if(building)return building;building=render().catch(error=>{view.replaceChildren();UI.toast('设置加载失败：'+error.message,true);}).finally(()=>{building=null;});return building;}
   async function render() {
+    desktopPanel?.destroy();desktopPanel=null;
     settings = await api.getSettings();
     pets = await api.getPets();
     const hasKey = await api.hasSecret('llmApiKey');
@@ -221,7 +222,8 @@
       preview.append(image,close);document.body.append(preview);preview.addEventListener('close',()=>preview.remove());preview.addEventListener('click',e=>{if(e.target===preview)preview.close()});preview.showModal();
     }));
     if(edition.coding===false)view.querySelector('#st-mute')?.closest('.settings-section')?.remove();
-    const categories = [['general','常规'],['model','模型'],['shortcuts','快捷键'],['connections','连接'],['privacy','隐私'],['support','赞赏']];
+    const desktopSection=document.createElement('section');desktopSection.className='settings-section';desktopSection.dataset.group='desktop';desktopSection.innerHTML='<h4>桌面卡片</h4><div class="desktop-widget-manager"></div>';view.append(desktopSection);desktopPanel=window.FeimoDesktopSettings?.mount(desktopSection.lastElementChild,{api});
+    const categories = [['desktop','桌面卡片'],['general','常规'],['model','模型'],['shortcuts','快捷键'],['connections','连接'],['privacy','隐私'],['support','赞赏']];
     const nav = document.createElement('nav'); nav.className = 'settings-nav'; nav.setAttribute('aria-label', '设置分类');
     const connectionSection=document.createElement('section');connectionSection.className='settings-section';connectionSection.innerHTML='<h4>服务连接</h4><div class="settings-connections-panel"></div>';view.append(connectionSection);await FeimoConnections.mount(connectionSection.lastElementChild);const topTools=connectionSection.querySelector('.connection-settings>.card'),topSection=document.createElement('section');topSection.className='settings-section';topSection.dataset.group='general';topSection.innerHTML='<h4>工作台导航</h4><p class="hint">选择工作台中显示的栏目；语音、倒计时等活动仍会自动显示在顶部精灵旁。</p>';topTools.querySelector('h3')?.remove();topSection.append(topTools);topSection.className='settings-subsection';topSection.querySelector('h4').outerHTML='<h5>工作台栏目</h5>';view.querySelector('#st-top-sprite-size').closest('.settings-section').append(topSection);const sections = [...view.querySelectorAll('.settings-section')];
     sections.forEach(section => {
@@ -233,6 +235,7 @@
       nav.querySelectorAll('button').forEach(button => { button.classList.toggle('active', button.dataset.settingsGroup === group); button.setAttribute('aria-pressed', button.dataset.settingsGroup === group); });
       view.scrollTop = 0;
     }
+    selectGroup=showGroup;
     for (const [id,label] of categories) {
       const button = document.createElement('button'); button.type = 'button'; button.dataset.settingsGroup = id; button.textContent = label;
       button.addEventListener('click', () => showGroup(id)); nav.appendChild(button);
@@ -395,5 +398,6 @@
     return m2 ? m2[1] : s;
   }
 
+  api.onDesktopWidgetSettings?.(async()=>{await build();selectGroup?.('desktop');});
   window.TABS.settings = { build, onShown: () => { if (!view.innerHTML) build(); } };
 })();
