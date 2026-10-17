@@ -48,7 +48,7 @@ contextBridge.exposeInMainWorld('api', {
   soundscapeCommand:data=>ipcRenderer.invoke('soundscape:command',data),
   onSoundscapeChanged:cb=>ipcRenderer.on('soundscape:changed',(_e,value)=>cb(value)),
   onDesktopWidgetSettings:cb=>ipcRenderer.on('widgets:openSettings',()=>cb()),
-  desktopWidgets:()=>ipcRenderer.invoke('widgets:list'),desktopWidgetCreate:kind=>ipcRenderer.invoke('widgets:create',kind),desktopWidgetUpdate:(id,patch)=>ipcRenderer.invoke('widgets:update',{id,patch}),desktopWidgetRemove:id=>ipcRenderer.invoke('widgets:remove',id),desktopWidgetsShowAll:on=>ipcRenderer.invoke('widgets:showAll',on),
+  desktopWidgetsArrange:()=>ipcRenderer.invoke('widgets:arrange'),desktopWidgets:()=>ipcRenderer.invoke('widgets:list'),desktopWidgetCreate:kind=>ipcRenderer.invoke('widgets:create',kind),desktopWidgetUpdate:(id,patch)=>ipcRenderer.invoke('widgets:update',{id,patch}),desktopWidgetRemove:id=>ipcRenderer.invoke('widgets:remove',id),desktopWidgetsShowAll:on=>ipcRenderer.invoke('widgets:showAll',on),
   onDesktopWidgetsChanged:cb=>{const handler=(_e,value)=>cb(value);ipcRenderer.on('widgets:listChanged',handler);return ()=>ipcRenderer.removeListener('widgets:listChanged',handler);},
   // 设置
   getSettings: () => ipcRenderer.invoke('settings:get'),

@@ -35,5 +35,5 @@
       const files=ordered(data.files.filter(f=>(!p||f.projectId===p.id)&&(!matched||matched.has(f.id))&&(view.query||!p||!view.folder||(f.folderId||'')===view.folder)));const grid=el('div',null,'file-grid');for(const f of files)grid.append(fileRow(f));list.append(grid);if(!files.length)list.append(el('div',view.query?'没有匹配的资料':'此文件夹还没有资料。拖入文件或网址即可归档。','empty'));paint();}
     const searchNow=async()=>{const version=++queryVersion;view.query=search.value;const rows=view.query?await api.fileSearch(view.query):null;if(version!==queryVersion)return;matched=rows?new Set(rows.map(f=>f.id)):null;render();};search.oninput=()=>{clearTimeout(timer);timer=setTimeout(()=>run(searchNow),120);};sort.onchange=()=>{view.sort=sort.value;render();};render();if(view.query)run(searchNow);
   }
-  window.FileLibraryUI={mount,choose};
+  window.FileLibraryUI={mount,choose,folderArt,fileIcon};
 })();
