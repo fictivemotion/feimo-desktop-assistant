@@ -1453,7 +1453,7 @@ function bootstrap() {
       calendarUpdate:({source,externalId,item,scope,recurrenceInstanceId}={})=>{calendar.update(source,externalId,item,{scope,recurrenceInstanceId});calendarChanged();return calendarView();},
       calendarRemove:({source,externalId,scope,recurrenceInstanceId}={})=>{calendar.remove(source,externalId,{scope,recurrenceInstanceId});calendarChanged();return calendarView();},
       calendarCategorySave:value=>{const result=calendar.saveCategory(value);calendarChanged();return result;},calendarPlan:value=>calendarPlanner.plan(value),calendarPlanCancel:id=>{calendarPlanner.cancel(id);return true;},
-      files:()=>island.files.view(),fileOpen:id=>{shell.showItemInFolder(island.files.pathFor(id));return true;},openFiles:()=>showWorkbar('files'),openSchedule:()=>showWorkbar('schedule'),
+      files:()=>island.files.view(),fileBrowse:value=>island.files.browse(value),fileUnlink:id=>island.files.unlinkFolder(id),fileLinkFolder:async({projectId}={})=>{const r=await dialog.showOpenDialog({title:'引入外部文件夹（直接引用）',properties:['openDirectory']});return r.canceled?null:island.files.linkFolder({projectId,directory:r.filePaths[0]});},fileOpen:id=>{shell.showItemInFolder(island.files.pathFor(id));return true;},openFiles:()=>showWorkbar('files'),openSchedule:()=>showWorkbar('schedule'),
       notes:()=>structuredClone(requireToolbox().data.notes),noteSave:value=>{const note=requireToolbox().saveNote(value);toolboxChanged();return note;},noteDelete:id=>{requireToolbox().deleteNote(id);toolboxChanged();return true;},
     }});
     const originalFilesChanged=island.files.onChange;island.files.onChange=()=>{originalFilesChanged();desktopWidgets.broadcast('files:changed');};desktopWidgets.start();

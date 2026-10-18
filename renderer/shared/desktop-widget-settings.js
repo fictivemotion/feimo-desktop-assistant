@@ -10,15 +10,17 @@
   const range=(title,key,min,max,step)=>{const row=el('div',undefined,'dw-range'),input=el('input'),output=el('output');input.type='range';Object.assign(input,{min,max,step,value:item[key]});const paint=()=>output.textContent=['opacity','materialIntensity'].includes(key)?Math.round(input.value*100)+'%':input.value+' px';input.oninput=paint;input.onchange=()=>save({[key]:Number(input.value)});row.append(input,output);field(title,row);input.setAttribute('aria-label',title);paint();};
   range('背景不透明度','opacity',0,1,.05);if(!['transparent','solid',undefined].includes(item.material))range('材质浓度','materialIntensity',0,1,.05);range('文字大小','fontSize',12,20,1);range('卡片圆角','radius',0,48,2);
   const theme=el('select');for(const [id,name]of [['light','浅色卡片 · 深色文字'],['dark','深色卡片 · 浅色文字'],['auto','跟随系统明暗']])theme.append(new Option(name,id));theme.value=item.theme;theme.onchange=()=>save({theme:theme.value});field('明暗主题',theme);
-  for(const [key,title]of [['alwaysOnTop','始终置顶'],['locked','锁定位置与大小'],['snap','吸附屏幕与相邻卡片'],['autoGroup','贴近卡片时自动组合']]){const label=el('label',undefined,'dw-check'),input=el('input');input.type='checkbox';input.checked=item[key];input.onchange=()=>save({[key]:input.checked});label.append(input,el('span',title));form.append(label);}
+  for(const [key,title]of [['alwaysOnTop','始终置顶'],['locked','锁定位置与大小'],['dockEnabled','左右贴边自动收为吸附胶囊'],['snap','吸附屏幕与相邻卡片'],['autoGroup','贴近卡片时自动组合']]){const label=el('label',undefined,'dw-check'),input=el('input');input.type='checkbox';input.checked=item[key];input.onchange=()=>save({[key]:input.checked});label.append(input,el('span',title));form.append(label);}
   const choice=(title,key,values)=>{const input=el('select');for(const [id,name]of values)input.append(new Option(name,id));input.value=item[key];input.onchange=()=>save({[key]:input.value});field(title,input);};
   choice('胶囊收起方式','collapseBehavior',[['manual','手动收起与展开'],['smart','离开自动收起 · 悬停展开']]);
   choice('胶囊宽度','capsuleWidthMode',[['independent','独立紧凑宽度'],['aligned','与展开卡片同宽']]);
   if(item.capsuleWidthMode!=='aligned')range('紧凑胶囊宽度','capsuleWidth',220,500,10);
   if(item.collapseBehavior==='smart'){const delay=el('select');for(const [n,label]of [[200,'0.2 秒'],[600,'0.6 秒'],[1200,'1.2 秒'],[3000,'3 秒'],[5000,'5 秒'],[10000,'10 秒']])delay.append(new Option(label,n));delay.value=item.collapseDelay||1200;delay.onchange=()=>save({collapseDelay:+delay.value});field('离开后多久收起',delay);}
-  if(item.groupId)form.append(el('p','已组合 '+(item.groupCount||'多')+' 张卡片 · 移动和宽度自动联动。组合中的胶囊保持同宽。','dw-material-hint'));
+  if(item.groupId)form.append(el('p','已组合 '+(item.groupCount||'多')+' 张卡片 · 移动和宽度自动联动。胶囊展开时相邻卡片自动让位，收起后归位。','dw-material-hint'));
+  if(item.dockSide)form.append(button('取消侧边吸附',()=>save({undock:true})));
+  if(item.kind==='files'){choice('文件夹图标样式','folderIconStyle',[['gallery','立体文件夹'],['compact','简洁小图标']]);range('文件夹图标大小','folderIconSize',32,200,8);}
   if(item.kind==='todo'){const days=el('select');for(const [id,name]of [[1,'今天'],[7,'未来 7 天'],[30,'未来 30 天'],[90,'未来 90 天']])days.append(new Option(name,id));days.value=item.days;days.onchange=()=>save({days:Number(days.value)});field('待办显示范围',days);}
-  const hint=el('p',item.nativeMaterials===false?'当前系统使用兼容着色外观；原生云母与亚克力需要 Windows 11 22H2 或以上。':'云母取景于壁纸；亚克力呈现磨砂效果。背景透明度与材质浓度可独立调整。','dw-material-hint');form.append(hint);
+  const hint=el('p',item.nativeSupported===true&&item.nativeMaterials===false?'材质正在恢复，透明度保持当前设置。':item.nativeMaterials===false?'当前系统使用兼容着色外观；原生云母与亚克力需要 Windows 11 22H2 或以上。':'云母取景于壁纸；亚克力呈现磨砂效果。背景透明度与材质浓度可独立调整。','dw-material-hint');form.append(hint);
   return form;
  }
  function mount(root,{api=window.api}={}){let disposed=false,state={widgets:[],hidden:false},generation=0;const heading=el('p','把常看的内容放在桌面。可创建多张卡片，独立调整透明度、位置与大小。','hint'),create=el('div',undefined,'dw-create-grid'),actions=el('div',undefined,'dw-manager-actions'),list=el('div',undefined,'dw-manager-list'),status=el('p',undefined,'dw-status');status.setAttribute('role','status');root.replaceChildren(heading,create,actions,list,status);
