@@ -13,6 +13,7 @@ const {IslandHost}=require('./lib/island-host');
 const {CaptureHost}=require('./lib/capture-host');
 const {CaptureVision,DEFAULTS:CAPTURE_DEFAULTS,config:captureConfig}=require('./lib/capture-vision');
 const {CaptureRuntime}=require('./lib/capture-runtime');
+const {IdleRelease}=require('./lib/idle-release');
 const fs = require('fs');
 
 const paths = require('./lib/paths');
@@ -213,7 +214,7 @@ function bootstrap() {
   // ---------- 窗口 ----------
   let petWin = null, workbarWin = null, speechWin = null, quickWin = null, tray = null, soundscapeWin = null, voiceWin = null;
   let conversation=null,conversationWin=null,conversationReady=false,pendingConversationCommand=null;const conversationStopWaiters=new Map();
-  let voice=null,voiceDismissTimer=null,voicePhase='idle',voiceReady=false,pendingVoiceCapture=null,voiceStateSentAt=0,voiceDisplayId=null;
+  let voice=null,voiceLoad=null,voiceDismissTimer=null,voicePhase='idle',voiceReady=false,pendingVoiceCapture=null,voiceStateSentAt=0,voiceDisplayId=null;
   const voiceModels=new VoiceModels(path.join(paths.dataDir(),'voice-models','paraformer-bilingual'),{fetcher:(url,options)=>net.fetch(url,options),onChange:()=>sendWorkbar('voice:changed',voice?.state())});
   const voiceNativeInput=new InputTarget(path.join(paths.dataDir(),'voice-input'));
   const voiceInput=new RendererTarget(voiceNativeInput,()=>{const focused=BrowserWindow.getFocusedWindow();return [workbarWin,quickWin,island?.win].some(w=>w&&w===focused)?focused.webContents:null;});
@@ -223,7 +224,10 @@ function bootstrap() {
   const voiceShortcutRegistered=()=>isModifierShortcut(voice?.config().shortcut)?modifierShortcut.ready:globalShortcut.isRegistered(voice?.config().shortcut||VOICE_DEFAULTS.shortcut);
   const voiceStopWaiters=new Map();
   function confirmVoiceStopped(id){const waiters=voiceStopWaiters.get(id)||[];voiceStopWaiters.delete(id);for(const waiter of waiters){clearTimeout(waiter.timer);waiter.resolve();}}
+  const voiceIdle=new IdleRelease({busy:()=>!!voice?.active()||!!voiceWin?.isVisible()||voiceStopWaiters.size>0,release:()=>{const win=voiceWin;voiceWin=null;voiceReady=false;pendingVoiceCapture=null;win?.destroy();}});
+  const conversationIdle=new IdleRelease({busy:()=>!!conversation?.state().active||conversationStopWaiters.size>0||!!pendingConversationCommand,release:()=>{const win=conversationWin;conversationWin=null;conversationReady=false;win?.destroy();}});
   function captureVoice(command){
+    if(command.type==='start'){voiceIdle.cancel();if(!alive(voiceWin))createVoiceWindow();}
     if(!voiceReady){pendingVoiceCapture=command;return;}
     let stopped;if(['stop','pause'].includes(command.type))stopped=new Promise(resolve=>{const waiter={resolve,timer:setTimeout(()=>confirmVoiceStopped(command.id),750)},waiters=voiceStopWaiters.get(command.id)||[];waiters.push(waiter);voiceStopWaiters.set(command.id,waiters);});
     voiceWin?.webContents.send('voice:capture',command);return stopped;
@@ -235,6 +239,7 @@ function bootstrap() {
   }
   function voiceChanged(state){
     if(!state)return;feedback.voice(conversation?.state().active?'listening':state.phase);island?.activity();island?.changed();const changed=state.phase!==voicePhase;voicePhase=state.phase;
+    if(state.active){voiceIdle.cancel();if(!alive(voiceWin))createVoiceWindow();}else voiceIdle.arm();
     voiceWin?.webContents.send('voice:changed',state);
     if(changed||Date.now()-voiceStateSentAt>160){sendWorkbar('voice:changed',state);voiceStateSentAt=Date.now();}
     if(changed){
@@ -252,6 +257,7 @@ function bootstrap() {
     }
   }
   function sendConversation(command){
+    if(command.type==='start')conversationIdle.cancel();
     if(!conversationReady){if(command.type==='start')pendingConversationCommand=command;else if(command.type==='stop')pendingConversationCommand=null;return;}
     let stopped;if(command.type==='stop')stopped=new Promise(resolve=>{const timer=setTimeout(()=>{conversationStopWaiters.delete(command.id);resolve();},1000);conversationStopWaiters.set(command.id,{resolve,timer});});
     conversationWin?.webContents.send('conversation:audioCommand',command);return stopped;
@@ -267,16 +273,19 @@ function bootstrap() {
     void conversationWin.loadFile(path.join(__dirname,'renderer','voice','conversation.html'));
   }
   function createVoiceWindow(){
+    voiceIdle.cancel();
     voiceWin=new BrowserWindow({width:300,height:60,show:false,frame:false,transparent:true,backgroundColor:'#00000000',resizable:false,movable:false,skipTaskbar:true,hasShadow:false,focusable:false,alwaysOnTop:true,webPreferences:{preload:path.join(__dirname,'preload','voice-preload.js'),contextIsolation:true,nodeIntegration:false,sandbox:true,backgroundThrottling:false,partition:'persist:feimo-voice'}});
     voiceWin.setAlwaysOnTop(true,'screen-saver');
     voiceWin.webContents.session.setPermissionRequestHandler((contents,permission,callback)=>{if(permission==='media')callback(contents===voiceWin?.webContents&&!!voice?.active());else callback(permission==='clipboard-sanitized-write');});
     voiceWin.webContents.session.setPermissionCheckHandler((contents,permission)=>permission==='media'?contents===voiceWin?.webContents&&!!voice?.active():permission==='clipboard-sanitized-write');
     voiceWin.webContents.setWindowOpenHandler(()=>({action:'deny'}));voiceWin.webContents.on('will-navigate',e=>e.preventDefault());
-    voiceWin.loadFile(path.join(__dirname,'renderer','voice','capsule.html'));
+    voiceLoad=voiceWin.loadFile(path.join(__dirname,'renderer','voice','capsule.html'));void voiceLoad.catch(()=>{});
     voiceWin.webContents.on('render-process-gone',()=>{voiceReady=false;void voice?.cancel();});
+    voiceWin.on('hide',()=>voiceIdle.arm());voiceWin.on('show',()=>voiceIdle.cancel());
     voiceWin.on('closed',()=>{voiceReady=false;voiceWin=null;void voice?.cancel();});
   }
-  const soundscape=new Soundscape({settings,send:state=>soundscapeWin?.webContents.send('soundscape:player',{...state,sounds:soundscapeCatalog.sounds}),onChange:value=>{sendWorkbar('soundscape:changed',value);quickWin?.webContents.send('soundscape:changed',value);broadcastPetState();if(value.error){island?.notice({title:'白噪音',text:value.error,scene:'failed'});playBloub('failed')}}});
+  const soundscapeCache=new(require('./lib/soundscape-cache').SoundscapeCache)({directory:path.join(app.getPath('userData'),'soundscape-cache'),sounds:soundscapeCatalog.sounds,fetcher:(url,options)=>net.fetch(url,options)});
+  const soundscape=new Soundscape({settings,send:state=>{soundscapeCache.keep(state.tracks.map(t=>t.id));soundscapeWin?.webContents.send('soundscape:player',{...state,sounds:soundscapeCatalog.sounds});},onChange:value=>{sendWorkbar('soundscape:changed',value);quickWin?.webContents.send('soundscape:changed',value);broadcastPetState();if(value.error){island?.notice({title:'白噪音',text:value.error,scene:'failed'});playBloub('failed')}}});
   function createSoundscapeWindow(){
     soundscapeWin=new BrowserWindow({show:false,width:200,height:100,webPreferences:{preload:path.join(__dirname,'preload','soundscape-preload.js'),autoplayPolicy:'no-user-gesture-required',sandbox:true,nodeIntegration:false,contextIsolation:true,backgroundThrottling:false}});
     soundscapeWin.webContents.setWindowOpenHandler(()=>({action:'deny'}));soundscapeWin.webContents.on('will-navigate',e=>e.preventDefault());
@@ -642,7 +651,7 @@ function bootstrap() {
     }, 1700);
   }
   app.on('second-instance',()=>{void app.whenReady().then(()=>{restoreAssistant();showWorkbar();});});
-  function restoreAssistant(){if(!alive(workbarWin))createWorkbarWindow();island?.visibility.reveal(true);island?.applyMode();}
+  function restoreAssistant(){if(settings.get('ui',{}).mode!=='island'&&!alive(workbarWin))createWorkbarWindow();island?.visibility.reveal(true);island?.applyMode();}
 
   // ---------- 宠物状态机（§4.2 优先级） ----------
   let uiListening = false;
@@ -975,7 +984,7 @@ function bootstrap() {
   ipc.on('conversation:audio',(event,data)=>{if(event.sender===conversationWin?.webContents)conversation?.audio(data?.id,data?.samples);});
   ipc.on('conversation:report',(event,data)=>{if(event.sender!==conversationWin?.webContents)return;if(data?.type==='stopped'){const waiter=conversationStopWaiters.get(data.id);if(waiter){clearTimeout(waiter.timer);conversationStopWaiters.delete(data.id);waiter.resolve();}}else conversation?.report(data);});
   ipc.handle('voice:state',()=>voice?.state());
-  ipc.handle('voice:devices',()=>voiceWin?.webContents.executeJavaScript("navigator.mediaDevices.enumerateDevices().then(list=>list.filter(d=>d.kind==='audioinput').map(d=>({deviceId:d.deviceId,label:d.label,kind:d.kind})))"));
+  ipc.handle('voice:devices',async()=>{if(!alive(voiceWin))createVoiceWindow();const win=voiceWin;await voiceLoad;voiceIdle.arm();return win.webContents.executeJavaScript("navigator.mediaDevices.enumerateDevices().then(list=>list.filter(d=>d.kind==='audioinput').map(d=>({deviceId:d.deviceId,label:d.label,kind:d.kind})))");});
   ipc.handle('voice:stats',()=>voiceStats.view());
   ipc.handle('voice:config',()=>({...VOICE_DEFAULTS,...settings.get('voice',{}),registered:voiceShortcutRegistered()}));
   ipc.handle('voice:save',async(_e,value)=>{
@@ -1081,6 +1090,7 @@ function bootstrap() {
   ipcMain.on('feedback:done',(e,id)=>{if(e.sender===soundscapeWin?.webContents)feedback.done(id);});
   ipcMain.on('soundscape:ready',e=>{if(e.sender===soundscapeWin?.webContents){feedback.configure();soundscapeWin.webContents.send('soundscape:player',{...soundscape.state,sounds:soundscapeCatalog.sounds});}});
   ipcMain.on('soundscape:report',(e,data)=>{if(e.sender===soundscapeWin?.webContents)soundscape.report(data||{})});
+  ipcMain.handle('soundscape:source',async(e,id,refresh)=>{if(e.sender!==soundscapeWin?.webContents)return {error:'无权加载音源'};try{return {url:await soundscapeCache.source(id,refresh===true)};}catch(error){return {error:error.message};}});
   ipc.handle('quick:quota', async () => {
     await refreshLimits();
     const card = quotaCard(registry.snapshot().limits?.codex);
@@ -1420,11 +1430,11 @@ function bootstrap() {
     screen.on('display-metrics-changed',()=>{if(voiceWin?.isVisible())positionVoice()});
     screen.on('display-removed',()=>{if(voiceWin?.isVisible())positionVoice()});
     secretsCache = loadSecrets();
-    voice=new VoiceService({settings,getSecret,models:voiceModels,input:voiceInput,output:new(require('./lib/voice/audio-isolation').AudioIsolation)({output:voiceOutput,soundscape}),fetcher:(url,options)=>net.fetch(url,options),connectOptions:async url=>{const resolved=await voiceWin.webContents.session.resolveProxy(url);const proxy=resolved.split(';').map(s=>s.trim()).find(s=>s.startsWith('PROXY ')||s.startsWith('HTTPS '));return proxy?{agent:new(require('https-proxy-agent').HttpsProxyAgent)('http://'+proxy.replace(/^\S+\s+/,''))}:{};},copy:text=>writeTextVerified(clipboard,text),onChange:voiceChanged,onBeforeCapture:()=>feedback.beforeVoice(),onComplete:(id,text,seconds)=>{voiceStats.record(id,text,seconds);sendWorkbar('voice:statsChanged',voiceStats.view());},capture:captureVoice});
+    voice=new VoiceService({settings,getSecret,models:voiceModels,input:voiceInput,output:new(require('./lib/voice/audio-isolation').AudioIsolation)({output:voiceOutput,soundscape}),fetcher:(url,options)=>net.fetch(url,options),connectOptions:async url=>{const resolved=await (voiceWin?.webContents.session||require('electron').session.defaultSession).resolveProxy(url);const proxy=resolved.split(';').map(s=>s.trim()).find(s=>s.startsWith('PROXY ')||s.startsWith('HTTPS '));return proxy?{agent:new(require('https-proxy-agent').HttpsProxyAgent)('http://'+proxy.replace(/^\S+\s+/,''))}:{};},copy:text=>writeTextVerified(clipboard,text),onChange:voiceChanged,onBeforeCapture:()=>feedback.beforeVoice(),onComplete:(id,text,seconds)=>{voiceStats.record(id,text,seconds);sendWorkbar('voice:statsChanged',voiceStats.view());},capture:captureVoice});
     conversation=new Conversation({settings,getSecret,send:sendConversation,
       connectOptions:async url=>{const resolved=await (conversationWin?.webContents.session||require('electron').session.defaultSession).resolveProxy(url);const proxy=resolved.split(';').map(x=>x.trim()).find(x=>/^(PROXY|HTTPS) /.test(x));return proxy?{agent:new(require('https-proxy-agent').HttpsProxyAgent)('http://'+proxy.replace(/^\S+\s+/,''))}:{};},
       beforeStart:()=>soundscape.suspendForVoice(),afterStop:()=>soundscape.resumeAfterVoice(),
-      onChange:state=>{feedback.voice(state.active?'listening':voice?.state().phase||'idle');sendWorkbar('conversation:changed',state);island?.activity();island?.changed();},
+      onChange:state=>{if(state.active)conversationIdle.cancel();else conversationIdle.arm();feedback.voice(state.active?'listening':voice?.state().phase||'idle');sendWorkbar('conversation:changed',state);island?.activity();island?.changed();},
       onEnd:({text,error})=>island?.notice({text,scene:error?'failed':'farewell',expiresAt:Date.now()+6000})});
     voice.conversationActive=()=>conversation?.state().active;
     try {
@@ -1434,16 +1444,10 @@ function bootstrap() {
     } catch (e) { toolboxError = e.message; }
     if (settings.get('system', {}).openAtLogin) windowsIntegration.setStartup(app, true);
 
-    createWorkbarWindow();
-    createSpeechWindow();
-    createQuickWindow();
+    if(settings.get('ui',{}).mode!=='island'){createWorkbarWindow();createSpeechWindow();createQuickWindow();}
     createSoundscapeWindow();
-    void captureRuntime.ensure(captureConfig(settings.get('capture',{}))).catch(()=>{});
-    createVoiceWindow();
-    captureHost=new CaptureHost({electron:require('electron'),dir:paths.dataDir(),settings,vision:captureVision,onStatus:topStatus,onResult:scene=>playBloub('completed',{sound:scene}),toolbox:requireToolbox,changed:toolboxChanged,overlays:()=>[petWin,workbarWin,speechWin,quickWin,soundscapeWin,voiceWin,island?.win]});captureHost.register();captureHost.startPointer();void captureHost.prewarm().catch(e=>console.warn("[capture] prewarm:",e.message));
-    // Warm up the tiny input helper without capturing a target or requesting microphone access.
-    voiceInput.prepare().catch(()=>{});voiceOutput.prepare().catch(()=>{});
-    if (focus.active) quickWin.webContents.once('did-finish-load', () => {
+    captureHost=new CaptureHost({electron:require('electron'),dir:paths.dataDir(),settings,vision:captureVision,onStatus:topStatus,onResult:scene=>playBloub('completed',{sound:scene}),toolbox:requireToolbox,changed:toolboxChanged,overlays:()=>[petWin,workbarWin,speechWin,quickWin,soundscapeWin,voiceWin,island?.win]});captureHost.register();captureHost.startPointer();
+    if (focus.active&&quickWin) quickWin.webContents.once('did-finish-load', () => {
       positionQuick(); quickWin.showInactive(); quickExpanded = false; quickWin.webContents.send('quick:expanded', false);
     });
     island=new IslandHost({electron:require('electron'),settings,dir:paths.dataDir(),getSecret,setSecret,registry,getPetState:()=>currentPet,getFocus:()=>focus.view(),getVoice:()=>voice?.state(),getConversation:()=>conversation?.state()||{active:false},getSoundscape:()=>soundscape.view(),getTranslation:()=>translator.state(),ocr:file=>ocr.recognize(file),onArchive:r=>showPromptCard({kind:'archive',title:r.count>1?'这 '+r.count+' 个文件统一放在哪里？':'这份文件放在哪里？',text:r.name,subtitle:r.reason,archive:r},3),onSaved:text=>speak(text,{force:true}),showWorkbar,onUIChange:broadcastPetState,onMode:mode=>{if(mode==='island'){pendingWorkbarShow=false;workbarWin?.hide();petWin?.hide();speechWin?.hide();quickWin?.hide();}else if(alive(petWin))petWin.showInactive();}});
@@ -1508,7 +1512,7 @@ function bootstrap() {
 
   app.on('before-quit',()=>{translator.dispose();quitting=true;desktopWidgets?.stop();});
   app.on('will-quit', () => {
-    calendarPlanner.stop();captureHost?.stop();captureRuntime.stop();
+    voiceIdle.dispose();conversationIdle.dispose();calendarPlanner.stop();captureHost?.stop();captureRuntime.stop();
     island?.stop();
     void conversation?.stop();conversationWin?.destroy();voice?.close();modifierShortcut.disable();clearTimeout(voiceDismissTimer);
     clearInterval(clipboardPoll);

@@ -233,6 +233,7 @@
   (async () => {
     edition=await api.appEdition?.()||{coding:true};document.body.classList.toggle('without-coding',edition.coding===false);
     switchTab('voice');
+    if(document.body.classList.contains('embedded'))parent.postMessage({type:'feimo:workbench-ready'},'*');
     refreshNextEvent();
     setInterval(refreshNextEvent, 60000);
   })();
