@@ -7,7 +7,10 @@ using System.Runtime.InteropServices;
 public static class FeimoWidgetMaterial {
  [DllImport("user32.dll")] static extern bool SetWindowCompositionAttribute(IntPtr hwnd, ref FeimoCompositionData data);
  public static bool Acrylic(IntPtr hwnd, bool enabled, bool dark) {
-  var policy=new FeimoAccentPolicy { State=enabled?4:0, Flags=0, Color=dark?0x01171d23u:0x01ffffffu };
+  // Accent 4's system luminance/fallback layer becomes opaque white on some
+  // Chromium transparent surfaces. Use the stable desktop blur primitive;
+  // the renderer supplies the independently adjustable acrylic tint and grain.
+  var policy=new FeimoAccentPolicy { State=enabled?3:0, Flags=2, Color=0 };
   IntPtr memory=Marshal.AllocHGlobal(Marshal.SizeOf(policy));
   try { Marshal.StructureToPtr(policy,memory,false); var data=new FeimoCompositionData { Attribute=19, Data=memory, Size=new UIntPtr((uint)Marshal.SizeOf(policy)) }; return SetWindowCompositionAttribute(hwnd,ref data); }
   catch { return false; } finally { Marshal.FreeHGlobal(memory); }
