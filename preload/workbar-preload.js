@@ -108,6 +108,7 @@ contextBridge.exposeInMainWorld('api', {
   onUsageUpdated: (cb) => ipcRenderer.on('usage:updated', (_e, u) => cb(u)),
   // 日程
   calendarView: range => ipcRenderer.invoke('calendar:view',range),
+  calendarComplete:value=>ipcRenderer.invoke('calendar:complete',value),
   calendarAdd: (item) => ipcRenderer.invoke('calendar:addLocal', item),
   calendarRemove: (source, externalId,options={}) => ipcRenderer.invoke('calendar:remove', { source, externalId,...options }),
   calendarCategorySave:value=>ipcRenderer.invoke('calendar:categorySave',value),

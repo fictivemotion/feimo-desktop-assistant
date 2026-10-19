@@ -813,11 +813,13 @@ function bootstrap() {
     }
   }
 
+  function calendarWithCompletion(item){return require('./lib/calendar/completion').decorate(withLocal(item),desktopWidgets?.store);}
+  function calendarComplete(value){const result=require('./lib/calendar/completion').set(calendar,desktopWidgets?.store,value);calendarChanged();return result;}
   function calendarView(range={}) {
     const month=new Date();month.setDate(1);month.setHours(0,0,0,0);month.setDate(month.getDate()-(month.getDay()+6)%7);
     const from=range.from?Date.parse(range.from):+month,to=range.to?Date.parse(range.to):from+42*86400000;
     if(!Number.isFinite(from)||!Number.isFinite(to)||to<=from||to-from>370*86400000)throw Error('日历范围无效，最多查询370天');
-    return {today:calendar.today().map(withLocal),upcoming:calendar.upcoming().slice(0,100).map(withLocal),items:calendar.occurrences(from,to).map(withLocal),series:calendar.all(),categories:calendar.categories(),planner:calendarPlanner.state(),revision:calendar.revision(),from:new Date(from).toISOString(),to:new Date(to).toISOString()};
+    return {today:calendar.today().map(calendarWithCompletion),upcoming:calendar.upcoming().slice(0,100).map(calendarWithCompletion),items:calendar.occurrences(from,to).map(calendarWithCompletion),series:calendar.all(),categories:calendar.categories(),planner:calendarPlanner.state(),revision:calendar.revision(),from:new Date(from).toISOString(),to:new Date(to).toISOString()};
   }
   function calendarChanged(){sendWorkbar('calendar:changed',calendarView());scheduler.tick();}
   const calendarPlanner=new(require('./lib/calendar/planner').CalendarPlanner)({calendar,settings,getSecret,fetcher:(url,options)=>net.fetch(url,options),onProgress:value=>{sendWorkbar('calendar:plannerProgress',value);const text=value.phase==='thinking'?'收到，正在规划中...✍️':value.phase==='completed'?'已帮你规划完成✅':value.phase==='error'?'规划未完成：'+value.message:value.phase==='cancelled'?'已停止规划':null;if(text)island?.notice({kind:'calendar-plan',text,summary:value.summary,scene:value.phase==='thinking'?'thinking':value.phase==='completed'?'completed':'attention',action:'schedule',actionLabel:'查看日程',expiresAt:Date.now()+(value.phase==='thinking'?90000:15000)});},onApplied:()=>calendarChanged()});
@@ -1404,6 +1406,7 @@ function bootstrap() {
   const calendarCaller=event=>{if(![workbarWin,island?.win,quickWin].some(win=>win?.webContents===event.sender))throw Error('此窗口不能修改日程');};
   ipc.handle('calendar:view',(_e,range)=>calendarView(range));
   ipc.handle('calendar:addLocal',(event,item)=>{calendarCaller(event);const value={...item,reminderOffsets:item?.reminderOffsets??settings.get('calendar',{}).defaultReminderOffsets??[15]};calendar.create(value);calendarChanged();return calendarView();});
+  ipc.handle('calendar:complete',(event,value)=>{calendarCaller(event);return calendarComplete(value);});
   ipc.handle('calendar:update',(event,{source,externalId,item,scope,recurrenceInstanceId}={})=>{calendarCaller(event);calendar.update(source,externalId,item,{scope,recurrenceInstanceId});calendarChanged();return calendarView();});
   ipc.handle('calendar:remove',(event,{source,externalId,scope,recurrenceInstanceId}={})=>{calendarCaller(event);calendar.remove(source,externalId,{scope,recurrenceInstanceId});calendarChanged();return calendarView();});
   ipc.handle('calendar:categorySave',(event,value)=>{calendarCaller(event);const item=calendar.saveCategory(value);calendarChanged();return item;});
@@ -1453,7 +1456,7 @@ function bootstrap() {
     island=new IslandHost({electron:require('electron'),settings,dir:paths.dataDir(),getSecret,setSecret,registry,getPetState:()=>currentPet,getFocus:()=>focus.view(),getVoice:()=>voice?.state(),getConversation:()=>conversation?.state()||{active:false},getSoundscape:()=>soundscape.view(),getTranslation:()=>translator.state(),ocr:file=>ocr.recognize(file),onArchive:r=>showPromptCard({kind:'archive',title:r.count>1?'这 '+r.count+' 个文件统一放在哪里？':'这份文件放在哪里？',text:r.name,subtitle:r.reason,archive:r},3),onSaved:text=>speak(text,{force:true}),showWorkbar,onUIChange:broadcastPetState,onMode:mode=>{if(mode==='island'){pendingWorkbarShow=false;workbarWin?.hide();petWin?.hide();speechWin?.hide();quickWin?.hide();}else if(alive(petWin))petWin.showInactive();}});
     void island.start().catch(()=>console.error('[island] startup failed'));
     desktopWidgets=new(require('./lib/desktop-widgets').DesktopWidgets)({electron:require('electron'),dir:paths.dataDir(),managerAllowed:sender=>[workbarWin,island?.win].some(w=>w?.webContents===sender),onChange:value=>sendWorkbar('widgets:listChanged',value),actions:{
-      calendarView,calendarAdd:item=>{calendar.create({...item,reminderOffsets:item?.reminderOffsets??settings.get('calendar',{}).defaultReminderOffsets??[15]});calendarChanged();return calendarView();},
+      calendarView,calendarComplete,onCompletionChanged:calendarChanged,calendarAdd:item=>{calendar.create({...item,reminderOffsets:item?.reminderOffsets??settings.get('calendar',{}).defaultReminderOffsets??[15]});calendarChanged();return calendarView();},
       calendarUpdate:({source,externalId,item,scope,recurrenceInstanceId}={})=>{calendar.update(source,externalId,item,{scope,recurrenceInstanceId});calendarChanged();return calendarView();},
       calendarRemove:({source,externalId,scope,recurrenceInstanceId}={})=>{calendar.remove(source,externalId,{scope,recurrenceInstanceId});calendarChanged();return calendarView();},
       calendarCategorySave:value=>{const result=calendar.saveCategory(value);calendarChanged();return result;},calendarPlan:value=>calendarPlanner.plan(value),calendarPlanCancel:id=>{calendarPlanner.cancel(id);return true;},
