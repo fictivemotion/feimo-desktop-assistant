@@ -85,3 +85,15 @@ body[data-top-state=capsule] #island-bubble{display:none}
 .bubble-music-controls{display:flex;gap:4px;flex:none;align-items:center}.bubble-music-controls[hidden],.bubble-music-tail[hidden],#island-bubble .bubble-translation-exit[hidden]{display:none}#island-bubble .bubble-music-button{position:static;width:24px;min-width:24px;height:24px;border-radius:8px;background:#eaf0f4}#island-bubble .bubble-music-button:disabled{opacity:.4;cursor:default}#island-bubble button:hover:not(:disabled){background:#dfe8ee}#island-bubble button:focus-visible,.pop-heading .btn:focus-visible{outline:2px solid #748d9e;outline-offset:2px}
 
 #island-bubble.voice-transcript .bubble-text{display:block;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:clip;font-size:13px;font-weight:400;line-height:1.45}.voice-transcript-line{display:inline-block;white-space:nowrap;will-change:transform}
+
+/* Compact bubbles follow the avatar, including text, controls and backing layer. */
+#island-bubble{padding:1px calc(var(--bubble-control-size,20px) + var(--bubble-gap,6px)*2) 1px var(--bubble-padding,14px);gap:var(--bubble-gap,6px);border-radius:var(--bubble-radius,18px)}
+#island-bubble:has(.bubble-expand:not([hidden])){padding-right:calc(var(--bubble-control-size,20px)*2 + var(--bubble-gap,6px)*3)}
+#island-bubble .bubble-preview,#island-bubble .bubble-text{font-size:var(--bubble-font,12px);line-height:1.4}#island-bubble[data-small=true] .bubble-preview{-webkit-line-clamp:1;max-height:1.4em}
+#island-bubble button{height:var(--bubble-control-size,20px);min-width:var(--bubble-control-size,20px);font-size:var(--bubble-action-font,11px)}
+#island-bubble .bubble-close{right:var(--bubble-gap,6px);width:var(--bubble-control-size,20px);min-width:0;font-size:var(--bubble-font,12px)}
+#island-bubble .bubble-expand{right:calc(var(--bubble-control-size,20px) + var(--bubble-gap,6px)*2);width:var(--bubble-control-size,20px);min-width:0;top:50%;bottom:auto;transform:translateY(-50%)}
+#island-bubble.focus-widget{padding-left:var(--bubble-padding,14px)}#island-bubble .bubble-preview{gap:var(--bubble-gap,6px)}
+#island-bubble.focus-widget .bubble-preview button,#island-bubble.focus-widget.translating .bubble-preview button,#island-bubble .bubble-translation-exit{height:var(--bubble-action-height,26px);padding:0 var(--bubble-gap,6px);font-size:var(--bubble-action-font,11px);line-height:1.2;border-radius:calc(var(--bubble-control-size,20px)*.3)}
+#island-bubble .bubble-music-controls{gap:calc(var(--bubble-gap,6px)*.66)}#island-bubble .bubble-music-button{width:var(--bubble-control-size,20px);min-width:var(--bubble-control-size,20px);height:var(--bubble-control-size,20px)}#island-bubble .bubble-music-button svg{width:70%;height:70%}#island-bubble .bubble-music-tail{font-size:var(--bubble-font,12px)}
+#island-bubble-stack .stacked-bubble{border-radius:inherit}#island-bubble-stack{border-radius:calc(var(--top-sprite-size,90px)*.2)}
