@@ -1,7 +1,8 @@
 'use strict';
-const {contextBridge,ipcRenderer}=require('electron');
+const {contextBridge,ipcRenderer,webUtils}=require('electron');
 const listen=(channel,callback)=>{const handler=(_event,value)=>callback(value);ipcRenderer.on(channel,handler);return ()=>ipcRenderer.removeListener(channel,handler);};
 contextBridge.exposeInMainWorld('widgetApi',{
+ fileDrag:ids=>ipcRenderer.send('widgets:fileDrag',ids),filePath:file=>webUtils.getPathForFile(file),moveDrag:value=>ipcRenderer.invoke('widgets:moveDrag',value),
  dockDrag:value=>ipcRenderer.invoke('widgets:dockDrag',value),
  detach:()=>ipcRenderer.invoke('widgets:detach'),state:()=>ipcRenderer.invoke('widgets:state'),update:(id,patch)=>ipcRenderer.invoke('widgets:update',{id,patch}),call:(method,value)=>ipcRenderer.invoke('widgets:call',{method,value}),
  onLayoutError:callback=>listen('widgets:layoutError',callback),onChanged:callback=>listen('widgets:changed',callback),onDataChanged:callback=>listen('widgets:dataChanged',callback),onFilesChanged:callback=>listen('files:changed',callback),onNotesChanged:callback=>listen('toolbox:changed',callback),

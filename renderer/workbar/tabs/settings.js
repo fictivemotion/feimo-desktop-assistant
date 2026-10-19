@@ -119,7 +119,7 @@
         <h4><span data-icon="Paw" data-size="16"></span> 顶部精灵与气泡</h4>
         <div class="card">
           <p class="muted">斐墨 · Rive · 黑色圆形伙伴</p>
-          <div class="field" style="margin-top:16px"><label for="st-top-sprite-size">顶部精灵尺寸 <output id="st-top-sprite-size-value">${Math.max(48,Math.min(180,Number(settings.ui?.topSpriteSize)||90))} px</output></label><input id="st-top-sprite-size" type="range" min="48" max="180" step="1" value="${Math.max(48,Math.min(180,Number(settings.ui?.topSpriteSize)||90))}"><p class="hint">拖动即可调整精灵与气泡高度。双击顶部气泡任意位置，可调整底色透明度、日夜模式与文字颜色。</p></div>
+          <div class="field" style="margin-top:16px"><label for="st-top-sprite-size">顶部精灵尺寸 <output id="st-top-sprite-size-value">${Math.max(24,Math.min(180,Number(settings.ui?.topSpriteSize)||90))} px</output></label><input id="st-top-sprite-size" type="range" min="24" max="180" step="1" value="${Math.max(24,Math.min(180,Number(settings.ui?.topSpriteSize)||90))}"><p class="hint">拖动即可调整精灵与气泡高度。双击顶部气泡任意位置，可调整底色透明度、日夜模式与文字颜色。</p></div>
 
         </div>
       </div>
