@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 /** 工作栏桥：仅白名单方法，参数在主进程校验。 */
 contextBridge.exposeInMainWorld('api', {
+  bedtimeNight:()=>ipcRenderer.invoke('bedtime:night'),
   islandNotify:(text,error=false)=>ipcRenderer.invoke('island:notify',{text,error}),translationStart:()=>ipcRenderer.invoke('translation:start'),translationStop:()=>ipcRenderer.invoke('translation:stop'),translationState:()=>ipcRenderer.invoke('translation:state'),islandSprite:()=>ipcRenderer.invoke('island:sprite'),onIslandResetHover:cb=>ipcRenderer.on('island:resetHover',()=>cb()),
   screenshot:()=>ipcRenderer.invoke('screenshot:start'),captureStatus:()=>ipcRenderer.invoke('screenshot:status'),captureGuide:()=>ipcRenderer.invoke('screenshot:guide'),
   fileSearch:q=>ipcRenderer.invoke('files:search',q),fileContext:ids=>ipcRenderer.invoke('files:context',ids),fileDrag:id=>ipcRenderer.send('files:drag',id),

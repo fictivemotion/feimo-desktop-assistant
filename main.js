@@ -70,7 +70,7 @@ if (!gotLock) {
 function bootstrap() {
   paths.init(app);
   const bus = new EventBus();
-  let island=null,desktopWidgets=null,quitting=false,pendingWorkbarShow=false;
+  let island=null,desktopWidgets=null,bedtime=null,quitting=false,pendingWorkbarShow=false;
   function sendWorkbar(channel,data){desktopWidgets?.broadcast(channel,data);for(const win of [workbarWin,island?.win])if(alive(win))win.webContents.send(channel,data);}
 
   // ---------- 设置与密钥 ----------
@@ -1454,7 +1454,9 @@ function bootstrap() {
       positionQuick(); quickWin.showInactive(); quickExpanded = false; quickWin.webContents.send('quick:expanded', false);
     });
     island=new IslandHost({electron:require('electron'),settings,dir:paths.dataDir(),getSecret,setSecret,registry,getPetState:()=>currentPet,getFocus:()=>focus.view(),getVoice:()=>voice?.state(),getConversation:()=>conversation?.state()||{active:false},getSoundscape:()=>soundscape.view(),getTranslation:()=>translator.state(),ocr:file=>ocr.recognize(file),onArchive:r=>showPromptCard({kind:'archive',title:r.count>1?'这 '+r.count+' 个文件统一放在哪里？':'这份文件放在哪里？',text:r.name,subtitle:r.reason,archive:r},3),onSaved:text=>speak(text,{force:true}),showWorkbar,onUIChange:broadcastPetState,onMode:mode=>{if(mode==='island'){pendingWorkbarShow=false;workbarWin?.hide();petWin?.hide();speechWin?.hide();quickWin?.hide();}else if(alive(petWin))petWin.showInactive();}});
-    void island.start().catch(()=>console.error('[island] startup failed'));
+    bedtime=new(require('./lib/bedtime').Bedtime)({dir:paths.dataDir(),notice:value=>island?.notice(value),canNotify:()=>!screenLocked&&!!island?.win&&!island.win.isDestroyed()&&!island.win.webContents.isLoadingMainFrame()});
+    ipc.handle('bedtime:night',event=>{if(event.sender!==island?.win?.webContents)throw Error('此窗口不能操作晚安吊灯');return bedtime.night();});
+    void island.start().then(()=>bedtime.start()).catch(()=>console.error('[island] startup failed'));
     desktopWidgets=new(require('./lib/desktop-widgets').DesktopWidgets)({electron:require('electron'),dir:paths.dataDir(),managerAllowed:sender=>[workbarWin,island?.win].some(w=>w?.webContents===sender),onChange:value=>sendWorkbar('widgets:listChanged',value),actions:{
       calendarView,calendarComplete,onCompletionChanged:calendarChanged,calendarAdd:item=>{calendar.create({...item,reminderOffsets:item?.reminderOffsets??settings.get('calendar',{}).defaultReminderOffsets??[15]});calendarChanged();return calendarView();},
       calendarUpdate:({source,externalId,item,scope,recurrenceInstanceId}={})=>{calendar.update(source,externalId,item,{scope,recurrenceInstanceId});calendarChanged();return calendarView();},
@@ -1500,11 +1502,11 @@ function bootstrap() {
     companionTimer=setInterval(tickCompanion,1000);companionTimer.unref?.();tickCompanion();
 
     powerMonitor.on('resume', () => {
-      scheduler.onWake();tickCompanion();
+      scheduler.onWake();tickCompanion();void bedtime?.tick();
       broadcastPetState();
     });
     powerMonitor.on('lock-screen', () => {screenLocked=true;void voice?.cancel();void conversation?.stop();});
-    powerMonitor.on('unlock-screen',()=>{screenLocked=false;tickCompanion();});
+    powerMonitor.on('unlock-screen',()=>{screenLocked=false;tickCompanion();void bedtime?.tick();});
     powerMonitor.on('suspend',()=>{void voice?.cancel();void conversation?.stop();});
 
     app.on('activate',restoreAssistant);
@@ -1513,7 +1515,7 @@ function bootstrap() {
     powerMonitor.on('unlock-screen',restoreAssistant);
   });
 
-  app.on('before-quit',()=>{island?.releaseEdgePin();translator.dispose();quitting=true;desktopWidgets?.stop();});
+  app.on('before-quit',()=>{bedtime?.stop();island?.releaseEdgePin();translator.dispose();quitting=true;desktopWidgets?.stop();});
   app.on('will-quit', () => {
     voiceIdle.dispose();conversationIdle.dispose();calendarPlanner.stop();captureHost?.stop();captureRuntime.stop();
     island?.stop();

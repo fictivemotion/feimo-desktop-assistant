@@ -13,10 +13,10 @@
   if(motion&&spriteEnvelope){Object.assign(rect,spriteEnvelope);}else if(motion&&!spriteMode){const width=full?panel.offsetWidth:Math.min(420,innerWidth-16),height=full?panel.offsetHeight:66;rect.x=(innerWidth-width)/2;rect.y=2;rect.width=width;rect.height=height;}
   const rects=[rect];const append=r=>{if(!rects.some(a=>r.x>=a.x&&r.y>=a.y&&r.x+r.width<=a.x+a.width&&r.y+r.height<=a.y+a.height))rects.push(r);};
   if(!hidden&&!(motion&&full&&!spriteMode)){
-   for(const n of document.querySelectorAll('#bubble-appearance:not([hidden]),#top-sprite,#compact-hide,#quick-pills:not([hidden]),#island-bubble:not([hidden]),#island-bubble-stack:not([hidden]) .stacked-bubble,#island-cards:not([hidden]) .island-pop-card:not([hidden]),dialog[open]'))if(visible(n)){const r=box(n);if(n.id==='island-bubble'||n.classList.contains('stacked-bubble')){r.x-=8;r.y-=8;r.width+=16;r.height+=16;}append(r);}
+   for(const n of document.querySelectorAll('#bedtime-lamp:not([hidden]),#bubble-appearance:not([hidden]),#top-sprite,#compact-hide,#quick-pills:not([hidden]),#island-bubble:not([hidden]),#island-bubble-stack:not([hidden]) .stacked-bubble,#island-cards:not([hidden]) .island-pop-card:not([hidden]),dialog[open]'))if(visible(n)){const r=box(n);if(n.id==='island-bubble'||n.classList.contains('stacked-bubble')){r.x-=8;r.y-=8;r.width+=16;r.height+=16;}append(r);}
    for(const [id,gap]of [['quick-pills',20],['island-cards',8],['bubble-appearance',10]]){const n=document.getElementById(id);if(visible(n)){const r=box(n);rects.unshift({x:r.x,y:r.y-gap,width:r.width,height:gap});}}
   }
-  if(!hidden&&spriteMode){for(const id of ['island-bubble','island-cards']){const node=document.getElementById(id);if(visible(node)){const r=box(node);if(r.y<=rect.y+rect.height&&r.x>=rect.x+rect.width)rects.push({x:rect.x+rect.width,y:rect.y,width:r.x-rect.x-rect.width,height:rect.height});}}}
+  if(!hidden&&spriteMode){for(const id of ['island-bubble','island-cards','bedtime-lamp']){const node=document.getElementById(id);if(visible(node)){const r=box(node);if(r.y<=rect.y+rect.height&&r.x>=rect.x+rect.width)rects.push({x:rect.x+rect.width,y:rect.y,width:r.x-rect.x-rect.width,height:rect.height});}}}
   const next=JSON.stringify(rects);if(force||next!==signature){signature=next;api.islandHit?.(rects);}
  }
  function tick(){frame=null;publish();if(performance.now()<until)frame=requestAnimationFrame(tick);}

@@ -250,3 +250,11 @@ Dock 首项为斐墨语音，Agent 页整合 Coding 会话与 Token 用量。语
 ![语音输入统计与服务设置，演示数据](docs/images/voice-workbench.png)
 
 Rive 形象与动作说明见 [RIVE-COMPANION.md](docs/RIVE-COMPANION.md)，顶部状态与翻译见 [TOP-SPRITE.md](docs/TOP-SPRITE.md)。
+
+## 晚安吊灯
+
+鼠标在顶部精灵头像上保持静止3秒，会出现一盏暖色吊灯。点击吊灯关灯，斐墨打哈欠并说“事已至此先睡觉吧，明天继续努力”。仅将可控制的屏幕亮度降为0，以及当前电源方案的“已接通电源→在此时间后关闭我的屏幕”设为1分钟；电脑仍有操作时，Windows会重新计算空闲时间。电池、睡眠、休眠选项不变。外接屏调光需要显示器支持DDC/CI；无法调光时会明确提示。
+
+首次点击会启用每天08:00的Windows后台恢复任务，将上述熄屏超时改为1小时，并气泡提示“帮你把亮屏时间调到一小时啦”。亮度不会自动改回。助手退出后任务仍可执行，电脑关机/休眠时不能即时执行，会于恢复可用后补做，助手再次启动/解锁后补发当天通知。该任务不唤醒电脑，不改变睡眠或休眠设置。新用户未使用吊灯前不会改变任何电源设置。
+
+接口依据：[微软Powercfg文档](https://learn.microsoft.com/en-us/windows-hardware/design/device-experiences/powercfg-command-line-options)、[WMI亮度接口](https://learn.microsoft.com/en-us/windows/win32/wmicoreprov/wmimonitorbrightnessmethods)、[任务计划补做机制](https://learn.microsoft.com/windows/win32/taskschd/tasksettings)。

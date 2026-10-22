@@ -1,0 +1,6 @@
+#bedtime-lamp{position:fixed;z-index:46;margin:0;padding:0;min-width:0;border:0;background:transparent;box-shadow:none;cursor:pointer;overflow:visible;pointer-events:auto;border-radius:16px;animation:bedtime-appear .24s ease-out;transform-origin:50% 0}
+#bedtime-lamp[hidden],body:not([data-top-state=sprite]):not([data-top-state=capsule]) #bedtime-lamp{display:none}
+#bedtime-lamp svg{display:block;width:100%;height:100%;overflow:visible;pointer-events:none}
+#bedtime-lamp .lamp-cord{stroke:#b5bec9;stroke-width:3;fill:none}#bedtime-lamp .lamp-shade{fill:#f3ca76;stroke:#c89447;stroke-width:1.5;stroke-linejoin:round}#bedtime-lamp .lamp-bulb{fill:#fff2b2}#bedtime-lamp .lamp-rim{stroke:#ffe8a4;stroke-width:3;stroke-linecap:round}#bedtime-lamp .lamp-light{fill:#ffe8a4;opacity:.38}
+#bedtime-lamp.lamp-off .lamp-light,#bedtime-lamp.lamp-off .lamp-bulb{opacity:0}#bedtime-lamp.lamp-off .lamp-shade{fill:#78818f;stroke:#a6b0bc}#bedtime-lamp.lamp-off .lamp-rim{stroke:#a6b0bc}#bedtime-lamp:focus-visible{outline:2px solid #e8c774;outline-offset:2px}
+@keyframes bedtime-appear{from{opacity:0;transform:translateY(-6px) rotate(-6deg)}to{opacity:1;transform:none}}@media(prefers-reduced-motion:reduce){#bedtime-lamp{animation:none}}
