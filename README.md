@@ -258,3 +258,7 @@ Rive 形象与动作说明见 [RIVE-COMPANION.md](docs/RIVE-COMPANION.md)，顶�
 首次点击会启用每天08:00的Windows后台恢复任务，将上述熄屏超时改为1小时，并气泡提示“帮你把亮屏时间调到一小时啦”。亮度不会自动改回。助手退出后任务仍可执行，电脑关机/休眠时不能即时执行，会于恢复可用后补做，助手再次启动/解锁后补发当天通知。该任务不唤醒电脑，不改变睡眠或休眠设置。新用户未使用吊灯前不会改变任何电源设置。
 
 接口依据：[微软Powercfg文档](https://learn.microsoft.com/en-us/windows-hardware/design/device-experiences/powercfg-command-line-options)、[WMI亮度接口](https://learn.microsoft.com/en-us/windows/win32/wmicoreprov/wmimonitorbrightnessmethods)、[任务计划补做机制](https://learn.microsoft.com/windows/win32/taskschd/tasksettings)。
+
+## 气泡阅读
+
+所有紧凑气泡按头像尺寸统一采用14—20px文字。歌词、提醒、问答、计时、语音与翻译使用同一字号和字重。长文字自动从头滚至句尾，语音保留最新字幕优先；短文字不滚动。气泡高度仍随头像调整，宽度优先保证阅读；右侧空间不足时自动移至头像下方。双击仍可设置气泡外观，展开仍可阅读完整消息。开启系统“减少动态效果”时不自动滚动，可在文字上用滚轮查看全文。

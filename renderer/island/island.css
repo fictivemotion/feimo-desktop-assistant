@@ -97,3 +97,11 @@ body[data-top-state=capsule] #island-bubble{display:none}
 #island-bubble.focus-widget .bubble-preview button,#island-bubble.focus-widget.translating .bubble-preview button,#island-bubble .bubble-translation-exit{height:var(--bubble-action-height,26px);padding:0 var(--bubble-gap,6px);font-size:var(--bubble-action-font,11px);line-height:1.2;border-radius:calc(var(--bubble-control-size,20px)*.3)}
 #island-bubble .bubble-music-controls{gap:calc(var(--bubble-gap,6px)*.66)}#island-bubble .bubble-music-button{width:var(--bubble-control-size,20px);min-width:var(--bubble-control-size,20px);height:var(--bubble-control-size,20px)}#island-bubble .bubble-music-button svg{width:70%;height:70%}#island-bubble .bubble-music-tail{font-size:var(--bubble-font,12px)}
 #island-bubble-stack .stacked-bubble{border-radius:inherit}#island-bubble-stack{border-radius:calc(var(--top-sprite-size,90px)*.2)}
+
+/* Every compact message uses the same readable line and overflow viewport. */
+#island-bubble .bubble-preview{display:flex;align-items:center;min-width:0;max-height:none;white-space:nowrap;-webkit-line-clamp:unset;-webkit-box-orient:initial;overflow:hidden}
+#island-bubble .bubble-preview,#island-bubble .bubble-preview .bubble-text{font-family:inherit;font-size:var(--bubble-font,16px);font-weight:500;line-height:1.25}
+#island-bubble .bubble-preview .bubble-text{display:block;flex:1 1 0;min-width:0;overflow:hidden;text-overflow:clip;white-space:nowrap;font-variant-numeric:tabular-nums}
+#island-bubble .bubble-text-line{display:inline-block;max-width:none;white-space:nowrap;vertical-align:top;will-change:transform}
+#island-bubble .bubble-text.manual-scroll{overflow-x:auto;scrollbar-width:none}#island-bubble .bubble-text.manual-scroll::-webkit-scrollbar{display:none}
+#island-bubble .bubble-text:focus-visible{outline:1px solid currentColor;outline-offset:-1px}
