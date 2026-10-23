@@ -1,6 +1,6 @@
 'use strict';
 (function(root,factory){const value=factory();if(typeof module==='object')module.exports=value;else root.FeimoBubbleText=value;})(typeof globalThis==='object'?globalThis:this,()=>{
- function metrics(size){const px=Math.max(24,Math.min(180,Number(size)||90)),scale=Math.sqrt(px/90),height=Math.round(px*.82),font=Math.max(14,Math.min(20,Math.round(16*scale)));return {height,font,actionFont:Math.max(12,font-2),maxWidth:Math.max(280,Math.round(340*scale)),minTextWidth:font*8};}
+ function metrics(size,fontSize){const px=Math.max(24,Math.min(180,Number(size)||90)),scale=Math.sqrt(px/90),font=Number.isFinite(fontSize)?Math.max(12,Math.min(28,fontSize)):Math.max(14,Math.min(20,Math.round(16*scale))),height=Number.isFinite(fontSize)?Math.max(Math.round(px*.82),Math.ceil(font*1.25)+4):Math.round(px*.82);return {height,font,actionFont:Math.max(12,font-2),maxWidth:Math.max(280,Math.round(340*scale)),minTextWidth:font*8};}
  class Scroller{
   constructor(reduced=()=>false){this.reduced=reduced;this.key='';this.animation=null;this.line=null;}
   stop(){this.animation?.cancel();this.animation=null;this.key='';if(this.line)this.line.style.transform='none';this.line=null;}

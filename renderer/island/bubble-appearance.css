@@ -16,3 +16,5 @@
 #bubble-color-panel{padding-top:12px;display:grid;gap:10px}#bubble-color-panel label{display:flex;align-items:center;justify-content:space-between;gap:8px}#bubble-color-panel input[type=color]{width:70px;height:28px;padding:1px;border:0;background:transparent}.appearance-status:empty{display:none}.appearance-status{display:block;padding-top:6px}
 body:not([data-top-state=sprite]) #bubble-appearance{display:none}
 @media(prefers-reduced-transparency:reduce){#bubble-appearance{background:#fff}.bubble-night #bubble-appearance{background:#11151c}}
+
+#island-cards .pop-body{font-size:var(--bubble-reading-font,inherit)}

@@ -4,7 +4,7 @@
 
 **A small desktop companion for quick everyday tasks.**
 
-顶部 Rive 精灵 · 语音输入与 AI 校对 · 快捷对话 · 倒计时 / 番茄钟 · 剪贴板速清 · 本地 OCR · Coding 会话提醒 · Token 用量 · Notion 日程 · 白噪音
+悬浮问答卡片（DeepSeek / Qwen / 本机 Codex） · 气泡字号调节 · 顶部 Rive 精灵 · 语音输入与 AI 校对 · 快捷对话 · 倒计时 / 番茄钟 · 剪贴板速清 · 本地 OCR · Coding 会话提醒 · Token 用量 · Notion 日程 · 白噪音
 
 [Windows 发布页](https://github.com/fictivemotion/feimo-desktop-assistant/releases) · [功能介绍](#功能一览) · [隐私说明](docs/PRIVACY.md) · [发布记录](RELEASE_NOTES.md)
 

@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('widgetApi',{
  fileDrag:ids=>ipcRenderer.send('widgets:fileDrag',ids),filePath:file=>webUtils.getPathForFile(file),moveDrag:value=>ipcRenderer.invoke('widgets:moveDrag',value),
  dockDrag:value=>ipcRenderer.invoke('widgets:dockDrag',value),
  detach:()=>ipcRenderer.invoke('widgets:detach'),state:()=>ipcRenderer.invoke('widgets:state'),update:(id,patch)=>ipcRenderer.invoke('widgets:update',{id,patch}),call:(method,value)=>ipcRenderer.invoke('widgets:call',{method,value}),
+ onQaChanged:callback=>listen('qa:changed',callback),
  onLayoutError:callback=>listen('widgets:layoutError',callback),onChanged:callback=>listen('widgets:changed',callback),onDataChanged:callback=>listen('widgets:dataChanged',callback),onFilesChanged:callback=>listen('files:changed',callback),onNotesChanged:callback=>listen('toolbox:changed',callback),
  onCalendarChanged:callback=>listen('calendar:changed',callback),onCalendarPlannerProgress:callback=>listen('calendar:plannerProgress',callback),
 });

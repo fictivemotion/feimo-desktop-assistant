@@ -1,6 +1,6 @@
 'use strict';
 (()=>{
- const names={calendar:'日历日程',todo:'重要级待办',files:'文件库',notes:'速记列表'},icons={calendar:'CalendarDays',todo:'ClipboardText',files:'Folder',notes:'NoteText'};
+ const names={calendar:'日历日程',todo:'重要级待办',files:'文件库',notes:'速记列表',chat:'问答'},icons={calendar:'CalendarDays',todo:'ClipboardText',files:'Folder',notes:'NoteText',chat:'ChatDots'};
  const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
  function button(text,fn){const b=el('button',text,'dw-button');b.type='button';b.onclick=fn;return b;}
  function controls(item,save){const form=el('div',undefined,'dw-form');

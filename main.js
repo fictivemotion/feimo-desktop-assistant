@@ -70,7 +70,7 @@ if (!gotLock) {
 function bootstrap() {
   paths.init(app);
   const bus = new EventBus();
-  let island=null,desktopWidgets=null,bedtime=null,quitting=false,pendingWorkbarShow=false;
+  let island=null,desktopWidgets=null,qaChat=null,bedtime=null,quitting=false,pendingWorkbarShow=false;
   function sendWorkbar(channel,data){desktopWidgets?.broadcast(channel,data);for(const win of [workbarWin,island?.win])if(alive(win))win.webContents.send(channel,data);}
 
   // ---------- 设置与密钥 ----------
@@ -1500,7 +1500,9 @@ function bootstrap() {
       if(message)island.notice({...message,expiresAt:now+(message.kind==='bedtime'?45000:20000)});
     };
     companionTimer=setInterval(tickCompanion,1000);companionTimer.unref?.();tickCompanion();
+    qaChat=new(require('./lib/qa-chat').QaChat)({dir:paths.dataDir(),settings,getSecret,deepseekCredential:()=>textCleaner.credential(),extract:file=>island.files.extract(file),encrypt:text=>{if(!safeStorage.isEncryptionAvailable())throw Error('本机加密服务暂不可用');return safeStorage.encryptString(text);},decrypt:buffer=>safeStorage.decryptString(buffer),fetcher:(url,options)=>net.fetch(url,options),onChange:value=>desktopWidgets?.broadcast('qa:changed',value)});
 
+      qaModels:value=>qaChat.models(value),qaList:()=>qaChat.list(),qaRead:id=>qaChat.read(id),qaSend:value=>qaChat.send(value),qaStop:id=>qaChat.stop(id),qaDelete:id=>qaChat.remove(id),qaAttach:rows=>qaChat.attach(rows),qaImportHistory:value=>qaChat.importHistory(value),
     powerMonitor.on('resume', () => {
       scheduler.onWake();tickCompanion();void bedtime?.tick();
       broadcastPetState();
@@ -1515,7 +1517,7 @@ function bootstrap() {
     powerMonitor.on('unlock-screen',restoreAssistant);
   });
 
-  app.on('before-quit',()=>{bedtime?.stop();island?.releaseEdgePin();translator.dispose();quitting=true;desktopWidgets?.stop();});
+  app.on('before-quit',()=>{qaChat?.close();bedtime?.stop();island?.releaseEdgePin();translator.dispose();quitting=true;desktopWidgets?.stop();});
   app.on('will-quit', () => {
     voiceIdle.dispose();conversationIdle.dispose();calendarPlanner.stop();captureHost?.stop();captureRuntime.stop();
     island?.stop();
